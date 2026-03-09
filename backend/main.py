@@ -6,7 +6,7 @@ import os
 from dotenv import load_dotenv
 import logging
 
-from api.routes import documents, chat, quiz, flashcards, summary, planner
+from api.routes import documents, chat, quiz, flashcards, summary, planner, stats
 from services.auth_service import verify_token
 from models.global_models import preload_models
 
@@ -51,6 +51,7 @@ app.include_router(quiz.router, prefix="/api/quiz", tags=["quiz"])
 app.include_router(flashcards.router, prefix="/api/flashcards", tags=["flashcards"])
 app.include_router(summary.router, prefix="/api/summary", tags=["summary"])
 app.include_router(planner.router, prefix="/api/planner", tags=["planner"])
+app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 
 @app.get("/")
 async def root():

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from models.schemas import ChatRequest, ChatResponse
 from services.rag_service import RAGService
+from api.routes.stats import log_activity
 import traceback
 
 router = APIRouter()
@@ -16,6 +17,12 @@ async def ask_question(request: ChatRequest):
             request.question,
             request.use_eli12
         )
+        
+        # Log the question
+        log_activity(request.user_id, "question", {
+            "question": request.question,
+            "course": request.course_id
+        })
         
         return ChatResponse(**result)
     

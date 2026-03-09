@@ -1,20 +1,50 @@
 import streamlit as st
 import plotly.graph_objects as go
+import requests
+import os
+from datetime import datetime, timedelta
+
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 def show():
     st.title("📊 Dashboard")
+    
+    user_id = st.session_state.user_id
+    
+    # Fetch real stats
+    try:
+        response = requests.get(f"{API_URL}/api/stats/stats/{user_id}")
+        if response.status_code == 200:
+            stats = response.json()
+        else:
+            stats = {
+                "total_documents": 0,
+                "total_courses": 0,
+                "recent_questions": [],
+                "study_hours": 0,
+                "quizzes_taken": 0
+            }
+    except:
+        st.error("Could not fetch stats. Make sure backend is running.")
+        stats = {
+            "total_documents": 0,
+            "total_courses": 0,
+            "recent_questions": [],
+            "study_hours": 0,
+            "quizzes_taken": 0
+        }
     
     # Stats
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Documents", "12", "+3")
+        st.metric("Documents", stats["total_documents"])
     with col2:
-        st.metric("Courses", "4", "+1")
+        st.metric("Courses", stats["total_courses"])
     with col3:
-        st.metric("Study Hours", "24.5", "+2.5")
+        st.metric("Study Hours", f"{stats['study_hours']:.1f}")
     with col4:
-        st.metric("Quizzes Taken", "8", "+2")
+        st.metric("Quizzes Taken", stats["quizzes_taken"])
     
     st.divider()
     
@@ -23,22 +53,20 @@ def show():
     
     with col1:
         st.subheader("Recent Questions")
-        st.info("What is gradient descent?")
-        st.info("Explain neural networks")
-        st.info("How does backpropagation work?")
+        if stats["recent_questions"]:
+            for q in reversed(stats["recent_questions"][-5:]):  # Last 5
+                with st.container():
+                    st.info(f"**{q.get('course', 'Unknown')}**: {q.get('question', 'N/A')}")
+                    st.caption(f"Asked: {q.get('timestamp', 'Unknown')[:10]}")
+        else:
+            st.caption("No questions asked yet. Go to AI Tutor to start!")
     
     with col2:
-        st.subheader("Study Progress")
-        
-        # Simple progress chart
-        fig = go.Figure(data=[
-            go.Bar(x=["Mon", "Tue", "Wed", "Thu", "Fri"], 
-                   y=[2, 3, 1.5, 4, 2.5])
-        ])
-        fig.update_layout(
-            title="Study Hours This Week",
-            xaxis_title="Day",
-            yaxis_title="Hours",
-            height=300
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        st.subheader("Your Courses")
+        if stats.get("courses"):
+            for course in stats["courses"][:5]:  # Show first 5
+                with st.container():
+                    st.success(f"**{course['name']}**")
+                    st.caption(f"{course['document_count']} documents")
+        else:
+            st.caption("No courses yet. Go to Courses to create one!")
