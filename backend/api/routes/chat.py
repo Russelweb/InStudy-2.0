@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from models.schemas import ChatRequest, ChatResponse
 from services.rag_service import RAGService
 from api.routes.stats import log_activity
 import traceback
+import json
 
 router = APIRouter()
 rag_service = RAGService()
@@ -28,5 +30,30 @@ async def ask_question(request: ChatRequest):
     
     except Exception as e:
         print(f"Error in ask_question: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(500, f"Error answering question: {str(e)}")
+
+@router.post("/ask-stream")
+async def ask_question_stream(request: ChatRequest):
+    """Ask AI tutor a question with streaming response"""
+    try:
+        # Log the question
+        log_activity(request.user_id, "question", {
+            "question": request.question,
+            "course": request.course_id
+        })
+        
+        # Get streaming generator
+        stream = rag_service.answer_question_stream(
+            request.user_id,
+            request.course_id,
+            request.question,
+            request.use_eli12
+        )
+        
+        return StreamingResponse(stream, media_type="text/event-stream")
+    
+    except Exception as e:
+        print(f"Error in ask_question_stream: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(500, f"Error answering question: {str(e)}")
