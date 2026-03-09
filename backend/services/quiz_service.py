@@ -83,8 +83,10 @@ Generate {num_questions} questions now:"""
             result = json.loads(response_text)
             
             if "questions" in result and isinstance(result["questions"], list):
-                logger.info(f"Successfully generated {len(result['questions'])} questions")
-                return result["questions"]
+                # Validate and fix questions
+                fixed_questions = self._validate_and_fix_questions(result["questions"])
+                logger.info(f"Successfully generated {len(fixed_questions)} questions")
+                return fixed_questions
             else:
                 logger.error("Response missing 'questions' key or not a list")
                 return self._parse_quiz_fallback(num_questions, quiz_type)
@@ -93,7 +95,8 @@ Generate {num_questions} questions now:"""
             logger.error(f"Failed to parse quiz JSON: {e}")
             logger.error(f"Response was: {response[:500]}")
             # Try to extract questions manually
-            return self._extract_questions_from_text(response, num_questions, quiz_type)
+            extracted = self._extract_questions_from_text(response, num_questions, quiz_type)
+            return self._validate_and_fix_questions(extracted)
         except Exception as e:
             logger.error(f"Unexpected error parsing quiz: {e}")
             return self._parse_quiz_fallback(num_questions, quiz_type)
@@ -109,20 +112,25 @@ Generate {num_questions} questions now:"""
         question_pattern = r'"question":\s*"([^"]+)"'
         type_pattern = r'"type":\s*"([^"]+)"'
         answer_pattern = r'"correct_answer":\s*"([^"]+)"'
+        explanation_pattern = r'"explanation":\s*"([^"]+)"'
         
         question_texts = re.findall(question_pattern, text)
         types = re.findall(type_pattern, text)
         answers = re.findall(answer_pattern, text)
+        explanations = re.findall(explanation_pattern, text)
         
         # Build questions from extracted data
-        for i in range(min(len(question_texts), len(answers))):
+        for i in range(min(len(question_texts), num_questions)):
             q_type = types[i] if i < len(types) else "multiple_choice"
+            answer = answers[i] if i < len(answers) else "A"
+            explanation = explanations[i] if i < len(explanations) else "No explanation provided"
+            
             questions.append({
                 "question": question_texts[i],
                 "type": q_type,
                 "options": ["Option A", "Option B", "Option C", "Option D"] if q_type == "multiple_choice" else ["True", "False"],
-                "correct_answer": answers[i],
-                "explanation": "Extracted from partial response"
+                "correct_answer": answer,
+                "explanation": explanation
             })
         
         if questions:
@@ -130,6 +138,40 @@ Generate {num_questions} questions now:"""
             return questions
         
         return self._parse_quiz_fallback(num_questions, quiz_type)
+    
+    def _validate_and_fix_questions(self, questions: list) -> list:
+        """Validate and fix questions to ensure all required fields are present"""
+        fixed_questions = []
+        
+        for i, q in enumerate(questions):
+            # Ensure all required fields exist with defaults
+            fixed_q = {
+                "question": q.get("question", f"Question {i+1}"),
+                "type": q.get("type", "multiple_choice"),
+                "options": q.get("options", ["A", "B", "C", "D"]),
+                "correct_answer": q.get("correct_answer", "A"),
+                "explanation": q.get("explanation", "No explanation provided")
+            }
+            
+            # Validate question is not empty
+            if not fixed_q["question"] or fixed_q["question"].strip() == "":
+                continue
+            
+            # Ensure options is a list
+            if not isinstance(fixed_q["options"], list):
+                fixed_q["options"] = ["A", "B", "C", "D"]
+            
+            # Ensure correct_answer exists
+            if not fixed_q["correct_answer"]:
+                fixed_q["correct_answer"] = fixed_q["options"][0] if fixed_q["options"] else "A"
+            
+            # Ensure explanation exists
+            if not fixed_q["explanation"] or fixed_q["explanation"].strip() == "":
+                fixed_q["explanation"] = "No explanation provided"
+            
+            fixed_questions.append(fixed_q)
+        
+        return fixed_questions
     
     def _parse_quiz_fallback(self, num_questions: int, quiz_type: str):
         """Fallback parser if JSON fails"""
