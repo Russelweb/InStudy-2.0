@@ -1,0 +1,73 @@
+Machine Learning - Study Notes
+
+Introduction to Machine Learning
+Machine Learning is a subset of artificial intelligence that enables systems to learn from data without being explicitly programmed. It focuses on developing algorithms that can identify patterns and make decisions.
+
+Types of Machine Learning
+
+1. Supervised Learning
+Supervised learning uses labeled data to train models. The algorithm learns from input-output pairs.
+Examples: Classification, Regression
+Common algorithms: Linear Regression, Decision Trees, Neural Networks
+
+2. Unsupervised Learning
+Unsupervised learning finds patterns in unlabeled data.
+Examples: Clustering, Dimensionality Reduction
+Common algorithms: K-Means, PCA, Autoencoders
+
+3. Reinforcement Learning
+The agent learns by interacting with an environment and receiving rewards or penalties.
+Examples: Game playing, Robotics
+Common algorithms: Q-Learning, Deep Q-Networks
+
+Neural Networks
+Neural networks are computing systems inspired by biological neural networks. They consist of:
+- Input Layer: Receives data
+- Hidden Layers: Process information
+- Output Layer: Produces predictions
+
+Activation Functions: ReLU, Sigmoid, Tanh
+These introduce non-linearity into the network.
+
+Gradient Descent
+An optimization algorithm used to minimize the loss function by iteratively adjusting parameters.
+
+Steps:
+1. Initialize parameters randomly
+2. Calculate loss
+3. Compute gradients
+4. Update parameters: θ = θ - α∇J(θ)
+5. Repeat until convergence
+
+Learning Rate (α): Controls step size
+Too high: May overshoot minimum
+Too low: Slow convergence
+
+Overfitting and Regularization
+Overfitting occurs when a model learns training data too well, including noise.
+
+Prevention techniques:
+- Cross-validation
+- Regularization (L1, L2)
+- Dropout
+- Early stopping
+- More training data
+
+Model Evaluation
+Metrics for classification:
+- Accuracy
+- Precision
+- Recall
+- F1-Score
+
+Metrics for regression:
+- Mean Squared Error (MSE)
+- Root Mean Squared Error (RMSE)
+- R-squared
+
+Key Concepts for Exam
+1. Understand bias-variance tradeoff
+2. Know when to use each ML type
+3. Explain gradient descent process
+4. Describe neural network architecture
+5. Identify overfitting and solutions
