@@ -24,34 +24,76 @@ def show():
         quiz_type = st.selectbox("Type", ["Mixed", "Multiple Choice", "True/False", "Short Answer"])
     
     if st.button("🎯 Generate Quiz", use_container_width=True):
-        with st.spinner("Creating quiz..."):
-            try:
-                type_map = {
-                    "Mixed": "mixed",
-                    "Multiple Choice": "multiple_choice",
-                    "True/False": "true_false",
-                    "Short Answer": "short_answer"
-                }
+        # Create progress container
+        progress_container = st.empty()
+        status_container = st.empty()
+        
+        try:
+            type_map = {
+                "Mixed": "mixed",
+                "Multiple Choice": "multiple_choice",
+                "True/False": "true_false",
+                "Short Answer": "short_answer"
+            }
+            
+            # Show progress
+            with progress_container:
+                progress_bar = st.progress(0)
+                with status_container:
+                    st.info("🔍 Retrieving study materials...")
                 
-                response = requests.post(
-                    f"{API_URL}/api/quiz/generate",
-                    json={
-                        "user_id": st.session_state.user_id,
-                        "course_id": st.session_state.current_course,
-                        "num_questions": num_questions,
-                        "difficulty": difficulty,
-                        "quiz_type": type_map[quiz_type]
-                    }
-                )
+                progress_bar.progress(20)
                 
-                if response.status_code == 200:
-                    st.session_state.quiz_questions = response.json()["questions"]
-                    st.session_state.quiz_answers = {}
-                    st.success(f"Quiz generated with {len(st.session_state.quiz_questions)} questions!")
-                else:
-                    st.error("Failed to generate quiz")
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
+                with status_container:
+                    st.info("🧠 Analyzing content...")
+                
+                progress_bar.progress(40)
+                
+                with status_container:
+                    st.info(f"✍️ Generating {num_questions} questions...")
+            
+            response = requests.post(
+                f"{API_URL}/api/quiz/generate",
+                json={
+                    "user_id": st.session_state.user_id,
+                    "course_id": st.session_state.current_course,
+                    "num_questions": num_questions,
+                    "difficulty": difficulty,
+                    "quiz_type": type_map[quiz_type]
+                },
+                timeout=120
+            )
+            
+            with progress_container:
+                progress_bar.progress(80)
+                with status_container:
+                    st.info("✅ Validating questions...")
+            
+            if response.status_code == 200:
+                with progress_container:
+                    progress_bar.progress(100)
+                    with status_container:
+                        st.success("🎉 Quiz ready!")
+                
+                st.session_state.quiz_questions = response.json()["questions"]
+                st.session_state.quiz_answers = {}
+                
+                # Clear progress after a moment
+                import time
+                time.sleep(1)
+                progress_container.empty()
+                status_container.empty()
+                
+                st.success(f"Quiz generated with {len(st.session_state.quiz_questions)} questions!")
+                st.rerun()
+            else:
+                progress_container.empty()
+                status_container.empty()
+                st.error("Failed to generate quiz")
+        except Exception as e:
+            progress_container.empty()
+            status_container.empty()
+            st.error(f"Error: {str(e)}")
     
     st.divider()
     

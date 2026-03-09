@@ -26,33 +26,75 @@ def show():
         document_name = st.text_input("Document Name (optional)", placeholder="Leave empty for all documents")
     
     if st.button("✨ Generate Summary", use_container_width=True):
-        with st.spinner("Creating summary..."):
-            try:
-                style_map = {
-                    "Short": "short",
-                    "Bullet Points": "bullet",
-                    "Detailed": "detailed",
-                    "Exam Revision": "exam"
-                }
+        # Create progress container
+        progress_container = st.empty()
+        status_container = st.empty()
+        
+        try:
+            style_map = {
+                "Short": "short",
+                "Bullet Points": "bullet",
+                "Detailed": "detailed",
+                "Exam Revision": "exam"
+            }
+            
+            # Show progress
+            with progress_container:
+                progress_bar = st.progress(0)
+                with status_container:
+                    st.info("🔍 Loading documents...")
                 
-                response = requests.post(
-                    f"{API_URL}/api/summary/generate",
-                    json={
-                        "user_id": st.session_state.user_id,
-                        "course_id": st.session_state.current_course,
-                        "document_name": document_name if document_name else None,
-                        "style": style_map[summary_style]
-                    }
-                )
+                progress_bar.progress(25)
                 
-                if response.status_code == 200:
-                    summary = response.json()["summary"]
-                    st.session_state.current_summary = summary
-                    st.success("Summary generated!")
-                else:
-                    st.error("Failed to generate summary")
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
+                with status_container:
+                    st.info("📖 Reading content...")
+                
+                progress_bar.progress(50)
+                
+                with status_container:
+                    st.info(f"✍️ Creating {summary_style.lower()} summary...")
+            
+            response = requests.post(
+                f"{API_URL}/api/summary/generate",
+                json={
+                    "user_id": st.session_state.user_id,
+                    "course_id": st.session_state.current_course,
+                    "document_name": document_name if document_name else None,
+                    "style": style_map[summary_style]
+                },
+                timeout=120
+            )
+            
+            with progress_container:
+                progress_bar.progress(90)
+                with status_container:
+                    st.info("✅ Finalizing summary...")
+            
+            if response.status_code == 200:
+                with progress_container:
+                    progress_bar.progress(100)
+                    with status_container:
+                        st.success("🎉 Summary ready!")
+                
+                summary = response.json()["summary"]
+                st.session_state.current_summary = summary
+                
+                # Clear progress after a moment
+                import time
+                time.sleep(1)
+                progress_container.empty()
+                status_container.empty()
+                
+                st.success("Summary generated!")
+                st.rerun()
+            else:
+                progress_container.empty()
+                status_container.empty()
+                st.error("Failed to generate summary")
+        except Exception as e:
+            progress_container.empty()
+            status_container.empty()
+            st.error(f"Error: {str(e)}")
     
     st.divider()
     
