@@ -1,5 +1,8 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from services.document_processor import DocumentProcessor
+from api.routes.auth import get_authenticated_user
+from api.routes.stats import log_activity
+from models.auth_models import User
 import os
 import shutil
 from config import settings
@@ -11,11 +14,13 @@ doc_processor = DocumentProcessor()
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
-    user_id: str = Form(...),
-    course_id: str = Form(...)
+    course_id: str = Form(...),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """Upload and process document"""
     try:
+        user_id = str(current_user.id)
+        
         # Validate file type
         allowed_extensions = ['.pdf', '.txt', '.docx']
         file_ext = os.path.splitext(file.filename)[1].lower()
@@ -37,6 +42,13 @@ async def upload_document(
             file_path, user_id, course_id, file.filename
         )
         
+        # Log document upload activity
+        log_activity(user_id, "document_upload", {
+            "filename": file.filename,
+            "course": course_id,
+            "chunks": num_chunks
+        })
+        
         return {
             "message": "Document uploaded successfully",
             "filename": file.filename,
@@ -50,10 +62,14 @@ async def upload_document(
         print(traceback.format_exc())
         raise HTTPException(500, f"Error processing document: {str(e)}")
 
-@router.get("/list/{user_id}/{course_id}")
-async def list_documents(user_id: str, course_id: str):
+@router.get("/list/{course_id}")
+async def list_documents(
+    course_id: str,
+    current_user: User = Depends(get_authenticated_user)
+):
     """List all documents for a course"""
     try:
+        user_id = str(current_user.id)
         user_dir = os.path.join(settings.UPLOAD_DIR, user_id, course_id)
         
         if not os.path.exists(user_dir):

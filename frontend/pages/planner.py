@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import os
 from datetime import datetime, timedelta
+from utils.auth_utils import auth_manager
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -24,14 +25,15 @@ def show():
             else:
                 with st.spinner("Creating your personalized study plan..."):
                     try:
+                        headers = auth_manager.get_auth_headers()
                         response = requests.post(
                             f"{API_URL}/api/planner/create",
                             json={
-                                "user_id": st.session_state.user_id,
                                 "course_name": course_name,
                                 "exam_date": exam_date.strftime("%Y-%m-%d"),
                                 "topics": topics
-                            }
+                            },
+                            headers=headers
                         )
                         
                         if response.status_code == 200:

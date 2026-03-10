@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import os
+from utils.auth_utils import auth_manager
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -28,9 +29,10 @@ def show():
     
     st.divider()
     
-    # Fetch real courses
+    # Fetch real courses with authentication
     try:
-        response = requests.get(f"{API_URL}/api/stats/courses/{user_id}")
+        headers = auth_manager.get_auth_headers()
+        response = requests.get(f"{API_URL}/api/stats/courses", headers=headers)
         if response.status_code == 200:
             data = response.json()
             courses = data.get("courses", [])

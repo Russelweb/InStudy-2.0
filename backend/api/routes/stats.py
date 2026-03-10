@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pathlib import Path
 from config import settings
+from api.routes.auth import get_authenticated_user
+from models.auth_models import User
 import os
 from datetime import datetime
 import json
@@ -53,7 +55,7 @@ def get_user_stats(user_id: str):
     return stats
 
 def log_activity(user_id: str, activity_type: str, data: dict):
-    """Log user activity"""
+    """Log user activity with enhanced tracking"""
     user_upload_dir = Path(settings.UPLOAD_DIR) / user_id
     user_upload_dir.mkdir(parents=True, exist_ok=True)
     
@@ -64,6 +66,7 @@ def log_activity(user_id: str, activity_type: str, data: dict):
         "questions": [],
         "quizzes_taken": 0,
         "study_hours": 0,
+        "daily_activity": {},
         "last_updated": None
     }
     
@@ -74,6 +77,18 @@ def log_activity(user_id: str, activity_type: str, data: dict):
         except:
             pass
     
+    # Get current date for daily tracking
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    
+    # Initialize daily activity if not exists
+    if current_date not in activity.get("daily_activity", {}):
+        activity.setdefault("daily_activity", {})[current_date] = {
+            "questions": 0,
+            "quizzes": 0,
+            "study_time": 0,
+            "documents_uploaded": 0
+        }
+    
     # Update activity
     if activity_type == "question":
         activity["questions"].append({
@@ -83,12 +98,21 @@ def log_activity(user_id: str, activity_type: str, data: dict):
         })
         # Keep only last 50 questions
         activity["questions"] = activity["questions"][-50:]
+        
+        # Update daily activity
+        activity["daily_activity"][current_date]["questions"] += 1
     
     elif activity_type == "quiz":
         activity["quizzes_taken"] = activity.get("quizzes_taken", 0) + 1
+        activity["daily_activity"][current_date]["quizzes"] += 1
     
     elif activity_type == "study_session":
-        activity["study_hours"] = activity.get("study_hours", 0) + data.get("hours", 0)
+        hours = data.get("hours", 0)
+        activity["study_hours"] = activity.get("study_hours", 0) + hours
+        activity["daily_activity"][current_date]["study_time"] += hours
+    
+    elif activity_type == "document_upload":
+        activity["daily_activity"][current_date]["documents_uploaded"] += 1
     
     activity["last_updated"] = datetime.now().isoformat()
     
@@ -96,28 +120,35 @@ def log_activity(user_id: str, activity_type: str, data: dict):
     with open(activity_file, 'w') as f:
         json.dump(activity, f, indent=2)
 
-@router.get("/stats/{user_id}")
-async def get_stats(user_id: str):
+@router.get("/stats")
+async def get_stats(current_user: User = Depends(get_authenticated_user)):
     """Get user statistics"""
     try:
+        user_id = str(current_user.id)
         stats = get_user_stats(user_id)
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/activity/{user_id}")
-async def log_user_activity(user_id: str, activity_type: str, data: dict):
+@router.post("/activity")
+async def log_user_activity(
+    activity_type: str, 
+    data: dict,
+    current_user: User = Depends(get_authenticated_user)
+):
     """Log user activity"""
     try:
+        user_id = str(current_user.id)
         log_activity(user_id, activity_type, data)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/courses/{user_id}")
-async def get_user_courses(user_id: str):
+@router.get("/courses")
+async def get_user_courses(current_user: User = Depends(get_authenticated_user)):
     """Get all courses for a user"""
     try:
+        user_id = str(current_user.id)
         stats = get_user_stats(user_id)
         return {"courses": stats["courses"]}
     except Exception as e:

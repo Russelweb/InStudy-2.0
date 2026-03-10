@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import os
+from utils.auth_utils import auth_manager
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -19,63 +20,27 @@ def show():
         num_cards = st.slider("Number of flashcards", 5, 20, 10)
     with col2:
         if st.button("🎴 Generate Flashcards", use_container_width=True):
-            # Create progress container
-            progress_container = st.empty()
-            status_container = st.empty()
-            
-            try:
-                # Show progress
-                with progress_container:
-                    progress_bar = st.progress(0)
-                    with status_container:
-                        st.info("🔍 Analyzing study materials...")
+            with st.spinner("Creating flashcards..."):
+                try:
+                    headers = auth_manager.get_auth_headers()
+                    response = requests.post(
+                        f"{API_URL}/api/flashcards/generate",
+                        json={
+                            "course_id": st.session_state.current_course,
+                            "num_cards": num_cards
+                        },
+                        headers=headers
+                    )
                     
-                    progress_bar.progress(30)
-                    
-                    with status_container:
-                        st.info(f"🎴 Creating {num_cards} flashcards...")
-                
-                response = requests.post(
-                    f"{API_URL}/api/flashcards/generate",
-                    json={
-                        "user_id": st.session_state.user_id,
-                        "course_id": st.session_state.current_course,
-                        "num_cards": num_cards
-                    },
-                    timeout=120
-                )
-                
-                with progress_container:
-                    progress_bar.progress(80)
-                    with status_container:
-                        st.info("✅ Finalizing flashcards...")
-                
-                if response.status_code == 200:
-                    with progress_container:
-                        progress_bar.progress(100)
-                        with status_container:
-                            st.success("🎉 Flashcards ready!")
-                    
-                    st.session_state.flashcards = response.json()["flashcards"]
-                    st.session_state.current_card = 0
-                    st.session_state.show_back = False
-                    
-                    # Clear progress after a moment
-                    import time
-                    time.sleep(1)
-                    progress_container.empty()
-                    status_container.empty()
-                    
-                    st.success(f"Generated {len(st.session_state.flashcards)} flashcards!")
-                    st.rerun()
-                else:
-                    progress_container.empty()
-                    status_container.empty()
-                    st.error("Failed to generate flashcards")
-            except Exception as e:
-                progress_container.empty()
-                status_container.empty()
-                st.error(f"Error: {str(e)}")
+                    if response.status_code == 200:
+                        st.session_state.flashcards = response.json()["flashcards"]
+                        st.session_state.current_card = 0
+                        st.session_state.show_back = False
+                        st.success(f"Generated {len(st.session_state.flashcards)} flashcards!")
+                    else:
+                        st.error("Failed to generate flashcards")
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
     
     st.divider()
     

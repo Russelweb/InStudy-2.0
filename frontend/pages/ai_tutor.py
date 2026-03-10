@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import os
 import json
+from utils.auth_utils import auth_manager
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -26,14 +27,15 @@ def show():
                 try:
                     files = {"file": uploaded_file}
                     data = {
-                        "user_id": st.session_state.user_id,
                         "course_id": st.session_state.current_course
                     }
+                    headers = auth_manager.get_auth_headers()
                     
                     response = requests.post(
                         f"{API_URL}/api/documents/upload",
                         files=files,
                         data=data,
+                        headers=headers,
                         timeout=60
                     )
                     
@@ -84,15 +86,17 @@ def show():
             sources = []
             
             try:
+                headers = auth_manager.get_auth_headers()
+                
                 # Use streaming endpoint
                 response = requests.post(
                     f"{API_URL}/api/chat/ask-stream",
                     json={
-                        "user_id": st.session_state.user_id,
                         "course_id": st.session_state.current_course,
                         "question": question,
                         "use_eli12": use_eli12
                     },
+                    headers=headers,
                     stream=True,
                     timeout=120
                 )

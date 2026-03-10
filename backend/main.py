@@ -6,9 +6,10 @@ import os
 from dotenv import load_dotenv
 import logging
 
-from api.routes import documents, chat, quiz, flashcards, summary, planner, stats
+from api.routes import documents, chat, quiz, flashcards, summary, planner, stats, auth, admin
 from services.auth_service import verify_token
 from models.global_models import preload_models
+from middleware.auth_middleware import AuthMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -30,6 +31,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Authentication middleware
+app.add_middleware(AuthMiddleware)
+
 # Startup event to preload models
 @app.on_event("startup")
 async def startup_event():
@@ -45,6 +49,8 @@ async def startup_event():
         logger.error("The API will still start, but first requests may be slower.")
 
 # Routes
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(quiz.router, prefix="/api/quiz", tags=["quiz"])

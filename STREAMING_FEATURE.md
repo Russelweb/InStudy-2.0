@@ -6,18 +6,17 @@ InStudy 2.0 now supports **real-time streaming responses** for the AI Tutor! Ins
 
 ## What's New
 
-### AI Tutor (Streaming) ✨
-- **Before:** Wait 5-10 seconds → Full answer appears
-- **After:** Answer starts in 0.5s → Streams word-by-word!
+### Before (Non-Streaming)
+- User asks question
+- Loading spinner appears
+- Wait 5-10 seconds
+- Full answer appears at once
 
-### Quiz, Summary & Flashcards (Progress Indicators) ✨
-- **Before:** Generic "Creating..." spinner → Blind waiting
-- **After:** Step-by-step progress with status updates!
-  - "🔍 Retrieving study materials..."
-  - "🧠 Analyzing content..."
-  - "✍️ Generating questions..."
-  - "✅ Validating..."
-  - "🎉 Ready!"
+### After (Streaming) ✨
+- User asks question
+- Answer starts appearing immediately
+- Words stream in real-time
+- Much better user experience!
 
 ## How It Works
 
@@ -77,21 +76,6 @@ The frontend now:
 - Updates UI with `st.empty()` placeholder
 - Shows cursor during streaming
 
-**File:** `frontend/pages/quiz.py`
-- Added progress bar with status updates
-- Shows step-by-step generation progress
-- Auto-clears after completion
-
-**File:** `frontend/pages/summary.py`
-- Added progress bar with status updates
-- Shows document loading and processing steps
-- Auto-clears after completion
-
-**File:** `frontend/pages/flashcards.py`
-- Added progress bar with status updates
-- Shows flashcard creation progress
-- Auto-clears after completion
-
 ## Benefits
 
 ### User Experience
@@ -108,28 +92,23 @@ The frontend now:
 ## Limitations
 
 ### Current Implementation
-- ✅ **AI Tutor (Chat)** - Full streaming (word-by-word)
-- ✅ **Quiz Generation** - Progress indicators
-- ✅ **Flashcard Generation** - Progress indicators
-- ✅ **Summary Generation** - Progress indicators
+- ✅ **AI Tutor (Chat)** - Streaming enabled
+- ⚠️ **Quiz Generation** - Not streaming (returns JSON)
+- ⚠️ **Flashcard Generation** - Not streaming (returns JSON)
+- ⚠️ **Summary Generation** - Not streaming (could be added)
 
-### Why Different Approaches?
-
-**AI Tutor:**
-- Generates plain text
-- Can stream word-by-word
-- Best user experience
+### Why Not Everything Streams?
 
 **Quiz & Flashcards:**
 - Generate structured JSON data
 - Need complete response to parse
-- Progress indicators show what's happening
-- Still much better than blind waiting!
+- Streaming would show invalid JSON chunks
+- Better to wait for complete, valid data
 
-**Summary:**
-- Generates formatted text
-- Could stream but progress bar is cleaner
-- Shows clear steps in the process
+**Possible Future Enhancement:**
+- Stream progress updates ("Generating question 1 of 10...")
+- Show cards as they're generated
+- Requires more complex parsing
 
 ## How to Test
 
@@ -234,18 +213,17 @@ for line in response.iter_lines():
 
 ## Summary
 
-✅ **Streaming enabled** for AI Tutor (word-by-word)
-✅ **Progress indicators** for Quiz, Summary, Flashcards
-✅ **Step-by-step status** updates
+✅ **Streaming enabled** for AI Tutor
+✅ **Word-by-word display** with cursor
 ✅ **Instant feedback** for users
 ✅ **Better UX** without performance loss
 ✅ **Production ready** and tested
 
-The app now feels much more responsive and engaging across ALL features! 🚀
+The app now feels much more responsive and engaging! 🚀
 
 ---
 
 **Version:** 2.1.0
-**Feature:** Streaming & Progress Indicators
+**Feature:** Streaming Responses
 **Status:** ✅ Complete
 
