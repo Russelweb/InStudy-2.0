@@ -132,12 +132,15 @@ class AuthService:
             return False
     
     def get_current_user(self, token: str) -> Optional[User]:
-        """Get current user from session token"""
+        """Get current user from session token and refresh session"""
         try:
             session_data = self.auth_db.verify_session(token)
             
             if not session_data:
                 return None
+            
+            # Refresh session on each use to keep it active
+            self.auth_db.refresh_session(token)
             
             user_data = self.auth_db.get_user_by_id(session_data['user_id'])
             

@@ -29,17 +29,34 @@ class DocumentProcessor:
         )
 
     def load_document(self, file_path: str) -> List:
-        """Load document based on file type"""
+        """Load document based on file type with page tracking"""
         ext = os.path.splitext(file_path)[1].lower()
 
         try:
             if ext == ".pdf":
                 loader = PyPDFLoader(file_path)
-                return loader.load()
+                documents = loader.load()
+                
+                # Enhance metadata with page numbers
+                for i, doc in enumerate(documents):
+                    doc.metadata['page'] = i + 1  # 1-indexed page numbers
+                    doc.metadata['total_pages'] = len(documents)
+                
+                return documents
 
             elif ext == ".txt":
                 loader = TextLoader(file_path, encoding="utf-8")
-                return loader.load()
+                documents = loader.load()
+                
+                # For text files, estimate pages (assuming ~500 words per page)
+                for doc in documents:
+                    word_count = len(doc.page_content.split())
+                    estimated_pages = max(1, word_count // 500)
+                    doc.metadata['page'] = 1
+                    doc.metadata['total_pages'] = estimated_pages
+                    doc.metadata['estimated'] = True
+                
+                return documents
 
             elif ext == ".docx":
                 # Use docx2txt for better DOCX support
@@ -47,9 +64,20 @@ class DocumentProcessor:
                 if not text.strip():
                     raise ValueError("DOCX file is empty")
                 
-                # Create a document object manually
+                # Create a document object manually with page estimation
                 from langchain.schema import Document
-                return [Document(page_content=text, metadata={"source": file_path})]
+                word_count = len(text.split())
+                estimated_pages = max(1, word_count // 500)
+                
+                return [Document(
+                    page_content=text, 
+                    metadata={
+                        "source": file_path,
+                        "page": 1,
+                        "total_pages": estimated_pages,
+                        "estimated": True
+                    }
+                )]
 
             else:
                 raise ValueError(f"Unsupported file type: {ext}")
@@ -60,18 +88,18 @@ class DocumentProcessor:
 
     def process_document(self, file_path: str, user_id: str, course_id: str, doc_name: str):
         """
-        Process document and store in vector database.
+        Process document and store in vector database with page tracking.
         Optimized for speed with local embeddings.
         """
         logger.info(f"Processing document: {doc_name}")
         
-        # Load document
+        # Load document with page information
         documents = self.load_document(file_path)
         
         if not documents or not documents[0].page_content.strip():
             raise ValueError("Document is empty or could not be read")
 
-        # Attach metadata
+        # Attach metadata to all documents
         for doc in documents:
             doc.metadata.update({
                 "user_id": user_id,
@@ -80,10 +108,25 @@ class DocumentProcessor:
                 "source": file_path
             })
 
-        # Split into chunks (optimized size for speed)
+        # Split into chunks while preserving page information
         logger.info(f"Splitting document into chunks...")
-        chunks = self.text_splitter.split_documents(documents)
-        logger.info(f"Created {len(chunks)} chunks")
+        all_chunks = []
+        
+        for doc in documents:
+            # Split this page/document into chunks
+            chunks = self.text_splitter.split_documents([doc])
+            
+            # Preserve page metadata for all chunks from this page
+            for chunk in chunks:
+                chunk.metadata.update({
+                    'page': doc.metadata.get('page', 1),
+                    'total_pages': doc.metadata.get('total_pages', 1),
+                    'estimated': doc.metadata.get('estimated', False)
+                })
+            
+            all_chunks.extend(chunks)
+        
+        logger.info(f"Created {len(all_chunks)} chunks from {len(documents)} pages")
 
         vector_store_path = os.path.join(
             settings.VECTOR_STORE_DIR,
@@ -100,19 +143,19 @@ class DocumentProcessor:
                 vector_store_path,
                 self.embeddings,
             )
-            vector_store.add_documents(chunks)
+            vector_store.add_documents(all_chunks)
         else:
             vector_store = FAISS.from_documents(
-                chunks,
+                all_chunks,
                 self.embeddings
             )
 
         # Save vector database
         logger.info("Saving vector store...")
         vector_store.save_local(vector_store_path)
-        logger.info(f"Document processed successfully: {len(chunks)} chunks")
+        logger.info(f"Document processed successfully: {len(all_chunks)} chunks from {len(documents)} pages")
 
-        return len(chunks)
+        return len(all_chunks)
 
     def get_vector_store(self, user_id: str, course_id: str):
         """Retrieve vector store for user and course"""

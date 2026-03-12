@@ -24,10 +24,12 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 500
     CHUNK_OVERLAP: int = 50
     TOP_K_RETRIEVAL: int = 3
-    SIMILARITY_THRESHOLD: float = 0.7
+    SIMILARITY_THRESHOLD: float = 1.5  # Increased for more lenient matching (lower = more similar)
     
     # LLM Configuration
     LLM_TEMPERATURE: float = 0.2
+    LLM_TIMEOUT: int = 180  # Timeout for LLM requests in seconds
+    STREAM_CHUNK_SIZE: int = 1024  # Size of streaming chunks
     
     class Config:
         env_file = ".env"

@@ -49,6 +49,7 @@ def get_user_stats(user_id: str):
                 stats["recent_questions"] = activity.get("questions", [])[-10:]  # Last 10
                 stats["quizzes_taken"] = activity.get("quizzes_taken", 0)
                 stats["study_hours"] = activity.get("study_hours", 0)
+                stats["daily_activity"] = activity.get("daily_activity", {})  # Include daily activity
         except:
             pass
     
@@ -103,6 +104,11 @@ def log_activity(user_id: str, activity_type: str, data: dict):
         activity["daily_activity"][current_date]["questions"] += 1
     
     elif activity_type == "quiz":
+        activity["quizzes_taken"] = activity.get("quizzes_taken", 0) + 1
+        activity["daily_activity"][current_date]["quizzes"] += 1
+    
+    elif activity_type == "quiz_completed":
+        # Handle quiz completion
         activity["quizzes_taken"] = activity.get("quizzes_taken", 0) + 1
         activity["daily_activity"][current_date]["quizzes"] += 1
     

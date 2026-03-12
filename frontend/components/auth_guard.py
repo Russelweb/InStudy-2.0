@@ -105,9 +105,13 @@ def require_authentication():
         if auth_manager.verify_token():
             return True
         else:
-            # Token expired, clear session
-            auth_manager.clear_session()
-            st.error("Your session has expired. Please log in again.")
+            # Try to recover session first
+            if auth_manager.recover_session():
+                return True
+            else:
+                # Token expired or connection issue, clear session
+                auth_manager.clear_session()
+                st.error("Your session has expired or there was a connection issue. Please log in again.")
     
     # Show authentication forms
     st.markdown("""
@@ -116,6 +120,17 @@ def require_authentication():
         <p style="font-size: 1.2rem; color: #666;">Your AI-Powered Study Assistant</p>
     </div>
     """, unsafe_allow_html=True)
+    
+    # Show connection status
+    try:
+        import requests
+        response = requests.get("http://localhost:8000/health", timeout=5)
+        if response.status_code == 200:
+            st.success("✅ Backend server is running")
+        else:
+            st.warning("⚠️ Backend server responded with an error")
+    except:
+        st.error("❌ Cannot connect to backend server. Please ensure it's running on http://localhost:8000")
     
     # Determine which form to show
     show_signup_form_flag = st.session_state.get("show_signup", False)

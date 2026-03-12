@@ -111,7 +111,7 @@ class AuthDatabase:
             logger.error(f"Error authenticating user: {e}")
             return None
     
-    def create_session(self, user_id: int, expires_days: int = 30) -> str:
+    def create_session(self, user_id: int, expires_days: int = 90) -> str:
         """Create a new session token and invalidate all previous sessions for this user"""
         try:
             # First, delete all existing sessions for this user (enforce single session)
@@ -120,7 +120,7 @@ class AuthDatabase:
                 conn.commit()
                 logger.info(f"Invalidated all previous sessions for user {user_id}")
             
-            # Now create new session
+            # Now create new session with longer duration (90 days)
             token = secrets.token_urlsafe(32)
             expires_at = datetime.now() + timedelta(days=expires_days)
             
@@ -131,7 +131,7 @@ class AuthDatabase:
                 )
                 conn.commit()
                 
-                logger.info(f"New session created for user {user_id}")
+                logger.info(f"New session created for user {user_id} (expires: {expires_at})")
                 return token
                 
         except Exception as e:
@@ -141,10 +141,11 @@ class AuthDatabase:
     def verify_session(self, token: str) -> Optional[Dict[str, Any]]:
         """Verify session token and return user info"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            # Use check_same_thread=False and timeout for concurrent access
+            with sqlite3.connect(self.db_path, timeout=10.0, check_same_thread=False) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute("""
-                    SELECT s.user_id, s.expires_at, u.email 
+                    SELECT s.user_id, s.expires_at, u.email, u.is_admin
                     FROM sessions s 
                     JOIN users u ON s.user_id = u.id 
                     WHERE s.token = ? AND s.expires_at > CURRENT_TIMESTAMP
@@ -155,14 +156,46 @@ class AuthDatabase:
                 if session:
                     return {
                         'user_id': session['user_id'],
-                        'email': session['email']
+                        'email': session['email'],
+                        'is_admin': bool(session['is_admin'])
                     }
                 
                 return None
                 
+        except sqlite3.OperationalError as e:
+            logger.error(f"Database locked or operational error verifying session: {e}")
+            return None
         except Exception as e:
             logger.error(f"Error verifying session: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
+    
+    def refresh_session(self, token: str) -> bool:
+        """Refresh session expiration time"""
+        try:
+            new_expires_at = datetime.now() + timedelta(days=90)
+            
+            # Use check_same_thread=False and timeout for concurrent access
+            with sqlite3.connect(self.db_path, timeout=10.0, check_same_thread=False) as conn:
+                cursor = conn.execute(
+                    "UPDATE sessions SET expires_at = ? WHERE token = ? AND expires_at > CURRENT_TIMESTAMP",
+                    (new_expires_at, token)
+                )
+                conn.commit()
+                
+                if cursor.rowcount > 0:
+                    logger.debug(f"Session refreshed: {token[:10]}...")
+                    return True
+                
+                return False
+                
+        except sqlite3.OperationalError as e:
+            logger.error(f"Database locked or operational error refreshing session: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error refreshing session: {e}")
+            return False
     
     def delete_session(self, token: str) -> bool:
         """Delete a session (logout)"""
@@ -197,7 +230,8 @@ class AuthDatabase:
     def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get user information by ID"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            # Use check_same_thread=False and timeout for concurrent access
+            with sqlite3.connect(self.db_path, timeout=10.0, check_same_thread=False) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
                     "SELECT id, email, is_admin, created_at, last_login FROM users WHERE id = ?",
@@ -210,6 +244,9 @@ class AuthDatabase:
                 
                 return None
                 
+        except sqlite3.OperationalError as e:
+            logger.error(f"Database locked or operational error getting user: {e}")
+            return None
         except Exception as e:
             logger.error(f"Error getting user: {e}")
             return None

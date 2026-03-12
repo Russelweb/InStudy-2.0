@@ -52,19 +52,29 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     )
                 
                 # Verify token and get user
-                user = auth_service.get_current_user(token)
-                
-                if not user:
+                try:
+                    user = auth_service.get_current_user(token)
+                    
+                    if not user:
+                        return JSONResponse(
+                            status_code=401,
+                            content={"detail": "Invalid or expired token"}
+                        )
+                    
+                    # Inject user into request state
+                    request.state.user = user
+                    request.state.user_id = user.id
+                    
+                    logger.debug(f"Authenticated request for user {user.id}: {request.url.path}")
+                    
+                except Exception as auth_error:
+                    logger.error(f"Authentication error for path {request.url.path}: {auth_error}")
+                    import traceback
+                    logger.error(traceback.format_exc())
                     return JSONResponse(
-                        status_code=401,
-                        content={"detail": "Invalid or expired token"}
+                        status_code=500,
+                        content={"detail": f"Authentication error: {str(auth_error)}"}
                     )
-                
-                # Inject user into request state
-                request.state.user = user
-                request.state.user_id = user.id
-                
-                logger.debug(f"Authenticated request for user {user.id}: {request.url.path}")
             
             # Continue with request
             response = await call_next(request)
@@ -72,9 +82,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             
         except Exception as e:
             logger.error(f"Auth middleware error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return JSONResponse(
                 status_code=500,
-                content={"detail": "Authentication middleware error"}
+                content={"detail": f"Middleware error: {str(e)}"}
             )
     
     def is_protected_route(self, path: str) -> bool:
@@ -83,6 +95,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         for public_path in self.public_paths:
             if path.startswith(public_path):
                 return False
+        
+        # Special handling for quiz evaluation - skip middleware
+        if path == "/api/quiz/evaluate" or path == "/api/quiz/test-auth":
+            return False
         
         # Check protected paths
         for protected_path in self.protected_paths:

@@ -39,7 +39,7 @@ class AuthManager:
             response = requests.post(
                 f"{self.backend_url}/api/auth/login",
                 json={"email": email, "password": password},
-                timeout=10
+                timeout=30  # Increased timeout
             )
             
             if response.status_code == 200:
@@ -54,12 +54,18 @@ class AuthManager:
                 else:
                     return False, data.get("error_message", "Login failed")
             else:
-                error_data = response.json()
+                error_data = response.json() if response.content else {"detail": "Login failed"}
                 return False, error_data.get("detail", "Login failed")
                 
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Connection error during login: {e}")
+            return False, "Cannot connect to server. Please ensure the backend is running on http://localhost:8000"
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Login timeout: {e}")
+            return False, "Login request timed out. Please try again."
         except requests.exceptions.RequestException as e:
             logger.error(f"Login request error: {e}")
-            return False, "Connection error. Please check if the backend is running."
+            return False, "Network error. Please check your connection and try again."
         except Exception as e:
             logger.error(f"Login error: {e}")
             return False, "An unexpected error occurred"
@@ -140,15 +146,34 @@ class AuthManager:
             response = requests.post(
                 f"{self.backend_url}/api/auth/verify",
                 headers={"Authorization": f"Bearer {token}"},
-                timeout=5
+                timeout=15  # Increased timeout
             )
             
             if response.status_code == 200:
                 data = response.json()
-                return data.get("valid", False)
+                is_valid = data.get("valid", False)
+                
+                # If token is valid, update user info in case it changed
+                if is_valid and "user_id" in data and "email" in data:
+                    current_user = self.get_current_user()
+                    if current_user:
+                        current_user.update({
+                            "id": data["user_id"],
+                            "email": data["email"],
+                            "is_admin": data.get("is_admin", False)
+                        })
+                        st.session_state[self.user_key] = current_user
+                
+                return is_valid
             
             return False
             
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Connection error during token verification: {e}")
+            return False
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Token verification timeout: {e}")
+            return False
         except Exception as e:
             logger.error(f"Token verification error: {e}")
             return False
@@ -166,6 +191,26 @@ class AuthManager:
             del st.session_state[self.session_key]
         if self.user_key in st.session_state:
             del st.session_state[self.user_key]
+    
+    def recover_session(self) -> bool:
+        """Try to recover session after connection issues"""
+        try:
+            # Wait a moment and try to verify token again
+            import time
+            time.sleep(2)
+            
+            if self.verify_token():
+                logger.info("Session recovered successfully")
+                return True
+            else:
+                logger.info("Session recovery failed - clearing session")
+                self.clear_session()
+                return False
+                
+        except Exception as e:
+            logger.error(f"Session recovery error: {e}")
+            self.clear_session()
+            return False
 
 # Global instance
 auth_manager = AuthManager()

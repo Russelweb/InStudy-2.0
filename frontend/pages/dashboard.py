@@ -11,26 +11,90 @@ import numpy as np
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 def create_study_hours_chart(stats):
-    """Create a beautiful study hours progress chart"""
-    # Generate sample data for demonstration (in real app, this would come from activity logs)
-    dates = pd.date_range(start=datetime.now() - timedelta(days=30), end=datetime.now(), freq='D')
+    """Create a study hours progress chart using real activity data"""
     
-    # Simulate study hours data with some realistic patterns
-    np.random.seed(42)  # For consistent demo data
-    base_hours = np.random.normal(2, 0.8, len(dates))
-    base_hours = np.maximum(base_hours, 0)  # No negative hours
+    # Get daily activity data from stats
+    daily_activity = stats.get("daily_activity", {})
     
-    # Add weekend patterns (more study on weekends)
-    weekend_boost = [1.5 if date.weekday() >= 5 else 1.0 for date in dates]
-    study_hours = base_hours * weekend_boost
+    if not daily_activity:
+        # If no data, show empty chart with message
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No study data yet. Start using the AI Tutor to track your progress!",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False,
+            font=dict(size=16, color="gray")
+        )
+        fig.update_layout(
+            title='📈 Study Progress Over Time',
+            height=400,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False)
+        )
+        return fig
     
-    # Add cumulative hours
-    cumulative_hours = np.cumsum(study_hours)
+    # Convert daily activity to DataFrame
+    dates = []
+    daily_hours = []
+    questions_count = []
+    
+    # Sort dates and calculate study hours
+    sorted_dates = sorted(daily_activity.keys())
+    
+    for date_str in sorted_dates:
+        try:
+            date = datetime.strptime(date_str, "%Y-%m-%d")
+            dates.append(date)
+            
+            day_data = daily_activity[date_str]
+            # Calculate study hours from questions (estimate 5 minutes per question)
+            questions = day_data.get("questions", 0)
+            explicit_study_time = day_data.get("study_time", 0)
+            
+            # Estimate study time: explicit time + (questions * 5 minutes)
+            estimated_hours = explicit_study_time + (questions * 5 / 60)  # 5 min per question
+            
+            daily_hours.append(estimated_hours)
+            questions_count.append(questions)
+            
+        except ValueError:
+            continue  # Skip invalid dates
+    
+    if not dates:
+        # Fallback to empty chart
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No valid study data found.",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False,
+            font=dict(size=16, color="gray")
+        )
+        fig.update_layout(
+            title='📈 Study Progress Over Time',
+            height=400,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False)
+        )
+        return fig
+    
+    # Calculate cumulative hours
+    cumulative_hours = []
+    total = 0
+    for hours in daily_hours:
+        total += hours
+        cumulative_hours.append(total)
     
     df = pd.DataFrame({
         'Date': dates,
-        'Daily Hours': study_hours,
-        'Cumulative Hours': cumulative_hours
+        'Daily Hours': daily_hours,
+        'Cumulative Hours': cumulative_hours,
+        'Questions': questions_count
     })
     
     # Create subplot with secondary y-axis
@@ -42,7 +106,8 @@ def create_study_hours_chart(stats):
         y=df['Daily Hours'],
         name='Daily Study Hours',
         marker_color='rgba(55, 126, 184, 0.7)',
-        hovertemplate='<b>%{x}</b><br>Study Hours: %{y:.1f}<extra></extra>'
+        hovertemplate='<b>%{x}</b><br>Study Hours: %{y:.1f}<br>Questions: %{customdata}<extra></extra>',
+        customdata=df['Questions']
     ))
     
     # Cumulative hours line
@@ -58,7 +123,7 @@ def create_study_hours_chart(stats):
     ))
     
     fig.update_layout(
-        title='📈 Study Progress Over Time',
+        title=f'📈 Study Progress Over Time (Total: {total:.1f} hours)',
         xaxis_title='Date',
         yaxis=dict(title='Daily Hours', side='left'),
         yaxis2=dict(title='Cumulative Hours', side='right', overlaying='y'),
