@@ -13,6 +13,8 @@ class AuthenticatedFlashcardRequest(BaseModel):
     """Flashcard request without user_id (taken from authentication)"""
     course_id: str
     num_cards: int = 10
+    include_images: bool = True  # New option for images
+    explanation_level: str = "detailed"  # New option for explanation detail level
 
 @router.post("/generate", response_model=FlashcardResponse)
 async def generate_flashcards(
@@ -26,7 +28,9 @@ async def generate_flashcards(
         flashcards = flashcard_service.generate_flashcards(
             user_id,
             request.course_id,
-            request.num_cards
+            request.num_cards,
+            request.include_images,
+            request.explanation_level
         )
         
         return FlashcardResponse(flashcards=flashcards)

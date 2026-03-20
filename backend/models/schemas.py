@@ -42,6 +42,9 @@ class FlashcardRequest(BaseModel):
 class Flashcard(BaseModel):
     front: str
     back: str
+    image_url: Optional[str] = None
+    image_type: Optional[str] = None
+    alt_text: Optional[str] = None
 
 class FlashcardResponse(BaseModel):
     flashcards: List[Flashcard]

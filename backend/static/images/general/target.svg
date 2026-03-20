@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="150" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="150" fill="#FF6B6B" rx="10"/>
+  <text x="100" y="80" font-family="Arial, sans-serif" font-size="48" text-anchor="middle" fill="white">🎯</text>
+  <text x="100" y="130" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white">Goal</text>
+</svg>

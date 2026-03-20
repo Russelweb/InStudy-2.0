@@ -155,14 +155,13 @@ class AuthManager:
                 
                 # If token is valid, update user info in case it changed
                 if is_valid and "user_id" in data and "email" in data:
-                    current_user = self.get_current_user()
-                    if current_user:
-                        current_user.update({
-                            "id": data["user_id"],
-                            "email": data["email"],
-                            "is_admin": data.get("is_admin", False)
-                        })
-                        st.session_state[self.user_key] = current_user
+                    # Update the entire user object with fresh data from backend
+                    updated_user = {
+                        "id": data["user_id"],
+                        "email": data["email"],
+                        "is_admin": data.get("is_admin", False)
+                    }
+                    st.session_state[self.user_key] = updated_user
                 
                 return is_valid
             

@@ -108,7 +108,12 @@ async def verify_token(credentials: Optional[HTTPAuthorizationCredentials] = Dep
         user = auth_service.get_current_user(token)
         
         if user:
-            return {"valid": True, "user_id": user.id, "email": user.email}
+            return {
+                "valid": True, 
+                "user_id": user.id, 
+                "email": user.email,
+                "is_admin": user.is_admin
+            }
         else:
             return {"valid": False, "message": "Invalid or expired token"}
         

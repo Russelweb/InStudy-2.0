@@ -28,6 +28,12 @@ if not require_authentication():
 current_user = auth_manager.get_current_user()
 user_id = str(current_user["id"]) if current_user else "demo_user"
 
+# Force token verification to ensure we have fresh user data (including is_admin)
+if current_user and not auth_manager.verify_token():
+    # If token verification fails, clear session and redirect to login
+    auth_manager.clear_session()
+    st.rerun()
+
 # Session state
 if "user_id" not in st.session_state:
     st.session_state.user_id = user_id
@@ -83,6 +89,20 @@ with st.sidebar:
     
     # Show user info and logout button
     show_user_info()
+    
+    # Temporary debug info
+    if current_user:
+        with st.expander("🔍 Debug Info", expanded=False):
+            st.write("Current User:")
+            st.json({
+                "id": current_user.get("id"),
+                "email": current_user.get("email"), 
+                "is_admin": current_user.get("is_admin", False)
+            })
+            if current_user.get("is_admin"):
+                st.success("✅ Admin privileges detected")
+            else:
+                st.info("ℹ️ Regular user (not admin)")
 
 # Route to pages
 if selected == "Dashboard":

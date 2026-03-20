@@ -1,10 +1,12 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 import os
 from dotenv import load_dotenv
 import logging
+from pathlib import Path
 
 from api.routes import documents, chat, quiz, flashcards, summary, planner, stats, auth, admin
 from services.auth_service import verify_token
@@ -33,6 +35,11 @@ app.add_middleware(
 
 # Authentication middleware
 app.add_middleware(AuthMiddleware)
+
+# Mount static files
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Startup event to preload models
 @app.on_event("startup")
