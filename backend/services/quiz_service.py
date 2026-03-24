@@ -73,6 +73,11 @@ Generate {num_questions} questions now:"""
         logger.info("Generating quiz with LLM...")
         response = self.llm.invoke(prompt)
         
+        # Guard: LLM sometimes returns bool/None on failure instead of a string
+        if not isinstance(response, str):
+            logger.error(f"LLM returned non-string response: {type(response).__name__} = {response}")
+            return self._parse_quiz_fallback(num_questions, quiz_type)
+
         try:
             # Extract JSON from response (handle extra text)
             response_text = response.strip()
@@ -308,11 +313,11 @@ Generate {num_questions} questions now:"""
                 default_answer = "Please provide a complete answer based on the study material."
             
             fixed_q = {
-                "question": q.get("question", f"Question {i+1}"),
+                "question": str(q.get("question", f"Question {i+1}")),
                 "type": question_type,
                 "options": q.get("options", default_options),
-                "correct_answer": q.get("correct_answer", default_answer),
-                "explanation": q.get("explanation", "No explanation provided")
+                "correct_answer": str(q.get("correct_answer", default_answer)),
+                "explanation": str(q.get("explanation", "No explanation provided"))
             }
             
             # Validate question is not empty

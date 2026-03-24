@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import os
 from utils.auth_utils import auth_manager
+from components.document_viewer import show_document_panel
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -13,6 +14,8 @@ def show():
         return
     
     st.info(f"Course: {st.session_state.current_course.replace('_', ' ').title()}")
+    
+    show_document_panel("flashcards")
     
     # Generate flashcards
     col1, col2, col3, col4 = st.columns([2, 1, 1, 1])

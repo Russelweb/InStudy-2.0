@@ -96,8 +96,13 @@ class DocumentProcessor:
         # Load document with page information
         documents = self.load_document(file_path)
         
-        if not documents or not documents[0].page_content.strip():
-            raise ValueError("Document is empty or could not be read")
+        # Check if we got any valid content across all pages
+        if not documents:
+            raise ValueError("Document could not be loaded")
+            
+        full_text = "".join(doc.page_content for doc in documents).strip()
+        if not full_text:
+            raise ValueError("Document has no readable text. It might be image-only or corrupt.")
 
         # Attach metadata to all documents
         for doc in documents:
@@ -128,13 +133,14 @@ class DocumentProcessor:
         
         logger.info(f"Created {len(all_chunks)} chunks from {len(documents)} pages")
 
-        vector_store_path = os.path.join(
+        from utils.file_utils import get_absolute_path
+        vector_store_path = get_absolute_path(os.path.join(
             settings.VECTOR_STORE_DIR,
             f"{user_id}_{course_id}"
-        )
+        ))
 
         # Create vector store directory if missing
-        os.makedirs(settings.VECTOR_STORE_DIR, exist_ok=True)
+        os.makedirs(get_absolute_path(settings.VECTOR_STORE_DIR), exist_ok=True)
 
         # Load existing store or create new one
         logger.info("Creating embeddings...")
@@ -159,10 +165,11 @@ class DocumentProcessor:
 
     def get_vector_store(self, user_id: str, course_id: str):
         """Retrieve vector store for user and course"""
-        vector_store_path = os.path.join(
+        from utils.file_utils import get_absolute_path
+        vector_store_path = get_absolute_path(os.path.join(
             settings.VECTOR_STORE_DIR,
             f"{user_id}_{course_id}"
-        )
+        ))
 
         if not os.path.exists(vector_store_path):
             return None

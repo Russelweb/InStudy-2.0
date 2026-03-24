@@ -12,47 +12,73 @@ router = APIRouter()
 def get_user_stats(user_id: str):
     """Get user statistics from file system"""
     user_upload_dir = Path(settings.UPLOAD_DIR) / user_id
-    
+
     stats = {
         "total_documents": 0,
         "total_courses": 0,
         "courses": [],
         "recent_questions": [],
-        "study_hours": 0,
-        "quizzes_taken": 0
+        "study_hours": 0.0,
+        "quizzes_taken": 0,
+        "daily_activity": {},
     }
-    
+
     if not user_upload_dir.exists():
         return stats
-    
-    # Count courses and documents
+
+    # Count courses and documents (exclude annotation sidecar files)
     courses = [d for d in user_upload_dir.iterdir() if d.is_dir()]
     stats["total_courses"] = len(courses)
-    
+
     for course_dir in courses:
-        documents = [f for f in course_dir.iterdir() if f.is_file()]
+        documents = [
+            f for f in course_dir.iterdir()
+            if f.is_file() and not f.name.endswith(".annotations.json")
+        ]
         stats["total_documents"] += len(documents)
-        
         stats["courses"].append({
             "name": course_dir.name.replace("_", " ").title(),
             "id": course_dir.name,
             "document_count": len(documents),
-            "documents": [f.name for f in documents]
+            "documents": [f.name for f in documents],
         })
-    
-    # Load activity log if exists
+
+    # Load activity log
     activity_file = user_upload_dir / "activity.json"
     if activity_file.exists():
         try:
-            with open(activity_file, 'r') as f:
+            with open(activity_file, "r") as f:
                 activity = json.load(f)
-                stats["recent_questions"] = activity.get("questions", [])[-10:]  # Last 10
-                stats["quizzes_taken"] = activity.get("quizzes_taken", 0)
-                stats["study_hours"] = activity.get("study_hours", 0)
-                stats["daily_activity"] = activity.get("daily_activity", {})  # Include daily activity
-        except:
+
+            stats["recent_questions"] = activity.get("questions", [])[-10:]
+            stats["quizzes_taken"]    = activity.get("quizzes_taken", 0)
+            daily                     = activity.get("daily_activity", {})
+
+            # Back-fill daily_activity from questions list if it's missing/empty
+            # (handles old activity.json files created before daily tracking was added)
+            if not daily:
+                daily = {}
+                for q in activity.get("questions", []):
+                    ts = q.get("timestamp", "")
+                    if not ts:
+                        continue
+                    date_key = ts[:10]  # "YYYY-MM-DD"
+                    if date_key not in daily:
+                        daily[date_key] = {"questions": 0, "quizzes": 0,
+                                           "study_time": 0, "documents_uploaded": 0}
+                    daily[date_key]["questions"] += 1
+
+            stats["daily_activity"] = daily
+
+            # Derive study_hours from daily_activity (consistent with graph)
+            total_hours = 0.0
+            for day_data in daily.values():
+                total_hours += day_data.get("study_time", 0) + day_data.get("questions", 0) * 5 / 60
+            stats["study_hours"] = round(total_hours, 2)
+
+        except Exception:
             pass
-    
+
     return stats
 
 def log_activity(user_id: str, activity_type: str, data: dict):

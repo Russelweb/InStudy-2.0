@@ -59,7 +59,31 @@ if current_user and current_user.get("is_admin"):
     menu_options.append("Admin Panel")
     menu_icons.append("shield-lock")
 
-# Main navigation menu (horizontal at bottom)
+# Inject CSS to make the nav bar sticky at the top
+st.markdown("""
+<style>
+/* Pin the option_menu nav bar to the top of the viewport.
+   Targets the first horizontal block which contains the nav ul. */
+div[data-testid="stHorizontalBlock"]:has(ul.nav),
+nav.nav.nav-pills {
+    position: fixed !important;
+    top: 2.875rem;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    background: #fafafa;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+    padding: 0 1rem;
+}
+
+/* Push page content down so it doesn't hide under the fixed nav */
+section.main > div.block-container {
+    padding-top: 5rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Main navigation menu (horizontal at top, now fixed)
 selected = option_menu(
     menu_title=None,
     options=menu_options,

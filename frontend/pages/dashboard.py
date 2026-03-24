@@ -7,399 +7,434 @@ import os
 from datetime import datetime, timedelta
 from utils.auth_utils import auth_manager
 import numpy as np
+from calendar import month_abbr
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
-def create_study_hours_chart(stats):
-    """Create a study hours progress chart using real activity data"""
-    
-    # Get daily activity data from stats
-    daily_activity = stats.get("daily_activity", {})
-    
+
+def _build_monthly_df(daily_activity: dict) -> pd.DataFrame:
+    """Aggregate daily_activity into per-day rows (grouping to monthly happens in chart functions)."""
     if not daily_activity:
-        # If no data, show empty chart with message
-        fig = go.Figure()
-        fig.add_annotation(
-            text="No study data yet. Start using the AI Tutor to track your progress!",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, xanchor='center', yanchor='middle',
-            showarrow=False,
-            font=dict(size=16, color="gray")
-        )
-        fig.update_layout(
-            title='📈 Study Progress Over Time',
-            height=400,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(visible=False),
-            yaxis=dict(visible=False)
-        )
-        return fig
-    
-    # Convert daily activity to DataFrame
-    dates = []
-    daily_hours = []
-    questions_count = []
-    
-    # Sort dates and calculate study hours
-    sorted_dates = sorted(daily_activity.keys())
-    
-    for date_str in sorted_dates:
+        return pd.DataFrame()
+    rows = []
+    for date_str, day in daily_activity.items():
         try:
-            date = datetime.strptime(date_str, "%Y-%m-%d")
-            dates.append(date)
-            
-            day_data = daily_activity[date_str]
-            # Calculate study hours from questions (estimate 5 minutes per question)
-            questions = day_data.get("questions", 0)
-            explicit_study_time = day_data.get("study_time", 0)
-            
-            # Estimate study time: explicit time + (questions * 5 minutes)
-            estimated_hours = explicit_study_time + (questions * 5 / 60)  # 5 min per question
-            
-            daily_hours.append(estimated_hours)
-            questions_count.append(questions)
-            
+            dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
         except ValueError:
-            continue  # Skip invalid dates
-    
-    if not dates:
-        # Fallback to empty chart
+            continue
+        questions = int(day.get("questions", 0))
+        explicit  = float(day.get("study_time", 0))
+        hours     = explicit + questions * 5 / 60
+        rows.append({
+            "date":      dt,
+            "label":     dt.strftime("%b %Y"),
+            "hours":     hours,
+            "questions": questions,
+            "quizzes":   int(day.get("quizzes", 0)),
+            "docs":      int(day.get("documents_uploaded", 0)),
+        })
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
+
+
+def _filter_by_period(df: pd.DataFrame, period: str) -> pd.DataFrame:
+    if df.empty:
+        return df
+    now = datetime.now()
+    if period == "This Month":
+        cutoff = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif period == "Last 3 Months":
+        cutoff = (now - timedelta(days=90)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif period == "Last 6 Months":
+        cutoff = (now - timedelta(days=180)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:  # All Time
+        return df
+    return df[df["date"] >= cutoff]
+
+
+def _aggregate(df: pd.DataFrame):
+    """Return (grouped_df, x_col, line_shape, marker) based on data spread."""
+    unique_months = df["label"].nunique()
+    if unique_months <= 2:
+        # Daily granularity — group by actual date
+        grp = df.groupby("date").agg(
+            hours=("hours", "sum"),
+            questions=("questions", "sum"),
+            quizzes=("quizzes", "sum"),
+            docs=("docs", "sum"),
+        ).reset_index()
+        grp = grp.sort_values("date")
+        grp["x"] = grp["date"].dt.strftime("%d %b")
+        line_shape = "linear" if len(grp) < 3 else "spline"
+        marker = dict(size=7) if len(grp) <= 5 else dict(size=4)
+        mode = "lines+markers"
+    else:
+        grp = df.groupby("label").agg(
+            hours=("hours", "sum"),
+            questions=("questions", "sum"),
+            quizzes=("quizzes", "sum"),
+            docs=("docs", "sum"),
+        ).reset_index()
+        grp["sort_key"] = pd.to_datetime(grp["label"], format="%b %Y")
+        grp = grp.sort_values("sort_key")
+        grp["x"] = grp["label"]
+        line_shape = "spline"
+        marker = dict(size=4)
+        mode = "lines"
+    return grp, line_shape, marker, mode
+
+
+def create_study_hours_chart(df_filtered: pd.DataFrame, period: str):
+    """
+    Smooth dual-area chart:
+    - Blue filled area  = daily/monthly study hours
+    - Orange smooth line = cumulative hours (right axis)
+    - Vertical column bands, white background, unified hover
+    """
+    if df_filtered.empty:
         fig = go.Figure()
         fig.add_annotation(
-            text="No valid study data found.",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, xanchor='center', yanchor='middle',
-            showarrow=False,
-            font=dict(size=16, color="gray")
+            text="No study data yet. Start using the AI Tutor!",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            xanchor="center", yanchor="middle",
+            showarrow=False, font=dict(size=15, color="#aaa")
         )
         fig.update_layout(
-            title='📈 Study Progress Over Time',
-            height=400,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(visible=False),
-            yaxis=dict(visible=False)
+            title="Study Hours", height=360,
+            plot_bgcolor="#fff", paper_bgcolor="#fff",
+            xaxis=dict(visible=False), yaxis=dict(visible=False)
         )
         return fig
-    
-    # Calculate cumulative hours
-    cumulative_hours = []
-    total = 0
-    for hours in daily_hours:
-        total += hours
-        cumulative_hours.append(total)
-    
-    df = pd.DataFrame({
-        'Date': dates,
-        'Daily Hours': daily_hours,
-        'Cumulative Hours': cumulative_hours,
-        'Questions': questions_count
-    })
-    
-    # Create subplot with secondary y-axis
+
+    grp, line_shape, marker, mode = _aggregate(df_filtered)
+    cumulative = grp["hours"].cumsum()
+    total = grp["hours"].sum()
+
+    shapes = []
+    for i in range(len(grp)):
+        if i % 2 == 0:
+            shapes.append(dict(
+                type="rect", xref="x", yref="paper",
+                x0=i - 0.5, x1=i + 0.5, y0=0, y1=1,
+                fillcolor="rgba(200,220,240,0.18)", line_width=0, layer="below"
+            ))
+
     fig = go.Figure()
-    
-    # Daily hours bar chart
-    fig.add_trace(go.Bar(
-        x=df['Date'],
-        y=df['Daily Hours'],
-        name='Daily Study Hours',
-        marker_color='rgba(55, 126, 184, 0.7)',
-        hovertemplate='<b>%{x}</b><br>Study Hours: %{y:.1f}<br>Questions: %{customdata}<extra></extra>',
-        customdata=df['Questions']
-    ))
-    
-    # Cumulative hours line
     fig.add_trace(go.Scatter(
-        x=df['Date'],
-        y=df['Cumulative Hours'],
-        mode='lines+markers',
-        name='Cumulative Hours',
-        line=dict(color='rgba(255, 127, 14, 1)', width=3),
-        marker=dict(size=6),
-        yaxis='y2',
-        hovertemplate='<b>%{x}</b><br>Total Hours: %{y:.1f}<extra></extra>'
+        x=grp["x"], y=grp["hours"],
+        mode=mode, name="Hours",
+        line=dict(color="rgba(66,133,244,1)", width=2.5, shape=line_shape, smoothing=1.2),
+        marker=dict(color="rgba(66,133,244,1)", **marker),
+        fill="tozeroy", fillcolor="rgba(66,133,244,0.15)",
+        hovertemplate="<b>%{x}</b><br>Hours: %{y:.1f}h<br>Questions: %{customdata}<extra></extra>",
+        customdata=grp["questions"],
     ))
-    
+    fig.add_trace(go.Scatter(
+        x=grp["x"], y=cumulative,
+        mode=mode, name="Cumulative",
+        line=dict(color="rgba(251,171,53,1)", width=2.5, shape=line_shape, smoothing=1.2),
+        marker=dict(color="rgba(251,171,53,1)", **marker),
+        fill="tozeroy", fillcolor="rgba(251,171,53,0.08)",
+        yaxis="y2",
+        hovertemplate="<b>%{x}</b><br>Total: %{y:.1f}h<extra></extra>",
+    ))
+
     fig.update_layout(
-        title=f'📈 Study Progress Over Time (Total: {total:.1f} hours)',
-        xaxis_title='Date',
-        yaxis=dict(title='Daily Hours', side='left'),
-        yaxis2=dict(title='Cumulative Hours', side='right', overlaying='y'),
-        hovermode='x unified',
-        showlegend=True,
-        height=400,
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
+        title=dict(
+            text=f"Study Hours — {period}   <span style='font-size:13px;color:#888'>Total: {total:.1f}h</span>",
+            font=dict(size=16)
+        ),
+        xaxis=dict(showgrid=False, tickfont=dict(size=12, color="#888"), zeroline=False),
+        yaxis=dict(
+            title="Hours", showgrid=True,
+            gridcolor="rgba(200,200,200,0.3)", zeroline=False, tickfont=dict(color="#888"),
+        ),
+        yaxis2=dict(
+            title="Cumulative", overlaying="y", side="right",
+            showgrid=False, zeroline=False, tickfont=dict(color="#888"),
+        ),
+        shapes=shapes,
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=360,
+        margin=dict(l=10, r=10, t=50, b=10),
+        plot_bgcolor="#fff", paper_bgcolor="#fff",
     )
-    
     return fig
 
-def create_activity_heatmap(stats):
-    """Create an activity heatmap showing study patterns"""
-    # Generate sample activity data
-    dates = pd.date_range(start=datetime.now() - timedelta(days=30), end=datetime.now(), freq='D')
-    
-    # Create activity matrix (hour of day vs day)
-    activity_data = []
-    for date in dates:
-        for hour in range(24):
-            # Simulate activity patterns (more activity during study hours)
-            if 8 <= hour <= 22:  # Study hours
-                activity = np.random.poisson(2) if np.random.random() > 0.3 else 0
-            else:
-                activity = np.random.poisson(0.5) if np.random.random() > 0.8 else 0
-            
-            activity_data.append({
-                'Date': date.strftime('%Y-%m-%d'),
-                'Hour': hour,
-                'Activity': activity,
-                'Day': date.strftime('%a')
-            })
-    
-    df = pd.DataFrame(activity_data)
-    
-    # Create pivot table for heatmap
-    pivot_df = df.pivot_table(values='Activity', index='Hour', columns='Date', fill_value=0)
-    
-    fig = go.Figure(data=go.Heatmap(
-        z=pivot_df.values,
-        x=pivot_df.columns,
-        y=pivot_df.index,
-        colorscale='Blues',
-        hovertemplate='<b>%{x}</b><br>Hour: %{y}:00<br>Activity: %{z}<extra></extra>'
-    ))
-    
-    fig.update_layout(
-        title='🔥 Study Activity Heatmap',
-        xaxis_title='Date',
-        yaxis_title='Hour of Day',
-        height=300,
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
-    )
-    
-    return fig
 
-def create_performance_radar(stats):
-    """Create a radar chart showing performance across different areas"""
-    categories = ['Quiz Scores', 'Study Hours', 'Documents Read', 'Questions Asked', 'Consistency']
-    
-    # Normalize stats to 0-100 scale for radar chart
-    values = [
-        min(stats.get('quizzes_taken', 0) * 10, 100),  # Quiz performance
-        min(stats.get('study_hours', 0) * 5, 100),     # Study hours
-        min(stats.get('total_documents', 0) * 20, 100), # Documents
-        min(len(stats.get('recent_questions', [])) * 5, 100), # Questions
-        min(stats.get('study_hours', 0) * 3, 100)      # Consistency (simplified)
-    ]
-    
+def create_activity_chart(df_filtered: pd.DataFrame, period: str):
+    """Smooth area chart for questions + quizzes over time — same visual style as study hours."""
+    if df_filtered.empty:
+        return None
+
+    grp, line_shape, marker, mode = _aggregate(df_filtered)
+
+    shapes = []
+    for i in range(len(grp)):
+        if i % 2 == 0:
+            shapes.append(dict(
+                type="rect", xref="x", yref="paper",
+                x0=i - 0.5, x1=i + 0.5, y0=0, y1=1,
+                fillcolor="rgba(200,220,240,0.18)", line_width=0, layer="below"
+            ))
+
     fig = go.Figure()
-    
-    fig.add_trace(go.Scatterpolar(
-        r=values,
-        theta=categories,
-        fill='toself',
-        name='Your Performance',
-        line_color='rgba(55, 126, 184, 1)',
-        fillcolor='rgba(55, 126, 184, 0.3)'
+    fig.add_trace(go.Scatter(
+        x=grp["x"], y=grp["questions"],
+        mode=mode, name="Questions",
+        line=dict(color="rgba(66,133,244,1)", width=2.5, shape=line_shape, smoothing=1.2),
+        marker=dict(color="rgba(66,133,244,1)", **marker),
+        fill="tozeroy", fillcolor="rgba(66,133,244,0.12)",
+        hovertemplate="<b>%{x}</b><br>Questions: %{y}<extra></extra>",
     ))
-    
+    fig.add_trace(go.Scatter(
+        x=grp["x"], y=grp["quizzes"],
+        mode=mode, name="Quizzes",
+        line=dict(color="rgba(251,171,53,1)", width=2.5, shape=line_shape, smoothing=1.2),
+        marker=dict(color="rgba(251,171,53,1)", **marker),
+        fill="tozeroy", fillcolor="rgba(251,171,53,0.10)",
+        hovertemplate="<b>%{x}</b><br>Quizzes: %{y}<extra></extra>",
+    ))
     fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, 100]
-            )),
-        title='🎯 Performance Overview',
-        height=400,
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
+        title=dict(text=f"Activity — {period}", font=dict(size=16)),
+        xaxis=dict(showgrid=False, tickfont=dict(size=12, color="#888"), zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor="rgba(200,200,200,0.3)", zeroline=False, tickfont=dict(color="#888")),
+        shapes=shapes,
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=320,
+        margin=dict(l=10, r=10, t=50, b=10),
+        plot_bgcolor="#fff",
+        paper_bgcolor="#fff",
     )
-    
     return fig
 
-def create_course_distribution_pie(stats):
-    """Create a pie chart showing document distribution across courses"""
-    courses = stats.get('courses', [])
-    
+
+def create_course_mastery(stats, df_all: pd.DataFrame):
+    """
+    Horizontal bar chart showing per-course engagement score.
+    Score = questions asked + quizzes × 3 + docs × 2  (normalised to 100).
+    Much more readable than a radar and directly actionable.
+    """
+    courses = stats.get("courses", [])
     if not courses:
         return None
-    
-    course_names = [course['name'] for course in courses]
-    doc_counts = [course['document_count'] for course in courses]
-    
-    fig = go.Figure(data=[go.Pie(
-        labels=course_names,
-        values=doc_counts,
-        hole=0.4,
-        hovertemplate='<b>%{label}</b><br>Documents: %{value}<br>Percentage: %{percent}<extra></extra>'
-    )])
-    
+
+    # Build per-course question counts from recent_questions
+    q_by_course: dict = {}
+    for q in stats.get("recent_questions", []):
+        c = q.get("course", "")
+        q_by_course[c] = q_by_course.get(c, 0) + 1
+
+    names, scores, doc_counts, q_counts = [], [], [], []
+    for c in courses:
+        cid   = c["id"]
+        docs  = c["document_count"]
+        qs    = q_by_course.get(cid, 0)
+        score = min(qs * 2 + docs * 5, 100)
+        names.append(c["name"])
+        scores.append(score)
+        doc_counts.append(docs)
+        q_counts.append(qs)
+
+    # Sort by score descending
+    order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+    names      = [names[i]      for i in order]
+    scores     = [scores[i]     for i in order]
+    doc_counts = [doc_counts[i] for i in order]
+    q_counts   = [q_counts[i]   for i in order]
+
+    colors = [
+        f"rgba(66,133,244,{0.5 + 0.5 * s / 100})" for s in scores
+    ]
+
+    fig = go.Figure(go.Bar(
+        x=scores,
+        y=names,
+        orientation="h",
+        marker=dict(color=colors, line=dict(width=0)),
+        customdata=list(zip(doc_counts, q_counts)),
+        hovertemplate=(
+            "<b>%{y}</b><br>"
+            "Engagement: %{x}/100<br>"
+            "Docs: %{customdata[0]}  |  Questions: %{customdata[1]}"
+            "<extra></extra>"
+        ),
+        text=[f"{s}/100" for s in scores],
+        textposition="outside",
+    ))
+
     fig.update_layout(
-        title='📚 Document Distribution by Course',
-        height=400,
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
+        title="Course Engagement",
+        xaxis=dict(range=[0, 115], showgrid=False, zeroline=False, visible=False),
+        yaxis=dict(showgrid=False, tickfont=dict(size=12)),
+        height=360,
+        margin=dict(l=10, r=40, t=50, b=10),
+        plot_bgcolor="#fff",
+        paper_bgcolor="#fff",
     )
-    
     return fig
 
+
+def create_course_pie(stats):
+    courses = stats.get("courses", [])
+    if not courses:
+        return None
+    fig = go.Figure(data=[go.Pie(
+        labels=[c["name"] for c in courses],
+        values=[c["document_count"] for c in courses],
+        hole=0.4,
+        hovertemplate="<b>%{label}</b><br>Docs: %{value}<br>%{percent}<extra></extra>"
+    )])
+    fig.update_layout(
+        title="Documents by Course", height=360,
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
+    )
+    return fig
+
+
 def show():
-    st.title("📊 Dashboard")
-    
-    user_id = st.session_state.user_id
-    
-    # Fetch real stats with authentication
+    st.title("Dashboard")
+
+    # Fetch stats
     try:
         headers = auth_manager.get_auth_headers()
         response = requests.get(f"{API_URL}/api/stats/stats", headers=headers)
-        if response.status_code == 200:
-            stats = response.json()
-        else:
-            stats = {
-                "total_documents": 0,
-                "total_courses": 0,
-                "recent_questions": [],
-                "study_hours": 0,
-                "quizzes_taken": 0
-            }
-    except:
-        st.error("Could not fetch stats. Make sure backend is running.")
-        stats = {
-            "total_documents": 0,
-            "total_courses": 0,
-            "recent_questions": [],
-            "study_hours": 0,
-            "quizzes_taken": 0
-        }
-    
-    # Enhanced Stats Cards
-    col1, col2, col3, col4 = st.columns(4)
-    
+        stats = response.json() if response.status_code == 200 else {}
+    except Exception:
+        st.error("Could not fetch stats. Make sure the backend is running.")
+        stats = {}
+
+    stats.setdefault("total_documents", 0)
+    stats.setdefault("total_courses", 0)
+    stats.setdefault("study_hours", 0.0)
+    stats.setdefault("quizzes_taken", 0)
+    stats.setdefault("recent_questions", [])
+    stats.setdefault("daily_activity", {})
+
+    # Build full dataframe from daily activity
+    df_all = _build_monthly_df(stats["daily_activity"])
+
+    # ── Period selector ──────────────────────────────────────────────────────
+    period_options = ["This Month", "Last 3 Months", "Last 6 Months", "All Time"]
+    period = st.selectbox(
+        "Time period",
+        period_options,
+        index=2,
+        key="dash_period",
+        label_visibility="collapsed"
+    )
+
+    df = _filter_by_period(df_all, period)
+
+    # Compute period-scoped totals for the metric cards
+    period_hours     = round(df["hours"].sum(), 1)    if not df.empty else 0.0
+    period_questions = int(df["questions"].sum())     if not df.empty else 0
+    period_quizzes   = int(df["quizzes"].sum())       if not df.empty else 0
+
+    # ── Metric cards ─────────────────────────────────────────────────────────
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("Documents", stats["total_documents"])
+    with c2:
+        st.metric("Courses", stats["total_courses"])
+    with c3:
+        st.metric(
+            "Study Hours",
+            f"{period_hours:.1f}h",
+            delta=f"{period} total",
+            delta_color="off"
+        )
+    with c4:
+        st.metric(
+            "Quizzes",
+            period_quizzes,
+            delta=f"{period_questions} questions asked",
+            delta_color="off"
+        )
+
+    st.divider()
+
+    # ── Charts ────────────────────────────────────────────────────────────────
+    col1, col2 = st.columns([3, 2])
     with col1:
-        st.metric(
-            "📄 Documents", 
-            stats["total_documents"],
-            delta=f"+{stats['total_documents']} this month" if stats["total_documents"] > 0 else None
-        )
+        st.plotly_chart(create_study_hours_chart(df, period), use_container_width=True)
     with col2:
-        st.metric(
-            "📚 Courses", 
-            stats["total_courses"],
-            delta=f"+{stats['total_courses']} active" if stats["total_courses"] > 0 else None
-        )
-    with col3:
-        st.metric(
-            "⏰ Study Hours", 
-            f"{stats['study_hours']:.1f}",
-            delta=f"+{stats['study_hours']:.1f}h total" if stats["study_hours"] > 0 else None
-        )
-    with col4:
-        st.metric(
-            "🎯 Quizzes", 
-            stats["quizzes_taken"],
-            delta=f"{stats['quizzes_taken']} completed" if stats["quizzes_taken"] > 0 else None
-        )
-    
+        mastery = create_course_mastery(stats, df_all)
+        if mastery:
+            st.plotly_chart(mastery, use_container_width=True)
+        else:
+            st.info("Course engagement will appear once you start studying.")
+
+    col1, col2 = st.columns([3, 2])
+    with col1:
+        activity_fig = create_activity_chart(df, period)
+        if activity_fig:
+            st.plotly_chart(activity_fig, use_container_width=True)
+    with col2:
+        pie = create_course_pie(stats)
+        if pie:
+            st.plotly_chart(pie, use_container_width=True)
+        else:
+            st.info("Course distribution will appear once you upload documents.")
+
     st.divider()
-    
-    # Charts Section
-    if stats["total_documents"] > 0 or stats["study_hours"] > 0:
-        # Row 1: Study Progress and Activity Heatmap
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            study_chart = create_study_hours_chart(stats)
-            st.plotly_chart(study_chart, use_container_width=True)
-        
-        with col2:
-            performance_radar = create_performance_radar(stats)
-            st.plotly_chart(performance_radar, use_container_width=True)
-        
-        # Row 2: Activity Heatmap and Course Distribution
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            activity_heatmap = create_activity_heatmap(stats)
-            st.plotly_chart(activity_heatmap, use_container_width=True)
-        
-        with col2:
-            if stats.get("courses"):
-                course_pie = create_course_distribution_pie(stats)
-                if course_pie:
-                    st.plotly_chart(course_pie, use_container_width=True)
-            else:
-                st.info("📈 Charts will appear here once you start studying!")
-    
-    st.divider()
-    
-    # Recent activity section (enhanced)
+
+    # ── Recent activity ───────────────────────────────────────────────────────
     col1, col2 = st.columns(2)
-    
+
     with col1:
-        st.subheader("💬 Recent Questions")
-        if stats["recent_questions"]:
-            for i, q in enumerate(reversed(stats["recent_questions"][-5:])):  # Last 5
-                with st.container():
-                    # Add some styling with colored backgrounds
-                    bg_colors = ["info", "success", "warning", "error"]
-                    bg_color = bg_colors[i % len(bg_colors)]
-                    
-                    if bg_color == "info":
-                        st.info(f"**{q.get('course', 'Unknown')}**: {q.get('question', 'N/A')}")
-                    elif bg_color == "success":
-                        st.success(f"**{q.get('course', 'Unknown')}**: {q.get('question', 'N/A')}")
-                    elif bg_color == "warning":
-                        st.warning(f"**{q.get('course', 'Unknown')}**: {q.get('question', 'N/A')}")
-                    
-                    st.caption(f"⏰ {q.get('timestamp', 'Unknown')[:10]}")
+        st.subheader("Recent Questions")
+        questions = stats["recent_questions"]
+        if questions:
+            for q in reversed(questions[-5:]):
+                st.info(f"**{q.get('course', 'Unknown')}**: {q.get('question', 'N/A')}")
+                st.caption(f"{q.get('timestamp', '')[:10]}")
         else:
-            st.caption("No questions asked yet. Go to AI Tutor to start! 🤖")
-    
+            st.caption("No questions yet. Head to AI Tutor to get started.")
+
     with col2:
-        st.subheader("📚 Your Courses")
+        st.subheader("Your Courses")
         if stats.get("courses"):
-            for i, course in enumerate(stats["courses"][:5]):  # Show first 5
-                with st.container():
-                    # Progress bar based on document count
-                    progress = min(course['document_count'] / 10, 1.0)  # Max 10 docs = 100%
-                    
-                    st.markdown(f"**{course['name']}**")
-                    st.progress(progress)
-                    st.caption(f"📄 {course['document_count']} documents • {progress*100:.0f}% complete")
-                    st.divider()
+            for course in stats["courses"][:5]:
+                progress = min(course["document_count"] / 10, 1.0)
+                st.markdown(f"**{course['name']}**")
+                st.progress(progress)
+                st.caption(f"{course['document_count']} documents")
+                st.divider()
         else:
-            st.caption("No courses yet. Go to Courses to create one! 📖")
-    
-    # Study streak and achievements section
+            st.caption("No courses yet. Go to Courses to create one.")
+
     st.divider()
-    st.subheader("🏆 Achievements & Streaks")
-    
-    achievement_cols = st.columns(4)
-    
-    with achievement_cols[0]:
-        if stats["total_documents"] >= 5:
-            st.success("📚 Document Master\n5+ documents uploaded!")
-        else:
-            st.info(f"📚 Upload {5 - stats['total_documents']} more documents")
-    
-    with achievement_cols[1]:
-        if stats["quizzes_taken"] >= 3:
-            st.success("🎯 Quiz Champion\n3+ quizzes completed!")
-        else:
-            st.info(f"🎯 Complete {3 - stats['quizzes_taken']} more quizzes")
-    
-    with achievement_cols[2]:
-        if stats["study_hours"] >= 10:
-            st.success("⏰ Study Warrior\n10+ hours studied!")
-        else:
-            st.info(f"⏰ Study {10 - stats['study_hours']:.1f} more hours")
-    
-    with achievement_cols[3]:
-        if len(stats.get("recent_questions", [])) >= 10:
-            st.success("💬 Curious Mind\n10+ questions asked!")
-        else:
-            remaining = 10 - len(stats.get("recent_questions", []))
-            st.info(f"💬 Ask {remaining} more questions")
+
+    # ── Achievements ──────────────────────────────────────────────────────────
+    st.subheader("Achievements")
+    a1, a2, a3, a4 = st.columns(4)
+    with a1:
+        done = stats["total_documents"] >= 5
+        (st.success if done else st.info)(
+            "Document Master — 5+ docs uploaded" if done
+            else f"Upload {5 - stats['total_documents']} more documents"
+        )
+    with a2:
+        done = stats["quizzes_taken"] >= 3
+        (st.success if done else st.info)(
+            "Quiz Champion — 3+ quizzes done" if done
+            else f"Complete {3 - stats['quizzes_taken']} more quizzes"
+        )
+    with a3:
+        done = stats["study_hours"] >= 10
+        (st.success if done else st.info)(
+            "Study Warrior — 10+ hours studied" if done
+            else f"Study {max(0, 10 - stats['study_hours']):.1f} more hours"
+        )
+    with a4:
+        total_q = len(stats["recent_questions"])
+        done = total_q >= 10
+        (st.success if done else st.info)(
+            "Curious Mind — 10+ questions asked" if done
+            else f"Ask {10 - total_q} more questions"
+        )
+

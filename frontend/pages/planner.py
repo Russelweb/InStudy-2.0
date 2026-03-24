@@ -3,11 +3,14 @@ import requests
 import os
 from datetime import datetime, timedelta
 from utils.auth_utils import auth_manager
+from components.document_viewer import show_document_panel
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 def show():
     st.title("📅 Study Planner")
+    
+    show_document_panel("planner")
     
     # Plan creation
     with st.form("study_plan_form"):

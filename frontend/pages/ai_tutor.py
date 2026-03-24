@@ -3,6 +3,7 @@ import requests
 import os
 import json
 from utils.auth_utils import auth_manager
+from components.document_viewer import show_document_panel
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -14,6 +15,8 @@ def show():
         return
     
     st.info(f"Current Course: {st.session_state.current_course.replace('_', ' ').title()}")
+    
+    show_document_panel("ai_tutor")
     
     # Show uploaded documents for current course
     with st.expander("📄 Uploaded Documents", expanded=True):
