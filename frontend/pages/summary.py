@@ -2,76 +2,75 @@ import streamlit as st
 import requests
 import os
 from utils.auth_utils import auth_manager
+from utils.ui_utils import run_with_dynamic_progress
 from components.document_viewer import show_document_panel
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
+def _generate_summary_api(course_id, document_name, style, headers):
+    style_map = {"Short": "short", "Bullet Points": "bullet", "Detailed": "detailed", "Exam Revision": "exam"}
+    try:
+        response = requests.post(f"{API_URL}/api/summary/generate", json={"course_id": course_id, "document_name": document_name or None, "style": style_map.get(style, "short")}, headers=headers, timeout=300)
+        return response.json() if response.status_code == 200 else None
+    except Exception as e: raise e
+
 def show():
-    st.title("📝 Smart Summary")
-    
+    # Page Style
+    st.markdown("""
+    <style>
+    .summary-hero {
+        background: linear-gradient(135deg, rgba(255, 127, 80, 0.1) 0%, rgba(129, 140, 248, 0.1) 100%);
+        border-radius: 28px;
+        padding: 3rem;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .summary-content {
+        background: rgba(21, 30, 46, 0.4);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 24px;
+        padding: 2.5rem;
+        font-size: 1.1rem;
+        line-height: 1.8;
+        color: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     if not st.session_state.current_course:
         st.warning("Please select a course first")
         return
-    
-    st.info(f"Course: {st.session_state.current_course.replace('_', ' ').title()}")
+        
+    st.markdown(f"""
+    <div class="summary-hero">
+        <h1 style='color: #FF7F50; margin:0;'>📝 Summary Generation</h1>
+        <p style='color: rgba(255,255,255,0.5); font-weight:300;'>Condensed intelligence from your study materials</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     show_document_panel("summary")
     
-    # Summary options
-    col1, col2 = st.columns(2)
+    # Options Row
+    c1, c2 = st.columns([1, 1])
+    with c1: style_sel = st.selectbox("Synthesis Style", ["Short", "Bullet Points", "Detailed", "Exam Revision"])
+    with c2: doc_name = st.text_input("Specific File (optional)", placeholder="All documents")
     
-    with col1:
-        summary_style = st.selectbox(
-            "Summary Style",
-            ["Short", "Bullet Points", "Detailed", "Exam Revision"]
-        )
-    
-    with col2:
-        document_name = st.text_input("Document Name (optional)", placeholder="Leave empty for all documents")
-    
-    if st.button("✨ Generate Summary", use_container_width=True):
-        with st.spinner("Creating summary..."):
-            try:
-                style_map = {
-                    "Short": "short",
-                    "Bullet Points": "bullet",
-                    "Detailed": "detailed",
-                    "Exam Revision": "exam"
-                }
-                
-                headers = auth_manager.get_auth_headers()
-                response = requests.post(
-                    f"{API_URL}/api/summary/generate",
-                    json={
-                        "course_id": st.session_state.current_course,
-                        "document_name": document_name if document_name.strip() else None,
-                        "style": style_map[summary_style]
-                    },
-                    headers=headers
-                )
-                
-                if response.status_code == 200:
-                    summary = response.json()["summary"]
-                    st.session_state.current_summary = summary
-                    st.success("Summary generated!")
-                else:
-                    st.error("Failed to generate summary")
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-    
-    st.divider()
-    
-    # Display summary
+    col_btn, _ = st.columns([1, 2])
+    with col_btn:
+        if st.button("✨ SUMMARIZE", use_container_width=True):
+            messages = ["Reading document structure...", "Analyzing core themes...", "Synthesizing intelligence...", "Structuring summary..."]
+            headers = auth_manager.get_auth_headers()
+            args = (st.session_state.current_course, doc_name, style_sel, headers)
+            res, err = run_with_dynamic_progress(_generate_summary_api, args=args, messages=messages, estimated_time=40.0)
+            if res:
+                st.session_state.current_summary = res["summary"]
+                st.rerun()
+
+    # Display Content
     if "current_summary" in st.session_state:
-        st.subheader("Summary")
-        st.markdown(st.session_state.current_summary)
-        
-        # Export options
-        col1, col2 = st.columns(2)
-        with col1:
-            st.download_button(
-                "📥 Download as TXT",
-                st.session_state.current_summary,
-                file_name="summary.txt",
-                mime="text/plain"
-            )
+        st.markdown(f'<div class="summary-content">{st.session_state.current_summary}</div>', unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.download_button("📥 EXPORT AS TEXT", st.session_state.current_summary, file_name=f"Summary_{style_sel}.txt", use_container_width=True)

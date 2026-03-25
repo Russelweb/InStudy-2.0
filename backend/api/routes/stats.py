@@ -30,54 +30,62 @@ def get_user_stats(user_id: str):
     courses = [d for d in user_upload_dir.iterdir() if d.is_dir()]
     stats["total_courses"] = len(courses)
 
+    # Load activity log
+    activity_file = user_upload_dir / "activity.json"
+    course_quiz_scores = {} # course_id -> [scores]
+    
+    if activity_file.exists():
+        try:
+            with open(activity_file, "r") as f:
+                activity = json.load(f)
+            
+            # Extract quiz scores per course
+            # We look for quiz_completed events that might have course info
+            # In stats.py:log_activity, quiz_completed logs {score, total, correct} 
+            # but currently it doesn't log the course_id! I need to fix log_activity too.
+            # For now, let's assume we can match questions back to courses.
+            
+            stats["quizzes_taken"] = activity.get("quizzes_taken", 0)
+            stats["recent_questions"] = activity.get("questions", [])[-10:]
+            
+            daily = activity.get("daily_activity", {})
+            if not daily:
+                daily = {}
+                for q in activity.get("questions", []):
+                    ts = q.get("timestamp", "")
+                    if not ts: continue
+                    date_key = ts[:10]
+                    daily.setdefault(date_key, {"questions": 0, "quizzes": 0, "study_time": 0, "documents_uploaded": 0})
+                    daily[date_key]["questions"] += 1
+            
+            stats["daily_activity"] = daily
+            total_hours = 0.0
+            for day_data in daily.values():
+                total_hours += day_data.get("study_time", 0) + day_data.get("questions", 0) * 5 / 60
+            stats["study_hours"] = round(total_hours, 2)
+        except: pass
+
+    # Build final course stats with mastery
+    total_docs = 0
     for course_dir in courses:
-        documents = [
-            f for f in course_dir.iterdir()
-            if f.is_file() and not f.name.endswith(".annotations.json")
-        ]
-        stats["total_documents"] += len(documents)
+        documents = [f for f in course_dir.iterdir() if f.is_file() and not f.name.endswith(".annotations.json")]
+        total_docs += len(documents)
+        
+        doc_score = min(len(documents) * 10, 100)
+        q_results = activity.get("quiz_results", [])
+        q_scores = [q.get("score", 0) for q in q_results if q.get("course_id") == course_dir.name]
+        avg_quiz = sum(q_scores) / len(q_scores) if q_scores else 0
+        mastery = (doc_score * 0.4) + (avg_quiz * 0.6) if q_scores else doc_score
+        
         stats["courses"].append({
             "name": course_dir.name.replace("_", " ").title(),
             "id": course_dir.name,
             "document_count": len(documents),
             "documents": [f.name for f in documents],
+            "mastery": round(mastery, 1),
+            "avg_quiz_score": round(avg_quiz, 1) if q_scores else None
         })
-
-    # Load activity log
-    activity_file = user_upload_dir / "activity.json"
-    if activity_file.exists():
-        try:
-            with open(activity_file, "r") as f:
-                activity = json.load(f)
-
-            stats["recent_questions"] = activity.get("questions", [])[-10:]
-            stats["quizzes_taken"]    = activity.get("quizzes_taken", 0)
-            daily                     = activity.get("daily_activity", {})
-
-            # Back-fill daily_activity from questions list if it's missing/empty
-            # (handles old activity.json files created before daily tracking was added)
-            if not daily:
-                daily = {}
-                for q in activity.get("questions", []):
-                    ts = q.get("timestamp", "")
-                    if not ts:
-                        continue
-                    date_key = ts[:10]  # "YYYY-MM-DD"
-                    if date_key not in daily:
-                        daily[date_key] = {"questions": 0, "quizzes": 0,
-                                           "study_time": 0, "documents_uploaded": 0}
-                    daily[date_key]["questions"] += 1
-
-            stats["daily_activity"] = daily
-
-            # Derive study_hours from daily_activity (consistent with graph)
-            total_hours = 0.0
-            for day_data in daily.values():
-                total_hours += day_data.get("study_time", 0) + day_data.get("questions", 0) * 5 / 60
-            stats["study_hours"] = round(total_hours, 2)
-
-        except Exception:
-            pass
+    stats["total_documents"] = total_docs
 
     return stats
 
@@ -137,6 +145,15 @@ def log_activity(user_id: str, activity_type: str, data: dict):
         # Handle quiz completion
         activity["quizzes_taken"] = activity.get("quizzes_taken", 0) + 1
         activity["daily_activity"][current_date]["quizzes"] += 1
+        
+        # Track history of scores per course
+        history = activity.setdefault("quiz_results", [])
+        history.append({
+            "course_id": data.get("course_id"),
+            "score": data.get("score", 0),
+            "timestamp": datetime.now().isoformat()
+        })
+        activity["quiz_results"] = history[-100:] # Keep last 100
     
     elif activity_type == "study_session":
         hours = data.get("hours", 0)

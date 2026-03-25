@@ -115,43 +115,77 @@ def require_authentication():
     
     # Show authentication forms
     st.markdown("""
-    <div style="text-align: center; padding: 2rem 0;">
-        <h1>🎓 InStudy 2.0</h1>
-        <p style="font-size: 1.2rem; color: #666;">Your AI-Powered Study Assistant</p>
+    <div style="text-align: center; padding: 3rem 0;">
+        <h1 style='color: #FF7F50; font-weight: 800; font-size: 3.5rem; letter-spacing: -1px; margin-bottom: 0;'>InStudy 2.0</h1>
+        <p style="font-size: 1.2rem; color: rgba(255,255,255,0.6); font-weight: 300;">Elevate your learning with AI intelligence</p>
     </div>
+    
+    <style>
+    /* Auth Form Card */
+    div[data-testid="stForm"] {
+        background: rgba(21, 30, 46, 0.6) !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: 24px !important;
+        padding: 2.5rem !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    /* Input Styling */
+    div[data-testid="stTextInput"] input {
+        background-color: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 12px !important;
+        color: white !important;
+        padding: 0.8rem !important;
+    }
+    
+    div[data-testid="stTextInput"] label {
+        color: rgba(255, 255, 255, 0.8) !important;
+        font-weight: 500 !important;
+        margin-bottom: 0.5rem !important;
+    }
+    </style>
     """, unsafe_allow_html=True)
     
-    # Show connection status
+    # Show connection status (subtle)
     try:
         import requests
-        response = requests.get("http://localhost:8000/health", timeout=5)
-        if response.status_code == 200:
-            st.success("✅ Backend server is running")
-        else:
-            st.warning("⚠️ Backend server responded with an error")
+        headers = {"timeout": "5"}
+        response = requests.get("http://localhost:8000/health", **headers)
+        if response.status_code != 200:
+             st.caption("⚠️ System check: Backend latency detected")
     except:
-        st.error("❌ Cannot connect to backend server. Please ensure it's running on http://localhost:8000")
+        st.error("❌ Connection Offline: Please start the backend on port 8000")
     
     # Determine which form to show
     show_signup_form_flag = st.session_state.get("show_signup", False)
     
-    if show_signup_form_flag:
-        show_signup_form()
-    else:
-        show_login_form()
+    col_l, col_c, col_r = st.columns([1, 2, 1])
+    with col_c:
+        if show_signup_form_flag:
+            show_signup_form()
+        else:
+            show_login_form()
     
-    # Add some helpful information
+    # Add some helpful information (stylish features grid)
     st.markdown("---")
     st.markdown("""
-    **Features you'll get access to:**
-    - 🤖 AI Tutor with document-based Q&A
-    - 📚 Smart document processing and organization
-    - 🃏 Auto-generated flashcards
-    - 📝 Interactive quizzes
-    - 📊 Study progress tracking
-    - 📅 Personalized study planner
-    - 📈 Performance analytics
-    """)
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; padding: 2rem 0;">
+        <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
+            <h4 style="color: #FF7F50; margin-top: 0;">🤖 AI Intelligence</h4>
+            <p style="color: rgba(255,255,255,0.6); font-size: 0.9rem; margin-bottom: 0;">Context-aware study assistance tailored to your documents.</p>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
+            <h4 style="color: #FF7F50; margin-top: 0;">📊 Performance</h4>
+            <p style="color: rgba(255,255,255,0.6); font-size: 0.9rem; margin-bottom: 0;">Real-time analytics and progress tracking.</p>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
+            <h4 style="color: #FF7F50; margin-top: 0;">📅 Smart Planning</h4>
+            <p style="color: rgba(255,255,255,0.6); font-size: 0.9rem; margin-bottom: 0;">Optimize your schedule with AI revision cycles.</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     return False
 

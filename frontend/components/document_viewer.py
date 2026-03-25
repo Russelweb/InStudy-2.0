@@ -14,11 +14,11 @@ ANNOTATION_TYPES = {
 }
 
 ANNOTATION_COLORS = {
-    "key_point":   "#fff3cd",
-    "explanation": "#d1ecf1",
-    "summary":     "#d4edda",
-    "note":        "#f0f0f0",
-    "question":    "#f8d7da",
+    "key_point":   "#FF7F50", # Coral for border
+    "explanation": "#818CF8", # Blue for border
+    "summary":     "#34D399", # Green for border
+    "note":        "#9CA3AF", # Gray for border
+    "question":    "#FB7185", # Rose for border
 }
 
 
@@ -26,6 +26,7 @@ def _h():
     return auth_manager.get_auth_headers()
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def _fetch_documents(course_id):
     try:
         r = requests.get(
@@ -154,18 +155,17 @@ def _build_doc_html(paragraphs, styles, ann_map):
         # Inline annotations for this paragraph
         for ann in ann_map.get(i, []):
             atype  = ann.get("type", "note")
-            color  = ANNOTATION_COLORS.get(atype, "#f0f0f0")
-            border = ANN_BORDER.get(atype, "#aaa")
             label  = atype.replace("_", " ").title()
+            color  = ANNOTATION_COLORS.get(atype, "#aaa")
             ts     = ann.get("created_at", "")[:16].replace("T", " ")
             rows.append(
-                f"<div style='background:{color};border-left:3px solid {border};"
-                f"padding:6px 10px;margin:2px 0 6px 22px;border-radius:4px;"
-                f"font-size:12px;line-height:1.6;'>"
-                f"<span style='font-weight:600;color:{border};'>[{label}]</span> "
-                f"<span style='color:#aaa;font-size:10px;'>{ts}</span><br/>"
-                f"{ann['content']}"
-                f"</div>"
+                f"<div style='background:rgba(255,255,255,0.03); border-left:4px solid {color}; "
+                f"padding:12px 14px; margin:10px 0 10px 22px; border-radius:12px; "
+                f"font-size:12.5px; line-height:1.6; color: #FFFFFF !important; "
+                f"box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 1px solid rgba(255,255,255,0.02);'>"
+                f"<span style='font-weight:800; color:{color}; letter-spacing:0.5px; margin-bottom:4px; display:inline-block;'>[{label}]</span> "
+                f"<span style='color:rgba(255,255,255,0.4); font-size:10px; margin-left:6px;'>{ts}</span><br/>"
+                f"{ann['content']}</div>"
             )
 
         if ann_map.get(i):
@@ -248,17 +248,18 @@ def _render_pdf_pages(course_id: str, filename: str, annotations: list, page_con
         )
         for ann in annotations:
             atype  = ann.get("type", "note")
-            color  = ANNOTATION_COLORS.get(atype, "#f0f0f0")
-            border = ANN_BORDER.get(atype, "#aaa")
             label  = atype.replace("_", " ").title()
+            color  = ANNOTATION_COLORS.get(atype, "#aaa")
             ts     = ann.get("created_at", "")[:16].replace("T", " ")
             pidx   = ann.get("paragraph_index", -1)
             st.markdown(
-                f"<div style='background:{color};border-left:3px solid {border};"
-                f"padding:6px 10px;margin:3px 0;border-radius:4px;font-size:12px;line-height:1.5;'>"
-                f"<span style='font-weight:600;color:{border};'>[{label}]</span> "
-                f"<span style='color:#999;font-size:10px;'>P{pidx+1} · {ts}</span><br/>"
-                f"{ann['content']}"
+                f"<div style='background:rgba(255,255,255,0.03); border-left:4px solid {color}; "
+                f"padding:12px; margin:10px 0; border-radius:12px; "
+                f"font-size:12.5px; line-height:1.5; color: #FFFFFF !important; "
+                f"box-shadow: 0 4px 10px rgba(0,0,0,0.1);'>"
+                f"<span style='font-weight:800; color:{color};'>[{label}]</span> "
+                f"<span style='color:rgba(255,255,255,0.4); font-size:10px; margin-left:8px;'>P{pidx+1} · {ts}</span><br/>"
+                f"<div style='margin-top:4px;'>{ann['content']}</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -441,7 +442,7 @@ def show_document_panel(page_context: str = ""):
                 st.caption(f"{len(annotations)} annotation(s) saved")
                 for ann in reversed(annotations):
                     atype   = ann.get("type", "note")
-                    color   = ANNOTATION_COLORS.get(atype, "#f0f0f0")
+                    color   = ANNOTATION_COLORS.get(atype, "#aaa")
                     label   = atype.replace("_", " ").title()
                     ts      = ann.get("created_at", "")[:16].replace("T", " ")
                     pidx    = ann.get("paragraph_index", -1)
@@ -451,11 +452,12 @@ def show_document_panel(page_context: str = ""):
                     ca, cd = st.columns([5, 1])
                     with ca:
                         st.markdown(
-                            f"<div style='background:{color};border-left:3px solid #bbb;"
-                            f"padding:5px 8px;margin:2px 0;border-radius:3px;font-size:12px;'>"
-                            f"<b>[{label}]</b> {pref} "
-                            f"<span style='color:#aaa;font-size:10px;'>{ts}</span><br/>"
-                            f"{preview}</div>",
+                            f"<div style='background:rgba(255,255,255,0.03); border-left:3px solid {color}; "
+                            f"padding:10px; margin:6px 0; border-radius:12px; "
+                            f"font-size:11px; color: #FFFFFF !important;'>"
+                            f"<b style='color:{color};'>[{label}]</b> {pref} "
+                            f"<span style='color:rgba(255,255,255,0.4); font-size:9px;'>{ts}</span><br/>"
+                            f"<div style='margin-top:3px;'>{preview}</div></div>",
                             unsafe_allow_html=True,
                         )
                     with cd:

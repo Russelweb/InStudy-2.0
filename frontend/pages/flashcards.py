@@ -2,176 +2,165 @@ import streamlit as st
 import requests
 import os
 from utils.auth_utils import auth_manager
+from utils.ui_utils import run_with_dynamic_progress
 from components.document_viewer import show_document_panel
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
+def _generate_flashcards_api(course_id, num_cards, include_images, explanation_level, headers):
+    try:
+        response = requests.post(
+            f"{API_URL}/api/flashcards/generate",
+            json={
+                "course_id": course_id,
+                "num_cards": num_cards,
+                "include_images": include_images,
+                "explanation_level": explanation_level
+            },
+            headers=headers,
+            timeout=300
+        )
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except Exception as e:
+        raise e
+
 def show():
-    st.title("🗂️ Flashcards")
+    # Page Styling
+    st.markdown("""
+    <style>
+    .flashcard-main {
+        background: rgba(21, 30, 46, 0.4);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 32px;
+        padding: 3rem;
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        position: relative;
+        box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+        margin: 2rem 0;
+    }
+    .card-label {
+        position: absolute;
+        top: 2rem;
+        left: 2rem;
+        color: rgba(255, 255, 255, 0.3);
+        font-weight: 700;
+        letter-spacing: 2px;
+        font-size: 0.8rem;
+    }
+    .card-content {
+        font-size: 1.8rem;
+        font-weight: 600;
+        line-height: 1.4;
+        color: white;
+    }
+    .card-footer {
+        position: absolute;
+        bottom: 2rem;
+        right: 2rem;
+        color: #FF7F50;
+        font-weight: 600;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.title("🗂️ Flashcard Generator")
     
     if not st.session_state.current_course:
         st.warning("Please select a course first")
         return
-    
-    st.info(f"Course: {st.session_state.current_course.replace('_', ' ').title()}")
-    
+        
     show_document_panel("flashcards")
     
-    # Generate flashcards
-    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
-    with col1:
-        num_cards = st.slider("Number of flashcards", 5, 20, 10)
-    with col2:
-        include_images = st.checkbox("Include Images", value=True, help="Add relevant images to flashcards")
-    with col3:
-        explanation_level = st.selectbox(
-            "Explanation Level",
-            ["brief", "detailed", "comprehensive"],
-            index=1,  # Default to "detailed"
-            help="• Brief: Concise answers (1-2 sentences)\n• Detailed: Educational explanations (3-4 sentences)\n• Comprehensive: In-depth explanations with examples (4-6 sentences)"
-        )
-    with col4:
-        if st.button("🎴 Generate Flashcards", use_container_width=True):
-            with st.spinner("Creating flashcards..."):
-                try:
-                    headers = auth_manager.get_auth_headers()
-                    response = requests.post(
-                        f"{API_URL}/api/flashcards/generate",
-                        json={
-                            "course_id": st.session_state.current_course,
-                            "num_cards": num_cards,
-                            "include_images": include_images,
-                            "explanation_level": explanation_level
-                        },
-                        headers=headers
-                    )
-                    
-                    if response.status_code == 200:
-                        flashcards_data = response.json()["flashcards"]
-                        st.session_state.flashcards = flashcards_data
-                        st.session_state.current_card = 0
-                        st.session_state.show_back = False
-                        
-                        # Count images more accurately
-                        image_count = 0
-                        for card in flashcards_data:
-                            image_url = card.get("image_url", "")
-                            image_type = card.get("image_type", "")
-                            # Count all image types except text_badge
-                            if (image_url and image_url.strip() and 
-                                image_type and image_type != "text_badge"):
-                                image_count += 1
-                        
-                        st.success(f"Generated {len(st.session_state.flashcards)} flashcards with {image_count} images! (Explanation level: {explanation_level})")
-                        
-                        # Debug info (can be removed later)
-                        if image_count == 0 and include_images:
-                            st.info("🔍 Debug: Images were requested but none found. Check backend logs.")
-                            # Show first card's image data for debugging
-                            if flashcards_data:
-                                first_card = flashcards_data[0]
-                                st.json({
-                                    "image_url": first_card.get("image_url", "Missing"),
-                                    "image_type": first_card.get("image_type", "Missing"),
-                                    "alt_text": first_card.get("alt_text", "Missing")
-                                })
-                    else:
-                        st.error("Failed to generate flashcards")
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
-    
-    st.divider()
-    
-    # Display flashcards
+    # Setup Section (Card-like)
+    with st.expander("🛠️ Deck Settings", expanded=not bool(st.session_state.get("flashcards"))):
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:
+            num_cards = st.select_slider("Cards", options=[5, 10, 15, 20, 25], value=5)
+        with col2:
+            include_images = st.toggle("Include Visuals", value=True)
+        with col3:
+            explanation_level = st.selectbox("Depth", ["brief", "detailed", "comprehensive"], index=1)
+            
+        if st.button("🔥 Generate New Deck", use_container_width=True):
+            messages = ["Scanning materials...", "Extracting concepts...", "Generating visuals...", "Finalizing deck..."]
+            headers = auth_manager.get_auth_headers()
+            args = (st.session_state.current_course, num_cards, include_images, explanation_level, headers)
+            result, error = run_with_dynamic_progress(_generate_flashcards_api, args=args, messages=messages, estimated_time=45.0)
+            
+            if result:
+                st.session_state.flashcards = result["flashcards"]
+                st.session_state.current_card = 0
+                st.session_state.show_back = False
+                st.rerun()
+
+    # Flashcard Display
     if "flashcards" in st.session_state and st.session_state.flashcards:
         cards = st.session_state.flashcards
         idx = st.session_state.get("current_card", 0)
+        current_card = cards[idx]
+        show_back = st.session_state.get("show_back", False)
         
-        st.subheader(f"Card {idx + 1} of {len(cards)}")
+        # Main Card UI
+        st.markdown(f"""
+        <div class="flashcard-main">
+            <div class="card-label">CARD {idx + 1} / {len(cards)}</div>
+            <div class="card-content">
+                {current_card['back'] if show_back else current_card['front']}
+            </div>
+            <div class="card-footer">
+                {'ANSWER' if show_back else 'QUESTION'}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        # Card display with image support
-        card_container = st.container()
-        with card_container:
-            current_card = cards[idx]
-            
-            # Create columns for image and text
-            if current_card.get("image_url") and current_card.get("image_type") != "text_badge":
-                col_img, col_text = st.columns([1, 2])
-                
-                with col_img:
-                    # Display image based on type
-                    image_type = current_card.get("image_type", "")
-                    image_url = current_card.get("image_url", "")
-                    alt_text = current_card.get("alt_text", "")
-                    
-                    if image_type == "emoji":
-                        # Display emoji directly
-                        st.markdown(f"<div style='text-align: center; font-size: 4rem; padding: 20px;'>{image_url}</div>", unsafe_allow_html=True)
-                    elif image_type in ["svg_image", "local_image"]:
-                        # Display local SVG or image files
-                        try:
-                            # For local images, we need to serve them from the backend
-                            if image_url.startswith("/static/"):
-                                full_url = f"{API_URL}{image_url}"
-                                st.image(full_url, width=200, caption=alt_text)
-                            else:
-                                st.image(image_url, width=200, caption=alt_text)
-                        except Exception as e:
-                            # Fallback to a default emoji if image fails to load
-                            st.markdown("<div style='text-align: center; font-size: 3rem; padding: 20px;'>📚</div>", unsafe_allow_html=True)
-                            st.caption(f"Image: {alt_text}")
-                    elif image_type == "stock_photo":
-                        try:
-                            st.image(image_url, width=200, caption=alt_text)
-                        except:
-                            st.markdown("<div style='text-align: center; font-size: 3rem; padding: 20px;'>🖼️</div>", unsafe_allow_html=True)
-                    else:
-                        # Fallback to default study emoji
-                        st.markdown("<div style='text-align: center; font-size: 3rem; padding: 20px;'>📚</div>", unsafe_allow_html=True)
-                        if alt_text:
-                            st.caption(alt_text)
-                
-                with col_text:
-                    if st.session_state.get("show_back", False):
-                        st.info(f"**Answer:**\n\n{current_card['back']}")
-                    else:
-                        st.success(f"**Question:**\n\n{current_card['front']}")
-            else:
-                # No image or text badge - show full width
-                if st.session_state.get("show_back", False):
-                    st.info(f"**Answer:**\n\n{current_card['back']}")
-                else:
-                    st.success(f"**Question:**\n\n{current_card['front']}")
-                
-                # Show text badge if available
-                if current_card.get("image_type") == "text_badge":
-                    badge_text = current_card["image_url"]  # Direct text, no data URL parsing
-                    st.caption(f"💡 {badge_text}")
+        # Progress
+        progress = (idx + 1) / len(cards)
+        st.progress(progress)
         
         # Controls
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            if st.button("⬅️ Previous") and idx > 0:
+        c1, c2, c3, c4 = st.columns([1, 2, 1, 1])
+        with c1:
+            if st.button("⬅️ PREVIOUS", use_container_width=True) and idx > 0:
                 st.session_state.current_card -= 1
                 st.session_state.show_back = False
                 st.rerun()
-        
-        with col2:
-            if st.button("🔄 Flip Card"):
-                st.session_state.show_back = not st.session_state.get("show_back", False)
+        with c2:
+            if st.button("🔄 REVEAL / FLIP", use_container_width=True):
+                st.session_state.show_back = not show_back
                 st.rerun()
-        
-        with col3:
-            if st.button("➡️ Next") and idx < len(cards) - 1:
+        with c3:
+            if st.button("➡️ NEXT", use_container_width=True) and idx < len(cards) - 1:
                 st.session_state.current_card += 1
                 st.session_state.show_back = False
                 st.rerun()
-        
-        with col4:
-            if st.button("🔀 Shuffle"):
+        with c4:
+            if st.button("🔀 SHUFFLE", use_container_width=True):
                 import random
                 random.shuffle(st.session_state.flashcards)
                 st.session_state.current_card = 0
                 st.session_state.show_back = False
                 st.rerun()
+                
+        # # Optional: Image display if present
+        # img_url = current_card.get("image_url")
+        # img_type = current_card.get("image_type")
+        #
+        # if img_url and img_type != "text_badge":
+        #     if img_type == "emoji":
+        #         st.markdown(f"<div style='text-align: center; font-size: 5rem; padding: 20px;'>{img_url}</div>", unsafe_allow_html=True)
+        #     else:
+        #         with st.expander("🖼️ View Associated Visual", expanded=False):
+        #             try:
+        #                 st.image(img_url, use_container_width=True, caption=current_card.get("alt_text", ""))
+        #             except:
+        #                 st.caption(f"Image could not be matches: {img_url}")
+    else:
+        st.info("No flashcards yet. Use the settings above to generate your first deck!")

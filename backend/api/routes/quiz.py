@@ -21,6 +21,7 @@ class AuthenticatedQuizRequest(BaseModel):
 
 class QuizEvaluationRequest(BaseModel):
     """Quiz evaluation request"""
+    course_id: str
     questions: List[Dict[str, Any]]
     user_answers: Dict[str, str]
 
@@ -134,6 +135,7 @@ async def evaluate_quiz(
         print("Step 8: Logging activity...")
         try:
             log_activity(user_id, "quiz_completed", {
+                "course_id": request_data.course_id,
                 "score": results["score_percentage"],
                 "total_questions": results["total_questions"],
                 "correct_answers": results["correct_answers"]

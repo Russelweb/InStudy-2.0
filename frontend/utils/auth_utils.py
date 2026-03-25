@@ -9,6 +9,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+@st.cache_data(ttl=120)  # Cache for 2 minutes
+def _cached_verify_token(token: str, backend_url: str):
+    """Cached token verification with a TTL to avoid repeated network calls"""
+    try:
+        response = requests.post(
+            f"{backend_url}/api/auth/verify",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10
+        )
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except Exception as e:
+        logger.error(f"Cached token verification error: {e}")
+        return None
+
 class AuthManager:
     """Manages authentication state and operations for Streamlit frontend"""
     
@@ -48,6 +64,9 @@ class AuthManager:
                     # Store session token and user info
                     st.session_state[self.session_key] = data["session_token"]
                     st.session_state[self.user_key] = data["user"]
+                    
+                    # Clear verification cache for this token on login
+                    # st.cache_data.clear() # Optional: clear cache to ensure fresh state
                     
                     logger.info(f"User logged in: {email}")
                     return True, "Login successful"
@@ -118,10 +137,10 @@ class AuthManager:
                 )
                 
                 # Clear session state regardless of backend response
-                if self.session_key in st.session_state:
-                    del st.session_state[self.session_key]
-                if self.user_key in st.session_state:
-                    del st.session_state[self.user_key]
+                self.clear_session()
+                
+                # Clear entire cache on logout to ensure no data leaks or stale state
+                st.cache_data.clear()
                 
                 logger.info("User logged out")
                 return True
@@ -129,53 +148,35 @@ class AuthManager:
         except Exception as e:
             logger.error(f"Logout error: {e}")
             # Still clear local session even if backend call fails
-            if self.session_key in st.session_state:
-                del st.session_state[self.session_key]
-            if self.user_key in st.session_state:
-                del st.session_state[self.user_key]
+            self.clear_session()
         
         return True
     
     def verify_token(self) -> bool:
-        """Verify current session token with backend"""
-        try:
-            token = self.get_session_token()
-            if not token:
-                return False
-            
-            response = requests.post(
-                f"{self.backend_url}/api/auth/verify",
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=15  # Increased timeout
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                is_valid = data.get("valid", False)
-                
-                # If token is valid, update user info in case it changed
-                if is_valid and "user_id" in data and "email" in data:
-                    # Update the entire user object with fresh data from backend
-                    updated_user = {
-                        "id": data["user_id"],
-                        "email": data["email"],
-                        "is_admin": data.get("is_admin", False)
-                    }
-                    st.session_state[self.user_key] = updated_user
-                
-                return is_valid
-            
+        """Verify current session token with backend (CACHED)"""
+        token = self.get_session_token()
+        if not token:
             return False
             
-        except requests.exceptions.ConnectionError as e:
-            logger.error(f"Connection error during token verification: {e}")
-            return False
-        except requests.exceptions.Timeout as e:
-            logger.error(f"Token verification timeout: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Token verification error: {e}")
-            return False
+        # Use cached function to avoid repeated calls
+        data = _cached_verify_token(token, self.backend_url)
+        
+        if data:
+            is_valid = data.get("valid", False)
+            
+            # If token is valid, update user info in case it changed
+            if is_valid and "user_id" in data and "email" in data:
+                # Update the entire user object with fresh data from backend
+                updated_user = {
+                    "id": data["user_id"],
+                    "email": data["email"],
+                    "is_admin": data.get("is_admin", False)
+                }
+                st.session_state[self.user_key] = updated_user
+            
+            return is_valid
+        
+        return False
     
     def get_auth_headers(self) -> Dict[str, str]:
         """Get authentication headers for API requests"""
