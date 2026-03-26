@@ -246,23 +246,24 @@ def _render_pdf_pages(course_id: str, filename: str, annotations: list, page_con
             "Annotations</div>",
             unsafe_allow_html=True
         )
-        for ann in annotations:
-            atype  = ann.get("type", "note")
-            label  = atype.replace("_", " ").title()
-            color  = ANNOTATION_COLORS.get(atype, "#aaa")
-            ts     = ann.get("created_at", "")[:16].replace("T", " ")
-            pidx   = ann.get("paragraph_index", -1)
-            st.markdown(
-                f"<div style='background:rgba(255,255,255,0.03); border-left:4px solid {color}; "
-                f"padding:12px; margin:10px 0; border-radius:12px; "
-                f"font-size:12.5px; line-height:1.5; color: #FFFFFF !important; "
-                f"box-shadow: 0 4px 10px rgba(0,0,0,0.1);'>"
-                f"<span style='font-weight:800; color:{color};'>[{label}]</span> "
-                f"<span style='color:rgba(255,255,255,0.4); font-size:10px; margin-left:8px;'>P{pidx+1} · {ts}</span><br/>"
-                f"<div style='margin-top:4px;'>{ann['content']}</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
+        with st.container(height=300):
+            for ann in annotations:
+                atype  = ann.get("type", "note")
+                label  = atype.replace("_", " ").title()
+                color  = ANNOTATION_COLORS.get(atype, "#aaa")
+                ts     = ann.get("created_at", "")[:16].replace("T", " ")
+                pidx   = ann.get("paragraph_index", -1)
+                st.markdown(
+                    f"<div style='background:rgba(255,255,255,0.03); border-left:4px solid {color}; "
+                    f"padding:12px; margin:10px 0; border-radius:12px; "
+                    f"font-size:12.5px; line-height:1.5; color: #FFFFFF !important; "
+                    f"box-shadow: 0 4px 10px rgba(0,0,0,0.1);'>"
+                    f"<span style='font-weight:800; color:{color};'>[{label}]</span> "
+                    f"<span style='color:rgba(255,255,255,0.4); font-size:10px; margin-left:8px;'>P{pidx+1} · {ts}</span><br/>"
+                    f"<div style='margin-top:4px;'>{ann['content']}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
 
 
 def show_document_panel(page_context: str = ""):
@@ -440,34 +441,38 @@ def show_document_panel(page_context: str = ""):
             if annotations:
                 st.divider()
                 st.caption(f"{len(annotations)} annotation(s) saved")
-                for ann in reversed(annotations):
-                    atype   = ann.get("type", "note")
-                    color   = ANNOTATION_COLORS.get(atype, "#aaa")
-                    label   = atype.replace("_", " ").title()
-                    ts      = ann.get("created_at", "")[:16].replace("T", " ")
-                    pidx    = ann.get("paragraph_index", -1)
-                    pref    = f"P{pidx+1}" if pidx >= 0 else "general"
-                    preview = ann["content"][:100] + ("..." if len(ann["content"]) > 100 else "")
+                
+                # Scrollable container for annotations list
+                with st.container(height=450):
+                    for ann in reversed(annotations):
+                        atype   = ann.get("type", "note")
+                        color   = ANNOTATION_COLORS.get(atype, "#aaa")
+                        label   = atype.replace("_", " ").title()
+                        ts      = ann.get("created_at", "")[:16].replace("T", " ")
+                        pidx    = ann.get("paragraph_index", -1)
+                        pref    = f"P{pidx+1}" if pidx >= 0 else "general"
+                        preview = ann["content"][:100] + ("..." if len(ann["content"]) > 100 else "")
 
-                    ca, cd = st.columns([5, 1])
-                    with ca:
-                        st.markdown(
-                            f"<div style='background:rgba(255,255,255,0.03); border-left:3px solid {color}; "
-                            f"padding:10px; margin:6px 0; border-radius:12px; "
-                            f"font-size:11px; color: #FFFFFF !important;'>"
-                            f"<b style='color:{color};'>[{label}]</b> {pref} "
-                            f"<span style='color:rgba(255,255,255,0.4); font-size:9px;'>{ts}</span><br/>"
-                            f"<div style='margin-top:3px;'>{preview}</div></div>",
-                            unsafe_allow_html=True,
-                        )
-                    with cd:
-                        if st.button(
-                            "X", key=f"del_{ann['id']}_{page_context}",
-                            help="Delete this annotation"
-                        ):
-                            if _delete_annotation(course_id, filename, ann["id"]):
-                                paras, stys, anns = _fetch_paragraphs_and_annotations(course_id, filename)
-                                st.session_state[K_PARAS] = paras
-                                st.session_state[K_STYS]  = stys
-                                st.session_state[K_ANNS]  = anns
-                                st.rerun()
+                        ca, cd = st.columns([5, 1])
+                        with ca:
+                            st.markdown(
+                                f"<div style='background:rgba(255,255,255,0.03); backdrop-filter: blur(8px); "
+                                f"-webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.05); "
+                                f"border-left:3px solid {color}; padding:10px; margin:6px 0; border-radius:12px; "
+                                f"font-size:11px; color: #FFFFFF !important;'>"
+                                f"<b style='color:{color};'>[{label}]</b> {pref} "
+                                f"<span style='color:rgba(255,255,255,0.4); font-size:9px;'>{ts}</span><br/>"
+                                f"<div style='margin-top:3px;'>{preview}</div></div>",
+                                unsafe_allow_html=True,
+                            )
+                        with cd:
+                            if st.button(
+                                "X", key=f"del_{ann['id']}_{page_context}",
+                                help="Delete this annotation"
+                            ):
+                                if _delete_annotation(course_id, filename, ann["id"]):
+                                    paras, stys, anns = _fetch_paragraphs_and_annotations(course_id, filename)
+                                    st.session_state[K_PARAS] = paras
+                                    st.session_state[K_STYS]  = stys
+                                    st.session_state[K_ANNS]  = anns
+                                    st.rerun()

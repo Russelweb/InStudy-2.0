@@ -133,57 +133,85 @@ def show():
                 st.toast("Connection Healthy" if resp.status_code == 200 else "Link Error")
 
     with col_chat:
-        # Display chat history
-        for msg in st.session_state.chat_history:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-                if msg.get("sources"):
-                    st.markdown(f"<p style='font-size:0.75rem; color:rgba(255,255,255,0.3);'>📄 Sources: {', '.join(msg['sources'])}</p>", unsafe_allow_html=True)
+        # 1. Chat Container for fixed space scrolling
+        chat_container = st.container(height=500)
         
-        # Chat input
+        with chat_container:
+            for msg in st.session_state.chat_history:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+                    if msg.get("sources"):
+                        st.markdown(f"<p style='font-size:0.75rem; color:rgba(255,255,255,0.3);'>📄 Sources: {', '.join(msg['sources'])}</p>", unsafe_allow_html=True)
+        
+        # 2. Stop Button - Only shown when is_streaming is True
+        if st.session_state.get("is_streaming", False):
+            if st.button("⏹ Stop AI Tutor", type="primary", use_container_width=True):
+                st.session_state.is_streaming = False
+                st.session_state.pending_question = None
+                st.rerun()
+
+        # 3. Handle NEW questions
         if question := st.chat_input("Ask anything about your documents..."):
+            st.session_state.pending_question = question
+            st.session_state.is_streaming = True
+            st.rerun()
+
+        # 4. Handle STREAMING of pending question
+        if st.session_state.get("pending_question") and st.session_state.get("is_streaming"):
+            question = st.session_state.pending_question
             st.session_state.chat_history.append({"role": "user", "content": question})
-            with st.chat_message("user"):
-                st.markdown(question)
             
-            with st.chat_message("assistant"):
-                message_placeholder = st.empty()
-                sources_placeholder = st.empty()
-                full_response = ""
-                sources = []
+            # Immediately show the user message in the container
+            with chat_container:
+                with st.chat_message("user"):
+                    st.markdown(question)
                 
-                try:
-                    response = requests.post(
-                        f"{API_URL}/api/chat/ask-stream",
-                        json={"course_id": st.session_state.current_course, "question": question, "use_eli12": use_eli12},
-                        headers=headers,
-                        stream=True,
-                        timeout=300
-                    )
+                with st.chat_message("assistant"):
+                    message_placeholder = st.empty()
+                    sources_placeholder = st.empty()
+                    full_response = ""
+                    sources = []
                     
-                    if response.status_code == 200:
-                        for line in response.iter_lines(decode_unicode=True):
-                            if line and line.startswith('data: '):
-                                data = json.loads(line[6:])
-                                if data['type'] == 'metadata':
-                                    sources = data.get('sources', [])
-                                elif data['type'] == 'content':
-                                    full_response += data['text']
-                                    message_placeholder.markdown(full_response + "▌")
-                                elif data['type'] == 'done':
-                                    message_placeholder.markdown(full_response)
-                                    if sources:
-                                        sources_placeholder.caption(f"📄 Sources: {', '.join(sources)}")
-                                    break
+                    try:
+                        response = requests.post(
+                            f"{API_URL}/api/chat/ask-stream",
+                            json={"course_id": st.session_state.current_course, "question": question, "use_eli12": use_eli12},
+                            headers=headers,
+                            stream=True,
+                            timeout=300
+                        )
                         
-                        # Save to history
-                        st.session_state.chat_history.append({
-                            "role": "assistant",
-                            "content": full_response,
-                            "sources": sources
-                        })
-                    else:
-                        st.error("AI Error: Connection failed")
-                        
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
+                        if response.status_code == 200:
+                            for line in response.iter_lines(decode_unicode=True):
+                                # The rerun from the Stop button will interrupt this loop
+                                if line and line.startswith('data: '):
+                                    data = json.loads(line[6:])
+                                    if data['type'] == 'metadata':
+                                        sources = data.get('sources', [])
+                                    elif data['type'] == 'content':
+                                        full_response += data['text']
+                                        message_placeholder.markdown(full_response + "▌")
+                                    elif data['type'] == 'done':
+                                        message_placeholder.markdown(full_response)
+                                        if sources:
+                                            sources_placeholder.caption(f"📄 Sources: {', '.join(sources)}")
+                                        break
+                            
+                            # Success: update history and clear state
+                            st.session_state.chat_history.append({
+                                "role": "assistant",
+                                "content": full_response,
+                                "sources": sources
+                            })
+                            st.session_state.is_streaming = False
+                            st.session_state.pending_question = None
+                            st.rerun()
+                        else:
+                            st.error("AI Error: Connection failed")
+                            st.session_state.is_streaming = False
+                            st.session_state.pending_question = None
+                            
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                        st.session_state.is_streaming = False
+                        st.session_state.pending_question = None

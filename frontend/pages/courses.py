@@ -11,16 +11,18 @@ def show():
     st.markdown("""
     <style>
     .course-card {
-        background: rgba(21, 30, 46, 0.4);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.03) !important;
+        backdrop-filter: blur(15px) !important;
+        -webkit-backdrop-filter: blur(15px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.06) !important;
         border-radius: 24px;
         padding: 2rem;
         margin-bottom: 1.5rem;
-        transition: transform 0.3s, border-color 0.3s;
+        transition: all 0.3s ease;
     }
     .course-card:hover {
         transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.05) !important;
         border-color: rgba(255, 127, 80, 0.3);
     }
     .selected-border {
@@ -28,16 +30,22 @@ def show():
         background: rgba(255, 127, 80, 0.05) !important;
     }
     .course-title {
-        font-size: 1.4rem;
-        font-weight: 700;
+        font-size: 1.5rem;
+        font-weight: 800;
         color: white;
         margin-bottom: 0.5rem;
     }
     .doc-count {
-        font-size: 0.85rem;
-        color: rgba(255, 255, 255, 0.4);
+        font-size: 0.8rem;
+        color: #FF7F50;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 1.5px;
+    }
+    /* Responsive Courses */
+    @media (max-width: 768px) {
+        .course-title { font-size: 1.2rem !important; }
+        .course-card { padding: 1.5rem !important; margin-bottom: 1rem !important; }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -81,11 +89,11 @@ def show():
             
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("SELECT COURSE", key=f"sel_{idx}", use_container_width=True):
+                if st.button("SELECT COURSE", key=f"sel_{idx}", type="primary", use_container_width=True):
                     st.session_state.current_course = course["id"]
                     st.rerun()
             with c2:
-                if st.button("EXPLORE", key=f"exp_{idx}", use_container_width=False):
+                if st.button("EXPLORE", key=f"exp_{idx}", use_container_width=True):
                     st.session_state.current_course = course["id"]
                     st.session_state.selected_page = "AI Tutor"
                     st.rerun()

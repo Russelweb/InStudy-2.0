@@ -61,20 +61,31 @@ st.markdown("""
 
 html, body, [data-testid="stAppViewContainer"] {
     font-family: 'Inter', sans-serif;
-    background: linear-gradient(135deg, #0B1120 0%, #111827 100%) !important;
+    background: #080c16 !important; /* Slightly lighter rich navy for better depth */
+}
+
+/* Glassmorphism Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: rgba(15, 23, 42, 0.4) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+    background: transparent !important;
 }
 
 /* Glassmorphism Navigation Bar */
 div[data-testid="stHorizontalBlock"]:has(ul.nav),
 nav.nav.nav-pills {
     position: fixed !important;
-    top: 2.875rem;
+    top: 0 !important;
     left: 0;
     right: 0;
     z-index: 1000;
-    background: rgba(17, 24, 39, 0.7) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    background: rgba(8, 12, 22, 0.8) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
     padding: 0.5rem 2rem !important;
@@ -82,9 +93,21 @@ nav.nav.nav-pills {
 
 /* Main Content Spacing */
 section.main > div.block-container {
-    padding-top: 7.5rem !important;
-    padding-left: 2rem !important;
-    padding-right: 2rem !important;
+    padding-top: 6rem !important;
+    padding-left: 3rem !important;
+    padding-right: 3rem !important;
+}
+
+/* Global Glass Card Style for common containers */
+div[data-testid="stExpander"], 
+div[data-testid="stChatMessage"],
+[data-testid="stForm"],
+div[data-testid="stMetric"] {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(15px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 20px !important;
+    padding: 1.5rem !important;
 }
 
 /* Custom Dark Scrollbar */
@@ -96,49 +119,70 @@ section.main > div.block-container {
     background: rgba(0, 0, 0, 0.2);
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(255, 127, 80, 0.2);
+    background: rgba(255, 127, 80, 0.15);
     border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 127, 80, 0.4);
 }
 
-/* Fix for Plotly Chart Backgrounds */
-.js-plotly-plot .plotly .main-svg {
-    background: transparent !important;
-}
-
-/* Button Styling Override */
-div.stButton > button {
+/* Primary Buttons (The Active/Coral UI) */
+button[kind="primary"], div.stButton > button:not([kind="secondary"]) {
     background: linear-gradient(90deg, #FF7F50 0%, #FF6347 100%) !important;
     color: white !important;
     border: none !important;
     border-radius: 12px !important;
-    padding: 0.6rem 1.5rem !important;
+    padding: 0.6rem 2.2rem !important;
+    font-weight: 700 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 10px 25px rgba(255, 127, 80, 0.2) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-size: 0.85rem !important;
+}
+
+button[kind="primary"]:hover, div.stButton > button:not([kind="secondary"]):hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 15px 40px rgba(255, 127, 80, 0.6) !important;
+    background: #FF7F50 !important;
+    opacity: 1 !important;
+}
+
+/* Alternative/Secondary Buttons (The Ghost UI + Orange Hover) */
+button[kind="secondary"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 0.6rem 2.2rem !important;
     font-weight: 600 !important;
     transition: all 0.3s ease !important;
-    box-shadow: 0 4px 15px rgba(255, 127, 80, 0.3) !important;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-size: 0.9rem !important;
+    letter-spacing: 0.8px;
+    font-size: 0.85rem !important;
+    box-shadow: none !important;
 }
 
-div.stButton > button:hover {
+button[kind="secondary"]:hover {
+    background: #FF7F50 !important; /* Switch to Coral on hover */
+    color: white !important;
+    border-color: #FF7F50 !important;
+    box-shadow: 0 10px 25px rgba(255, 127, 80, 0.3) !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(255, 127, 80, 0.5) !important;
 }
 
-/* Sidebar Styling */
-section[data-testid="stSidebar"] {
-    background-color: #0F172A !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
+/* Sidebar Styling Enhancement */
+.stSidebar h1 {
+    color: #FF7F50 !important;
+    font-weight: 800 !important;
 }
 
 /* Metric Styling */
 [data-testid="stMetricValue"] {
-    font-size: 1.8rem !important;
-    font-weight: 700 !important;
-    color: #FF7F50 !important;
+    font-size: 2.2rem !important;
+    font-weight: 800 !important;
+    color: white !important;
+    filter: drop-shadow(0 0 10px rgba(255, 127, 80, 0.2));
 }
 
 /* Progress bar color */
@@ -151,6 +195,42 @@ section[data-testid="stSidebar"] {
 footer {visibility: hidden;}
 header {visibility: hidden;}
 
+/* Mobile Responsiveness Rules */
+@media (max-width: 768px) {
+    section.main > div.block-container {
+        padding-top: 5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem !important;
+    }
+    
+    /* Shrink the horizontal navigation on tablets/phones */
+    nav.nav.nav-pills {
+        padding: 0.5rem 0.5rem !important;
+    }
+    .nav-link {
+        padding: 0.4rem 0.2rem !important;
+        font-size: 11px !important;
+    }
+    
+    /* Compact buttons for mobile */
+    button[kind="primary"], button[kind="secondary"], div.stButton > button {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.75rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    [data-testid="stMetricValue"] {
+        font-size: 1.2rem !important;
+    }
+    .nav-link {
+        font-size: 10px !important;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 

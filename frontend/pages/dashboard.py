@@ -163,42 +163,46 @@ def show():
         margin-bottom: 2rem;
     }
     .fintech-card {
-        background: rgba(21, 30, 46, 0.4);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.03) !important;
+        backdrop-filter: blur(15px) !important;
+        -webkit-backdrop-filter: blur(15px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.06) !important;
         border-radius: 24px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     }
     .stat-label {
-        font-size: 0.9rem;
-        color: rgba(255, 255, 255, 0.5);
-        font-weight: 500;
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.4);
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 1.5px;
     }
     .stat-value {
         font-size: 2.2rem;
         font-weight: 800;
-        color: #FF7F50;
+        color: white;
         margin: 0.2rem 0;
     }
     .stat-delta {
         font-size: 0.8rem;
-        color: rgba(255, 255, 255, 0.4);
+        color: #FF7F50;
+        font-weight: 600;
     }
     .recent-item {
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.02);
+        backdrop-filter: blur(5px);
         border-radius: 16px;
         padding: 1rem;
         margin-bottom: 0.8rem;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        transition: transform 0.2s;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        transition: all 0.2s ease;
     }
     .recent-item:hover {
-        transform: scale(1.02);
-        background: rgba(255, 255, 255, 0.05);
+        transform: translateY(-2px);
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 127, 80, 0.2);
     }
     </style>
     """, unsafe_allow_html=True)
