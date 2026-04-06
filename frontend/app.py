@@ -42,11 +42,11 @@ if "selected_page" not in st.session_state:
     st.session_state.selected_page = "Dashboard"
 
 # Import pages
-from pages import dashboard, courses, ai_tutor, flashcards, quiz, summary, planner, admin_dashboard
+from pages import dashboard, courses, ai_tutor, flashcards, quiz, summary, planner, mastery, admin_dashboard
 
 # Build menu options based on user role
-menu_options = ["Dashboard", "Courses", "AI Tutor", "Flashcards", "Quiz", "Summary", "Study Planner"]
-menu_icons = ["house", "book", "chat", "card-list", "question-circle", "file-text", "calendar"]
+menu_options = ["Dashboard", "Courses", "AI Tutor", "Flashcards", "Quiz", "Summary", "Study Planner", "Mastery"]
+menu_icons = ["house", "book", "chat", "card-list", "question-circle", "file-text", "calendar", "bullseye"]
 
 # Add admin option if user is admin
 if current_user and current_user.get("is_admin"):
@@ -310,5 +310,7 @@ elif selected == "Summary":
     summary.show()
 elif selected == "Study Planner":
     planner.show()
+elif selected == "Mastery":
+    mastery.show()
 elif selected == "Admin Panel":
     admin_dashboard.show()

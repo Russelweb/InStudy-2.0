@@ -57,6 +57,7 @@ class SummaryRequest(BaseModel):
 
 class SummaryResponse(BaseModel):
     summary: str
+    mind_map: Optional[str] = None
 
 class StudyPlanRequest(BaseModel):
     user_id: str

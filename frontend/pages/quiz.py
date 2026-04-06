@@ -107,13 +107,21 @@ def show():
                 if ans: st.session_state.quiz_answers[str(idx)] = ans
             st.markdown('</div>', unsafe_allow_html=True)
             
-        if st.button("📊 Finalize & Submit", use_container_width=True, disabled=answered < len(questions)):
-            headers = auth_manager.get_auth_headers()
-            args = (st.session_state.current_course, st.session_state.quiz_questions, st.session_state.quiz_answers, headers)
-            res, err = run_with_dynamic_progress(_evaluate_quiz_api, args=args, estimated_time=30.0)
-            if res:
-                st.session_state.quiz_results = res
-                st.session_state.quiz_state = "completed"
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📊 Finalize & Submit", use_container_width=True, disabled=answered < len(questions)):
+                headers = auth_manager.get_auth_headers()
+                args = (st.session_state.current_course, st.session_state.quiz_questions, st.session_state.quiz_answers, headers)
+                res, err = run_with_dynamic_progress(_evaluate_quiz_api, args=args, estimated_time=30.0)
+                if res:
+                    st.session_state.quiz_results = res
+                    st.session_state.quiz_state = "completed"
+                    st.rerun()
+        with col2:
+            if st.button("❌ Cancel & New Quiz", use_container_width=True):
+                st.session_state.quiz_state = "setup"
+                st.session_state.quiz_questions = []
+                st.session_state.quiz_answers = {}
                 st.rerun()
 
     elif st.session_state.quiz_state == "completed":

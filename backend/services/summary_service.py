@@ -3,14 +3,17 @@ from services.document_processor import DocumentProcessor
 from models.global_models import get_llm
 from typing import Optional
 import logging
+import json
+
+from services.concept_service import concept_service
 
 logger = logging.getLogger(__name__)
 
 
 class SummaryService:
     """
-    Summary generation service using local Llama 3.
-    Optimized for speed and quality.
+    Summary generation service using local LLM.
+    Optimized for structured results and conceptual mapping.
     """
     
     def __init__(self):
@@ -18,42 +21,92 @@ class SummaryService:
         self.llm = get_llm()
         self.doc_processor = DocumentProcessor()
     
-    def generate_summary(self, user_id: str, course_id: str, 
-                        document_name: Optional[str], style: str):
-        """Generate summary of documents using local LLM"""
-        logger.info(f"Generating {style} summary")
+    def generate_summary(self, user_id: str, course_id: str, document_name: str = None, style: str = "short"):
+        """Generate high-quality summary with mastery adaptation."""
+        logger.info(f"Generating summary with mastery adaptation for user {user_id}")
         
         vector_store = self.doc_processor.get_vector_store(user_id, course_id)
-        
         if not vector_store:
-            raise ValueError("No documents found. Please upload study materials first.")
-        
+            raise ValueError("No documents found for this course. Please upload study materials first.")
+            
         # Get documents (optimized retrieval)
-        if document_name:
-            docs = vector_store.similarity_search(
-                "", 
-                k=50,
-                filter={"document_name": document_name}
-            )
-        else:
-            docs = vector_store.similarity_search("", k=50)
+        docs = vector_store.similarity_search("", k=20, filter={"document_name": document_name} if document_name else None)
+        content = "\n\n".join([doc.page_content for doc in docs[:12]])
         
-        content = "\n\n".join([doc.page_content for doc in docs[:20]])
+        # Get mastery context
+        mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
         
         style_prompts = {
-            "short": "Create a concise 3-5 sentence summary of the key points.",
-            "bullet": "Create a bullet-point summary with main topics and subtopics.",
-            "detailed": "Create a comprehensive summary covering all major concepts in detail.",
-            "exam": "Create an exam revision summary focusing on testable concepts and key facts."
+            "short": "Provide a concise summary (2-3 paragraphs)",
+            "detailed": "Provide a comprehensive summary (4-6 paragraphs)",
+            "exam": "Create an exam revision summary focusing on testable concepts."
         }
         
-        prompt = f"""Study Material:
+        prompt = f"""{mastery_context}Analyze the study material provided:
 {content}
 
-{style_prompts.get(style, style_prompts['short'])}"""
+Task:
+1. Create a {style_prompts.get(style, style_prompts['short'])}. Use rich markdown (bold, bullets).
+2. At the end, provide a conceptual mind map in Graphviz DOT format (digraph {{ ... }}).
+
+CRITICAL DOT SYNTAX:
+- Use -> for edges.
+- Define node labels as Node1 [label="Label Text"];
+- Example: 
+digraph {{
+    rankdir=LR;
+    Start [label="Start Topic"];
+    Middle [label="Subtopic"];
+    Start -> Middle;
+}}
+
+[[CONCEPT_MAP]]
+[Your Beautiful Summary here]
+
+[[CONCEPT_MAP_DOT]]
+[Your Graphviz DOT code here]
+"""
         
-        logger.info("Generating summary with LLM...")
-        response = self.llm.invoke(prompt)
-        logger.info("Summary generated successfully")
+        logger.info("Generating high-quality textual and visual summary...")
+        response_text = self.llm.invoke(prompt)
         
-        return response
+        try:
+            summary = response_text
+            mind_map = None
+            
+            # Look for explicit delimiters (new or old)
+            if "[[CONCEPT_MAP_DOT]]" in response_text:
+                parts = response_text.split("[[CONCEPT_MAP_DOT]]")
+                summary, mind_map = parts[0], parts[1]
+            elif "[[CONCEPT_MAP]]" in response_text:
+                parts = response_text.split("[[CONCEPT_MAP]]")
+                summary, mind_map = parts[0], parts[1]
+            elif "digraph" in response_text:
+                # Use the last occurrence to avoid the prompt example if echoed
+                start_idx = response_text.rfind("digraph")
+                summary = response_text[:start_idx]
+                mind_map = response_text[start_idx:]
+            
+            if mind_map:
+                # Clean up any potential markdown code blocks
+                if "```doc" in mind_map: mind_map = mind_map.split("```dot")[1].split("```")[0]
+                elif "```" in mind_map: mind_map = mind_map.split("```")[1].split("```")[0]
+                
+                # Strip AI placeholder echoes and instructions
+                for noise in ["[Your Graphviz DOT code here]", "[[CONCEPT_MAP_DOT]]", "[[CONCEPT_MAP]]"]:
+                    mind_map = mind_map.replace(noise, "")
+                
+                # Final graph constraint
+                if "}" in mind_map:
+                    mind_map = mind_map[:mind_map.rfind("}")+1]
+                mind_map = mind_map.strip()
+
+            # Final summary cleanup (strip prompt noise and headers)
+            for noise in ["Summary:", "[[CONCEPT_MAP]]", "[[CONCEPT_MAP_DOT]]", "[Your Beautiful Summary here]"]:
+                summary = summary.replace(noise, "")
+            
+            summary = summary.strip()
+            return {"summary": summary, "mind_map": mind_map}
+        except Exception as e:
+            logger.error(f"Failed to parse conceptual summary: {e}")
+            return {"summary": response_text, "mind_map": None}

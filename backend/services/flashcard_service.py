@@ -2,6 +2,7 @@ from config import settings
 from services.document_processor import DocumentProcessor
 from services.image_service import ImageService
 from models.global_models import get_llm
+from services.concept_service import concept_service
 import json
 import logging
 import asyncio
@@ -24,25 +25,32 @@ class FlashcardService:
         self.executor = ThreadPoolExecutor(max_workers=4)  # For parallel image processing
     
     def generate_flashcards(self, user_id: str, course_id: str, num_cards: int, include_images: bool = True, explanation_level: str = "detailed"):
-        """Generate flashcards with optional images from study materials
-        
-        Args:
-            user_id: User identifier
-            course_id: Course identifier  
-            num_cards: Number of flashcards to generate
-            include_images: Whether to include images
-            explanation_level: Level of explanation detail ("brief", "detailed", "comprehensive")
-        """
-        logger.info(f"Generating {num_cards} flashcards with images: {include_images}, explanation level: {explanation_level}")
+        """Generate flashcards with optional images from study materials"""
+        logger.info(f"Generating {num_cards} flashcards with mastery awareness.")
         
         vector_store = self.doc_processor.get_vector_store(user_id, course_id)
-        
         if not vector_store:
-            raise ValueError("No documents found for this course. Please upload study materials first.")
+            raise ValueError("No documents found for this course.")
+            
+        # Get mastery context
+        mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
         
-        # Get content samples (optimized retrieval)
-        docs = vector_store.similarity_search("", k=min(15, num_cards * 2))
-        context = "\n\n".join([doc.page_content for doc in docs[:8]])
+        # Target search query towards weak areas if they exist
+        search_query = ""
+        if "WEAK IN" in mastery_context:
+            try:
+                search_chunk = mastery_context.split("WEAK IN (Expand these):")[1].split("\n")[0].strip()
+                search_query = search_chunk
+            except: pass
+            
+        # Get content samples (prioritizing weak areas via search query)
+        docs = vector_store.similarity_search(search_query, k=min(20, num_cards * 3))
+        context = "\n\n".join([doc.page_content for doc in docs[:10]])
+        
+        # Customize prompt based on mastery context
+        prompt_prefix = ""
+        if mastery_context:
+            prompt_prefix = f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize generating cards for the 'WEAK' concepts while keeping 'MASTERED' points brief.\n\n"
         
         # Customize prompt based on explanation level
         if explanation_level == "brief":
@@ -55,27 +63,25 @@ class FlashcardService:
             explanation_instruction = "Make explanations educational and comprehensive (3-5 sentences with context and examples)"
             example_back = "Photosynthesis is the process by which plants convert sunlight into chemical energy. During this process, plants use chlorophyll to capture light energy and combine carbon dioxide from the air with water from the soil to produce glucose and oxygen. This process is essential for life on Earth as it produces the oxygen we breathe and forms the base of most food chains. The equation is: 6CO₂ + 6H₂O + light energy → C₆H₁₂O₆ + 6O₂."
         
-        prompt = f"""You are an expert educator creating study flashcards. Create exactly {num_cards} high-quality flashcards from the study material.
+        prompt = f"""{prompt_prefix}You are an expert educator creating study flashcards. Create exactly {num_cards} high-quality flashcards from the study material.
 
 Study Material:
 {context}
 
 INSTRUCTIONS:
 - Front: Clear, concise question or key concept
-- Back: Complete answer with explanation, context, and educational details
-- Structure the back as: [Direct Answer] + [Brief Explanation] + [Key Context/Example if relevant]
+- Back: Complete answer with explanation
+- Concept: Identify the 1-2 word main topic for this card
 - {explanation_instruction}
-- Include definitions, examples, connections, or significance when helpful
-- Focus on deep understanding, not just facts
+- Focus on deep understanding
 
 EXAMPLE FORMAT:
 Front: "What is photosynthesis?"
 Back: "{example_back}"
+Concept: "Photosynthesis"
 
-CRITICAL: Return ONLY a JSON object, nothing else. No explanations, no markdown, just the JSON.
-
-Format:
-{{"flashcards": [{{"front": "Clear question or concept", "back": "Complete answer with detailed explanation and educational context"}}]}}
+CRITICAL: Return ONLY a JSON object.
+{{"flashcards": [{{"front": "Question", "back": "Answer", "concept": "Topic"}}]}}
 
 Generate {num_cards} educational flashcards now:"""
         

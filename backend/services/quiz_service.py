@@ -1,5 +1,6 @@
 from config import settings
 from services.document_processor import DocumentProcessor
+from services.concept_service import concept_service
 from models.global_models import get_llm, get_embeddings
 import json
 import logging
@@ -24,16 +25,26 @@ class QuizService:
     def generate_quiz(self, user_id: str, course_id: str, num_questions: int, 
                      difficulty: str, quiz_type: str):
         """Generate quiz from study materials using local LLM"""
-        logger.info(f"Generating {num_questions} {difficulty} {quiz_type} questions")
+        logger.info(f"Generating {num_questions} {difficulty} {quiz_type} questions with mastery awareness")
         
         vector_store = self.doc_processor.get_vector_store(user_id, course_id)
         
         if not vector_store:
             raise ValueError("No documents found for this course. Please upload study materials first.")
+            
+        # Get mastery context
+        mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
         
-        # Get diverse content samples (optimized retrieval)
-        docs = vector_store.similarity_search("", k=min(10, num_questions * 2))
-        context = "\n\n".join([doc.page_content for doc in docs[:5]])
+        # Target search query towards weak areas
+        search_query = ""
+        if "WEAK IN" in mastery_context:
+            try:
+                search_query = mastery_context.split("WEAK IN (Expand these):")[1].split("\n")[0].strip()
+            except: pass
+        
+        # Get diverse content samples emphasizing weak areas (optimized for speed)
+        docs = vector_store.similarity_search(search_query, k=min(5, max(3, num_questions // 2)))
+        context = "\n\n".join([doc.page_content for doc in docs[:3]])
         
         type_instruction = {
             "multiple_choice": "multiple choice questions with 4 options",
@@ -42,7 +53,9 @@ class QuizService:
             "mixed": "a mix of multiple choice, true/false, and short answer questions"
         }
         
-        prompt = f"""You are creating a quiz for a student. Generate exactly {num_questions} questions.
+        prompt_prefix = f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize generating questions that test the user's 'WEAK' concepts.\n\n" if mastery_context else ""
+        
+        prompt = f"""{prompt_prefix}You are creating a quiz for a student. Generate exactly {num_questions} questions.
 
 Study Material:
 {context}
@@ -51,22 +64,22 @@ Question type: {type_instruction.get(quiz_type, 'mixed')}
 Difficulty: {difficulty.lower()}
 
 CRITICAL INSTRUCTIONS:
-1. Return ONLY a JSON object, nothing else. No explanations, no markdown, just the JSON.
-2. For structural/short answer questions: provide COMPLETE, DETAILED answers, NOT "a,b,c,or d"
-3. Always provide meaningful explanations for each question
-4. For multiple choice: provide exactly 4 options labeled A, B, C, D
-5. For true/false: options are ["True", "False"]
-6. For short answer: provide complete answer text, not multiple choice options
+1. Return ONLY a valid JSON object, nothing else. No markdown or explanations outside the JSON.
+2. DO NOT add trailing commas. This causes JSON parse errors.
+3. For structural/short answer questions: provide concise, 1-sentence answers.
+4. Keep EVERY explanation extremely brief (maximum 1 short sentence). This is CRITICAL to avoid timeout truncation on long quizzes.
+5. For multiple choice: exactly 4 options. For true/false: ["True", "False"].
+6. For EVERY question, include a "concept" field that identifies the 1-2 word main topic.
 
 Format:
-{{"questions": [{{"question": "Q?", "type": "multiple_choice", "options": ["A","B","C","D"], "correct_answer": "A", "explanation": "Detailed explanation why this is correct"}}]}}
+{{"questions": [{{"question": "Q?", "type": "multiple_choice", "options": ["A","B","C","D"], "correct_answer": "A", "explanation": "Detailed explanation why this is correct", "concept": "Topic"}}]}}
 
 EXAMPLES:
 Multiple Choice:
-{{"question": "What is photosynthesis?", "type": "multiple_choice", "options": ["Process of making food using sunlight", "Process of breathing", "Process of digestion", "Process of reproduction"], "correct_answer": "Process of making food using sunlight", "explanation": "Photosynthesis is the process by which plants convert sunlight, carbon dioxide, and water into glucose and oxygen."}}
+{{"question": "What is photosynthesis?", "type": "multiple_choice", "options": ["Process of making food using sunlight", "Process of breathing", "Process of digestion", "Process of reproduction"], "correct_answer": "Process of making food using sunlight", "explanation": "Photosynthesis is the process by which plants convert sunlight, carbon dioxide, and water into glucose and oxygen.", "concept": "Photosynthesis"}}
 
 Short Answer:
-{{"question": "Explain the water cycle", "type": "short_answer", "options": [], "correct_answer": "The water cycle involves evaporation of water from oceans and lakes, condensation into clouds, precipitation as rain or snow, and collection back into water bodies. This continuous process is driven by solar energy.", "explanation": "The water cycle is a continuous process that recycles water through evaporation, condensation, precipitation, and collection phases."}}
+{{"question": "Explain the water cycle", "type": "short_answer", "options": [], "correct_answer": "The water cycle involves evaporation of water from oceans and lakes, condensation into clouds, precipitation as rain or snow, and collection back into water bodies. This continuous process is driven by solar energy.", "explanation": "The water cycle is a continuous process that recycles water through evaporation, condensation, precipitation, and collection phases.", "concept": "Water Cycle"}}
 
 Generate {num_questions} questions now:"""
         
@@ -96,6 +109,10 @@ Generate {num_questions} questions now:"""
                 response_text = response_text[start_idx:end_idx+1]
             
             response_text = response_text.strip()
+            # Clean common LLM trailing comma JSON errors
+            import re
+            response_text = re.sub(r',\s*}', '}', response_text)
+            response_text = re.sub(r',\s*]', ']', response_text)
             
             # Try to parse
             result = json.loads(response_text)
@@ -169,7 +186,8 @@ Generate {num_questions} questions now:"""
                 "is_correct": bool(is_correct),  # Ensure Python boolean
                 "explanation": question.get("explanation", "No explanation provided"),
                 "feedback": feedback,
-                "type": question_type
+                "type": question_type,
+                "concept": question.get("concept")
             }
             
             results["question_results"].append(question_result)
@@ -267,24 +285,28 @@ Generate {num_questions} questions now:"""
         type_pattern = r'"type":\s*"([^"]+)"'
         answer_pattern = r'"correct_answer":\s*"([^"]+)"'
         explanation_pattern = r'"explanation":\s*"([^"]+)"'
+        concept_pattern = r'"concept":\s*"([^"]+)"'
         
         question_texts = re.findall(question_pattern, text)
         types = re.findall(type_pattern, text)
         answers = re.findall(answer_pattern, text)
         explanations = re.findall(explanation_pattern, text)
+        concepts = re.findall(concept_pattern, text)
         
         # Build questions from extracted data
         for i in range(min(len(question_texts), num_questions)):
             q_type = types[i] if i < len(types) else "multiple_choice"
             answer = answers[i] if i < len(answers) else "A"
             explanation = explanations[i] if i < len(explanations) else "No explanation provided"
+            concept = concepts[i] if i < len(concepts) else "General"
             
             questions.append({
                 "question": question_texts[i],
                 "type": q_type,
                 "options": ["Option A", "Option B", "Option C", "Option D"] if q_type == "multiple_choice" else ["True", "False"],
                 "correct_answer": answer,
-                "explanation": explanation
+                "explanation": explanation,
+                "concept": concept
             })
         
         if questions:
@@ -317,7 +339,8 @@ Generate {num_questions} questions now:"""
                 "type": question_type,
                 "options": q.get("options", default_options),
                 "correct_answer": str(q.get("correct_answer", default_answer)),
-                "explanation": str(q.get("explanation", "No explanation provided"))
+                "explanation": str(q.get("explanation", "No explanation provided")),
+                "concept": str(q.get("concept", "General"))
             }
             
             # Validate question is not empty

@@ -24,14 +24,19 @@ async def generate_summary(
     try:
         user_id = str(current_user.id)
         
-        summary = summary_service.generate_summary(
+        result = summary_service.generate_summary(
             user_id,
             request.course_id,
             request.document_name,
             request.style
         )
         
-        return SummaryResponse(summary=summary)
+        # If it's the new dict format, return as is
+        if isinstance(result, dict):
+            return SummaryResponse(**result)
+        
+        # Fallback for old string format
+        return SummaryResponse(summary=result)
     
     except Exception as e:
         raise HTTPException(500, str(e))

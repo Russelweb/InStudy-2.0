@@ -66,11 +66,25 @@ def show():
             args = (st.session_state.current_course, doc_name, style_sel, headers)
             res, err = run_with_dynamic_progress(_generate_summary_api, args=args, messages=messages, estimated_time=40.0)
             if res:
-                st.session_state.current_summary = res["summary"]
+                st.session_state.current_summary = res
                 st.rerun()
 
     # Display Content
     if "current_summary" in st.session_state:
-        st.markdown(f'<div class="summary-content">{st.session_state.current_summary}</div>', unsafe_allow_html=True)
+        res = st.session_state.current_summary
+        
+        # Extract dictionary if present, else fallback
+        summary_text = res.get("summary", "") if isinstance(res, dict) else res
+        mind_map     = res.get("mind_map", "") if isinstance(res, dict) else None
+
+        st.markdown("<h3 style='margin-top:2rem;'>📖 Intelligence Briefing</h3>", unsafe_allow_html=True)
+        st.markdown(f'<div class="summary-content">{summary_text}</div>', unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
-        st.download_button("📥 EXPORT AS TEXT", st.session_state.current_summary, file_name=f"Summary_{style_sel}.txt", use_container_width=True)
+        
+        if mind_map:
+            with st.expander("🗺️ CONCEPTUAL TRACE MAP", expanded=True):
+                st.markdown('<div class="summary-content" style="padding:1rem;">', unsafe_allow_html=True)
+                st.graphviz_chart(mind_map, use_container_width=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+        st.download_button("📥 EXPORT AS TEXT", summary_text, file_name=f"Summary_{style_sel}.txt", use_container_width=True)

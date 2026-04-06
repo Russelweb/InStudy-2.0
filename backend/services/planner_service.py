@@ -1,6 +1,8 @@
 from config import settings
 from models.global_models import get_llm
 from datetime import datetime
+from services.document_processor import DocumentProcessor
+from services.concept_service import concept_service
 import json
 import logging
 
@@ -9,21 +11,27 @@ logger = logging.getLogger(__name__)
 
 class PlannerService:
     """
-    Study planner service using local Llama 3.
-    Optimized for speed and quality.
+    Study planner service using local LLM.
+    Supports smart plan generation and automated topic discovery.
     """
     
     def __init__(self):
         # Use global LLM instance
         self.llm = get_llm()
+        self.doc_processor = DocumentProcessor()
     
-    def create_study_plan(self, course_name: str, exam_date: str, topics: list):
-        """Generate personalized study plan using local LLM"""
-        logger.info(f"Creating study plan for {course_name}")
+    def create_study_plan(self, user_id: str, course_name: str, exam_date: str, topics: list):
+        """Generate personalized study plan using local LLM with mastery adaptation"""
+        logger.info(f"Creating mastery-adaptive study plan for {course_name}")
         
         today = datetime.now().strftime("%Y-%m-%d")
         
-        prompt = f"""Create a study plan for a student.
+        # Get mastery context
+        mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_name)
+        
+        prompt_prefix = f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize allocating more study days/hours to 'WEAK' concepts.\n\n" if mastery_context else ""
+        
+        prompt = f"""{prompt_prefix}Create a study plan for a student.
 
 Course: {course_name}
 Exam Date: {exam_date}
@@ -31,6 +39,7 @@ Today: {today}
 Topics: {', '.join(topics)}
 
 CRITICAL: Return ONLY a JSON object, nothing else. No explanations, no markdown, just the JSON.
+Keep the plan concise (maximum of 2 weeks detailed, 1-2 tasks per day) to ensure rapid loading times.
 
 Format:
 {{"weeks": [{{"week_number": 1, "focus": "Topic", "days": [{{"day": "Monday", "tasks": ["Task"], "duration": "2h"}}]}}], "revision_plan": ["Tip"], "exam_tips": ["Tip"]}}

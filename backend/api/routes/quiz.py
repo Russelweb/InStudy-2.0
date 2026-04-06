@@ -131,19 +131,29 @@ async def evaluate_quiz(
         
         print(f"Step 7: Evaluation complete - {results['correct_answers']}/{results['total_questions']} ({results['score_percentage']}%)")
         
-        # Log quiz completion (wrapped in try-except to prevent failures)
-        print("Step 8: Logging activity...")
+        # Log quiz completion and update mastery
+        print("Step 8: Logging activity and updating mastery...")
         try:
+            from database.mastery_db import mastery_db
             log_activity(user_id, "quiz_completed", {
                 "course_id": request_data.course_id,
                 "score": results["score_percentage"],
                 "total_questions": results["total_questions"],
                 "correct_answers": results["correct_answers"]
             })
-            print("Step 9: Activity logged successfully")
+            
+            # Auto-infer mastery from quiz performance
+            for q_res in results["question_results"]:
+                concept = q_res.get("concept")
+                is_correct = q_res.get("is_correct")
+                if concept:
+                    familiarity = 1 if is_correct else -1
+                    mastery_db.update_mastery(user_id, request_data.course_id, concept, familiarity)
+                    
+            print("Step 9: Activity and mastery logged successfully")
         except Exception as log_error:
-            print(f"Step 9: Failed to log activity (non-critical): {log_error}")
-        
+            print(f"Step 9: Failed to log activity/mastery (non-critical): {log_error}")
+            
         print("Step 10: Returning results...")
         print("=" * 50)
         return QuizEvaluationResponse(**results)

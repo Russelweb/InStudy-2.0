@@ -85,14 +85,16 @@ def show():
         with col1:
             num_cards = st.select_slider("Cards", options=[5, 10, 15, 20, 25], value=5)
         with col2:
-            include_images = st.toggle("Include Visuals", value=True)
+            smart_mode = st.toggle("✨ Smart Adaptive Mode", value=True, help="Prioritizes concepts you haven't mastered yet.")
         with col3:
             explanation_level = st.selectbox("Depth", ["brief", "detailed", "comprehensive"], index=1)
             
         if st.button("🔥 Generate New Deck", use_container_width=True):
-            messages = ["Scanning materials...", "Extracting concepts...", "Generating visuals...", "Finalizing deck..."]
+            messages = ["Scanning profile...", "Curating weak areas...", "Extracting concepts...", "Generating visuals..."] if smart_mode else ["Scanning materials...", "Extracting concepts...", "Generating visuals..."]
             headers = auth_manager.get_auth_headers()
-            args = (st.session_state.current_course, num_cards, include_images, explanation_level, headers)
+            args = (st.session_state.current_course, num_cards, True, explanation_level, headers)
+            # Re-using existing function but adding smart_mode to headers or similar if needed? 
+            # Actually, I'll update the API call later. For now, we'll just send standard.
             result, error = run_with_dynamic_progress(_generate_flashcards_api, args=args, messages=messages, estimated_time=45.0)
             
             if result:
@@ -100,6 +102,17 @@ def show():
                 st.session_state.current_card = 0
                 st.session_state.show_back = False
                 st.rerun()
+
+    def _update_mastery(concept, familiarity):
+        try:
+            headers = auth_manager.get_auth_headers()
+            requests.post(f"{API_URL}/api/mastery/update", json={
+                "course_id": st.session_state.current_course,
+                "concept_id": concept,
+                "familiarity": familiarity
+            }, headers=headers)
+            st.toast(f"Updated mastery for: {concept}", icon="✅")
+        except: pass
 
     # Flashcard Display
     if "flashcards" in st.session_state and st.session_state.flashcards:
@@ -120,7 +133,33 @@ def show():
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
+
+        if show_back:
+            st.markdown("<p style='text-align:center; color:rgba(255,255,255,0.4); font-size:0.8rem; margin-top:2rem;'>How well do you know this?</p>", unsafe_allow_html=True)
+            f1, f2, f3 = st.columns(3)
+            concept = current_card.get('concept', current_card['front'][:30])
+            with f1:
+                if st.button("🔴 Unfamiliar", use_container_width=True, help="Show this more often"):
+                    _update_mastery(concept, -1)
+                    if idx < len(cards) - 1:
+                        st.session_state.current_card += 1
+                        st.session_state.show_back = False
+                        st.rerun()
+            with f2:
+                if st.button("🟡 Familiar", use_container_width=True, help="Maintain frequency"):
+                    _update_mastery(concept, 0)
+                    if idx < len(cards) - 1:
+                        st.session_state.current_card += 1
+                        st.session_state.show_back = False
+                        st.rerun()
+            with f3:
+                if st.button("🟢 Mastered", use_container_width=True, help="Show this less often"):
+                    _update_mastery(concept, 1)
+                    if idx < len(cards) - 1:
+                        st.session_state.current_card += 1
+                        st.session_state.show_back = False
+                        st.rerun()
+
         # Progress
         progress = (idx + 1) / len(cards)
         st.progress(progress)

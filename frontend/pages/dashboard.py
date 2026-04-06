@@ -156,12 +156,56 @@ def create_course_mastery(stats):
     fig.update_layout(xaxis=dict(range=[0, 105], visible=False))
     return apply_fintech_layout(fig, "Course Mastery")
 
+@st.cache_data(ttl=3600)
+def generate_ai_briefing(stats_dict_str: str) -> str:
+    try:
+        import ast
+        stats = ast.literal_eval(stats_dict_str)
+        courses = stats.get("courses", [])
+        if not courses:
+            return "🔥 Intelligence Tip: Upload your first study document to establish your knowledge base and kickstart your Aura Momentum!"
+        
+        # Find best performing course
+        top_course = max(courses, key=lambda x: x.get("mastery", 0))
+        m_score = top_course.get("mastery", 0)
+        
+        if m_score > 70:
+            return f"🔥 Intelligence Tip: Exceptional work on {top_course['name']} ({m_score}% mastery)! Consider taking advanced quizzes to truly stress-test your knowledge."
+        else:
+            return f"🔥 Intelligence Tip: Your focus on {top_course['name']} is building up! Generate a study plan to structure your upcoming sessions and boost your mastery."
+    except Exception as e:
+        return "Ready to accelerate your learning today? Let's dive in."
+
+def create_activity_heatmap(df_all):
+    if df_all.empty: return None
+    now = datetime.now()
+    # 7 days leading up to today, left to right
+    dates = [(now - timedelta(days=i)).date() for i in range(6, -1, -1)]
+    hours = []
+    for d in dates:
+        row = df_all[df_all["date"].dt.date == d]
+        hours.append(row["hours"].iloc[0] if not row.empty else 0)
+    z = np.array(hours).reshape(1, 7)
+    x_labels = [d.strftime('%a') for d in dates] # Short day names (Mon, Tue, etc.)
+    
+    fig = go.Figure(data=go.Heatmap(
+        z=z, x=x_labels,
+        colorscale=[[0, "rgba(255,255,255,0.04)"], [1, PRIMARY_ACCENT]],
+        zmin=0, zmax=4,
+        showscale=False, xgap=5, ygap=5,
+    ))
+    fig.update_layout(
+        height=90, margin=dict(l=0,r=0,t=0,b=25),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=True, showgrid=False, zeroline=False, side="bottom",
+                   tickfont=dict(color="rgba(255,255,255,0.5)", size=11)),
+        yaxis=dict(visible=False),
+    )
+    return fig
+
 def show():
     st.markdown("""
     <style>
-    .dash-header {
-        margin-bottom: 2rem;
-    }
     .fintech-card {
         background: rgba(255, 255, 255, 0.03) !important;
         backdrop-filter: blur(15px) !important;
@@ -170,7 +214,6 @@ def show():
         border-radius: 24px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     }
     .stat-label {
         font-size: 0.8rem;
@@ -190,156 +233,67 @@ def show():
         color: #FF7F50;
         font-weight: 600;
     }
-    .recent-item {
-        background: rgba(255, 255, 255, 0.02);
-        backdrop-filter: blur(5px);
-        border-radius: 16px;
-        padding: 1rem;
-        margin-bottom: 0.8rem;
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        transition: all 0.2s ease;
-    }
-    .recent-item:hover {
-        transform: translateY(-2px);
-        background: rgba(255, 255, 255, 0.04);
-        border-color: rgba(255, 127, 80, 0.2);
-    }
     </style>
     """, unsafe_allow_html=True)
 
+    # Core Data Setup
     headers = auth_manager.get_auth_headers()
     stats = get_dashboard_stats(headers)
-
-    # Scoped calculations
     df_all = _build_monthly_df(stats.get("daily_activity", {}))
+    
+    # Global Period Selection
+    col_sel, _ = st.columns([1, 2])
+    with col_sel:
+        period = st.selectbox("Timeline Filter", ["This Month", "Last 3 Months", "All Time"], index=0, label_visibility="collapsed", key="global_period")
+    
     period_hours = round(df_all["hours"].sum(), 1) if not df_all.empty else 0.0
 
-    # Header section
-    col_t, col_p = st.columns([2, 1])
-    with col_t:
+    # Row 1: Greeting & Momentum
+    col_greet, col_momentum = st.columns([2, 1])
+    with col_greet:
         st.markdown(f"<h1 style='margin:0;'>Welcome back, {st.session_state.user_id}!</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='color:rgba(255,255,255,0.5);'>Here's your learning overview for today.</p>", unsafe_allow_html=True)
-    with col_p:
-        period = st.selectbox("Period", ["This Month", "Last 3 Months", "All Time"], index=0, label_visibility="collapsed")
+        briefing = generate_ai_briefing(str(stats))
+        st.markdown(f"<div style='background:rgba(255, 127, 80, 0.1); border-left:3px solid #FF7F50; padding:10px 15px; border-radius:12px; margin-top:1rem; font-size:0.95rem; color:white;'>{briefing}</div>", unsafe_allow_html=True)
+    with col_momentum:
+        st.markdown("<p style='color:rgba(255,255,255,0.4); font-size:0.7rem; text-transform:uppercase; margin-bottom:5px; margin-left:10px;'>Aura Momentum</p>", unsafe_allow_html=True)
+        heatmap = create_activity_heatmap(df_all)
+        if heatmap: st.plotly_chart(heatmap, config={'displayModeBar': False}, use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Metric Cards
-    m1, m2, m3, m4 = st.columns(4)
+    # Row 2: Metrics
+    m_cols = st.columns(4)
     metrics = [
         ("Knowledge Base", stats.get("total_documents", 0), "Documents"),
         ("Active Paths", stats.get("total_courses", 0), "Courses"),
         ("Focus Time", f"{period_hours}h", "Total Study"),
-        ("Engagements", stats.get("quizzes_taken", 0), "Quizzes Completed")
+        ("Engagements", stats.get("quizzes_taken", 0), "Quizzes")
     ]
-    
-    for col, (label, value, delta) in zip([m1, m2, m3, m4], metrics):
+    for col, (label, val, delta) in zip(m_cols, metrics):
         with col:
-            st.markdown(f"""
-            <div class="fintech-card">
-                <div class="stat-label">{label}</div>
-                <div class="stat-value">{value}</div>
-                <div class="stat-delta">{delta}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="fintech-card"><div class="stat-label">{label}</div><div class="stat-value">{val}</div><div class="stat-delta">{delta}</div></div>', unsafe_allow_html=True)
 
-    # Charts Row
+    # Row 3: Charts
     c1, c2 = st.columns([2, 1])
     with c1:
-        st.markdown('<div class="fintech-card">', unsafe_allow_html=True)
+        st.markdown('<div class="fintech-card"><b>Study Velocity</b>', unsafe_allow_html=True)
         st.plotly_chart(create_study_hours_chart(df_all, period), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
     with c2:
         st.markdown('<div class="fintech-card">', unsafe_allow_html=True)
-        # Mastery Chart
         mastery = create_course_mastery(stats)
-        if mastery:
-            st.plotly_chart(mastery, use_container_width=True)
-        else:
-            st.info("Start a course to see mastery metrics.")
-        
-        # New: Intelligence Insights (Context-aware progress)
-        st.markdown("<h4 style='margin-top:2rem;'>🧠 Intelligence Insights</h4>", unsafe_allow_html=True)
-        if stats.get("recent_questions"):
-            # Simple concept extraction from recent questions
-            concepts = set()
-            for q in stats["recent_questions"]:
-                # Naive extraction: capitalized words as proxy for concepts
-                words = q.get("question", "").split()
-                for w in words:
-                    if len(w) > 4 and w[0].isupper(): concepts.add(w.strip("?.,!"))
-            
-            if concepts:
-                cols = st.columns(min(len(concepts), 4))
-                for i, concept in enumerate(list(concepts)[:4]):
-                    with cols[i]:
-                        st.markdown(f"""
-                        <div style='background:rgba(129, 140, 248, 0.1); border:1px solid rgba(129, 140, 248, 0.2); 
-                        padding:1rem; border-radius:16px; text-align:center;'>
-                            <div style='color:#818CF8; font-size:0.7rem; font-weight:700;'>ACTIVE CONCEPT</div>
-                            <div style='color:white; font-weight:600; margin-top:5px;'>{concept}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-            else:
-                st.caption("Ask your AI Tutor more questions to unlock concept-level insights.")
-        else:
-            st.caption("No recent activity to analyze concepts.")
+        if mastery: st.plotly_chart(mastery, use_container_width=True)
+        else: st.info("Start studying to see mastery metrics.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Activity & Lists
-    col_a, col_b = st.columns(2)
-    with col_a:
+    # Row 4: Activity Feed
+    a1, a2 = st.columns(2)
+    with a1:
         st.subheader("Recent Questions")
-        questions = stats.get("recent_questions", [])
-        if questions:
-            for q in reversed(questions[-4:]):
-                st.markdown(f"""
-                <div class="recent-item">
-                    <div style="color:#FF7F50; font-size:0.8rem; font-weight:bold; margin-bottom:0.2rem;">{q.get('course', 'UNSPECIFIED')}</div>
-                    <div style="font-size:0.95rem;">{q.get('question', '...')}</div>
-                    <div style="color:rgba(255,255,255,0.3); font-size:0.75rem; margin-top:0.4rem;">{q.get('timestamp', '')[:16].replace('T', ' ')}</div>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.caption("No recent activity")
-
-    with col_b:
+        for q in reversed(stats.get("recent_questions", [])[-4:]):
+            st.markdown(f"<div style='background:rgba(255,255,255,0.02); padding:1rem; border-radius:16px; margin-bottom:0.8rem; border:1px solid rgba(255,255,255,0.05);'><div style='color:#FF7F50; font-size:0.8rem; font-weight:700;'>{q.get('course', 'UNSPECIFIED')}</div><div>{q.get('question', '...')}</div></div>", unsafe_allow_html=True)
+    with a2:
         st.subheader("Your Progress")
-        courses = stats.get("courses", [])
-        if courses:
-            for course in courses[:4]:
-                mastery = course.get("mastery", 0)
-                avg_quiz = course.get("avg_quiz_score")
-                progress = mastery / 100
-                st.markdown(f"""
-                <div class="recent-item">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                        <span style="font-weight:bold;">{course['name']}</span>
-                        <span style="color:#FF7F50; font-weight:bold;">{mastery}%</span>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.05); border-radius:10px; height:8px;">
-                        <div style="background:linear-gradient(90deg, #FF7F50 {mastery}%, transparent {mastery}%); height:100%; border-radius:10px;"></div>
-                    </div>
-                    {f'<div style="font-size:0.75rem; color:rgba(255,255,255,0.4); margin-top:0.4rem;">Avg. Quiz Score: {avg_quiz}%</div>' if avg_quiz else ''}
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.caption("No courses yet")
-
-    # Achievements Footer
-    st.markdown("<br>", unsafe_allow_html=True)
-    with st.expander("🏆 Your Achievements", expanded=False):
-        a1, a2, a3 = st.columns(3)
-        ach_list = [
-            ("Librarian", stats.get("total_documents", 0) >= 5),
-            ("Scholar", stats.get("quizzes_taken", 0) >= 3),
-            ("Philosopher", len(stats.get("recent_questions", [])) >= 10)
-        ]
-        for col, (name, earned) in zip([a1, a2, a3], ach_list):
-            with col:
-                st.markdown(f"""
-                <div style="text-align:center; padding:1rem; border-radius:12px; background:{'rgba(255,127,80,0.1)' if earned else 'rgba(255,255,255,0.02)'}; border: 1px solid {'#FF7F50' if earned else 'rgba(255,255,255,0.05)'}">
-                    <div style="font-size:1.5rem;">{'⭐' if earned else '🔒'}</div>
-                    <div style="font-weight:bold; color:{'#FF7F50' if earned else 'rgba(255,255,255,0.3)'};">{name}</div>
-                </div>
-                """, unsafe_allow_html=True)
+        for course in stats.get("courses", [])[:4]:
+            m = course.get("mastery", 0)
+            st.markdown(f"<div style='background:rgba(255,255,255,0.02); padding:1rem; border-radius:16px; margin-bottom:0.8rem; border:1px solid rgba(255,255,255,0.04);'><div style='display:flex; justify-content:space-between; font-weight:700;'><span>{course['name']}</span><span>{m}%</span></div><div style='background:rgba(255,255,255,0.05); height:6px; border-radius:10px; margin-top:10px;'><div style='background:#FF7F50; height:100%; border-radius:10px; width:{m}%;'></div></div></div>", unsafe_allow_html=True)

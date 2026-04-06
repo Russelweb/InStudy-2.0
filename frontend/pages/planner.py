@@ -58,7 +58,8 @@ def show():
             
             if submitted:
                 headers = auth_manager.get_auth_headers()
-                args = (cname, edate.strftime("%Y-%m-%d"), [t.strip() for t in topics.split("\n") if t.strip()], headers)
+                course_id = st.session_state.get("current_course", "")
+                args = (course_id, edate.strftime("%Y-%m-%d"), [t.strip() for t in topics.split("\n") if t.strip()], headers)
                 res, err = run_with_dynamic_progress(_create_planner_api, args=args, estimated_time=40.0)
                 if res:
                     st.session_state.study_plan = res["plan"]
@@ -69,25 +70,41 @@ def show():
     if "study_plan" in st.session_state:
         plan = st.session_state.study_plan
         
-        st.markdown("<h2 style='margin-top:2rem;'>📅 Your Personalized Architecture</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='margin-top:2.5rem; text-align:center;'>⚡ Intelligence Architecture</h2>", unsafe_allow_html=True)
         
+        # Horizontal Timeline Container
         if "weeks" in plan:
-            for week in plan["weeks"]:
-                with st.container():
-                    st.markdown(f'<div class="plan-card"><div class="week-header">WEEK {week["week_number"]} — {week.get("focus", "Study Phase")}</div>', unsafe_allow_html=True)
-                    for day in week.get("days", []):
+            for i, week in enumerate(plan["weeks"]):
+                st.markdown(f"""
+                <div class="plan-card" style="border-left: 4px solid #FF7F50;">
+                    <div class="week-header">PHASE {week.get('week_number', i + 1)}: {week.get('focus', 'Deep Study').upper()}</div>
+                """, unsafe_allow_html=True)
+                
+                cols = st.columns(len(week.get("days", [])) if week.get("days") else 1)
+                for i, day in enumerate(week.get("days", [])):
+                    with cols[i]:
                         st.markdown(f"""
-                        <div class="day-item">
-                            <div style='font-weight:700; color:white;'>{day['day']}</div>
-                            <div style='font-size:0.9rem; color:rgba(255,255,255,0.6);'>{' • '.join(day.get('tasks', []))}</div>
+                        <div style="background:rgba(255,255,255,0.02); padding:1rem; border-radius:15px; border:1px solid rgba(255,255,255,0.05); height:100%;">
+                            <div style="color:#FF7F50; font-weight:700; font-size:0.9rem; margin-bottom:0.5rem;">{day['day'].upper()}</div>
+                            <div style="font-size:0.85rem; color:rgba(255,255,255,0.8);">
+                                {"".join([f'• {task}<br>' for task in (day.get("tasks", []) if isinstance(day.get("tasks", []), list) else [day.get("tasks", "")])])}
+                            </div>
+                            <div style="font-size:0.7rem; color:rgba(255,127,80,0.6); margin-top:10px; font-weight:600;">⏱️ {day.get('duration', '1.5h')}</div>
                         </div>
                         """, unsafe_allow_html=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
         
+        st.markdown("<br>", unsafe_allow_html=True)
         col_s, col_t = st.columns(2)
         with col_s:
-            st.subheader("🔄 Revision Strategy")
-            for tip in plan.get("revision_plan", []): st.info(tip)
+            st.markdown("<h4 style='color:#FF7F50;'>🔄 Optimized Revision</h4>", unsafe_allow_html=True)
+            rev_plan = plan.get("revision_plan", [])
+            if isinstance(rev_plan, str): rev_plan = [rev_plan]
+            for tip in rev_plan:
+                st.markdown(f"<div style='background:rgba(251, 191, 36, 0.05); border:1px solid rgba(251, 191, 36, 0.2); padding:10px; border-radius:12px; margin-bottom:8px; font-size:0.9rem;'>{tip}</div>", unsafe_allow_html=True)
         with col_t:
-            st.subheader("💡 Exam Intelligence")
-            for tip in plan.get("exam_tips", []): st.success(tip)
+            st.markdown("<h4 style='color:#34D399;'>💡 Strategic Insights</h4>", unsafe_allow_html=True)
+            ex_tips = plan.get("exam_tips", [])
+            if isinstance(ex_tips, str): ex_tips = [ex_tips]
+            for tip in ex_tips:
+                st.markdown(f"<div style='background:rgba(52, 211, 153, 0.05); border:1px solid rgba(52, 211, 153, 0.2); padding:10px; border-radius:12px; margin-bottom:8px; font-size:0.9rem;'>{tip}</div>", unsafe_allow_html=True)
