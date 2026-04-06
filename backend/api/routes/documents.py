@@ -334,6 +334,7 @@ async def get_paragraphs(
 
 class AnnotationRequest(BaseModel):
     paragraph_index: int  # -1 means general / not tied to a paragraph
+    page_index: Optional[int] = -1 # -1 means not tied to a page
     content: str
     annotation_type: Optional[str] = "note"
 
@@ -361,10 +362,11 @@ async def save_annotation(
     ann_path = _get_annotations_path(user_id, course_id, filename)
     annotations = _load_annotations(ann_path)
 
-    # Dedup: skip if identical content+paragraph+type already exists
+    # Dedup: skip if identical content+paragraph+page+type already exists
     for existing in annotations:
         if (
             existing.get("paragraph_index") == request.paragraph_index
+            and existing.get("page_index") == request.page_index
             and existing.get("content", "").strip() == request.content.strip()
             and existing.get("type") == request.annotation_type
         ):
@@ -373,6 +375,7 @@ async def save_annotation(
     annotations.append({
         "id": int(datetime.utcnow().timestamp() * 1000),
         "paragraph_index": request.paragraph_index,
+        "page_index": request.page_index,
         "content": request.content,
         "type": request.annotation_type,
         "created_at": datetime.utcnow().isoformat()

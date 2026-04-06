@@ -21,6 +21,8 @@ ANNOTATION_COLORS = {
     "question":    "#FB7185", # Rose for border
 }
 
+PRIMARY_ACCENT = "#FF7F50"  # Coral
+
 
 def _h():
     return auth_manager.get_auth_headers()
@@ -82,11 +84,19 @@ def _fetch_paragraphs_and_annotations(course_id, filename):
     return [], [], []
 
 
-def _save_annotation(course_id, filename, para_idx, content, ann_type):
+def _save_annotation(course_id, filename, target_index, content, ann_type, is_page=False):
     try:
+        data = {"content": content, "annotation_type": ann_type}
+        if is_page:
+            data["page_index"] = target_index
+            data["paragraph_index"] = -1
+        else:
+            data["paragraph_index"] = target_index
+            data["page_index"] = -1
+            
         r = requests.post(
             f"{API_URL}/api/documents/annotations/{course_id}/{filename}",
-            json={"paragraph_index": para_idx, "content": content, "annotation_type": ann_type},
+            json=data,
             headers=_h(), timeout=10
         )
         return r.status_code == 200
@@ -144,32 +154,15 @@ def _build_doc_html(paragraphs, styles, ann_map):
             rows.append(
                 f"<div style='display:flex;align-items:baseline;'>"
                 f"<span style='margin-right:6px;color:#555;'>•</span>"
-                f"<p style='{css};margin:0;flex:1;'>{badge}{para}</p></div>"
+                f"<p style='{css};margin:0;flex:1;'>{para}</p></div>"
             )
         elif style in ("heading1", "heading2", "heading3"):
             tag = {"heading1": "h3", "heading2": "h4", "heading3": "h5"}[style]
-            rows.append(f"<{tag} style='{css}'>{badge}{para}</{tag}>")
+            rows.append(f"<{tag} style='{css}'>{para}</{tag}>")
         else:
-            rows.append(f"<p style='{css}'>{badge}{para}</p>")
+            rows.append(f"<p style='{css}'>{para}</p>")
 
-        # Inline annotations for this paragraph
-        for ann in ann_map.get(i, []):
-            atype  = ann.get("type", "note")
-            label  = atype.replace("_", " ").title()
-            color  = ANNOTATION_COLORS.get(atype, "#aaa")
-            ts     = ann.get("created_at", "")[:16].replace("T", " ")
-            rows.append(
-                f"<div style='background:rgba(255,255,255,0.03); border-left:4px solid {color}; "
-                f"padding:12px 14px; margin:10px 0 10px 22px; border-radius:12px; "
-                f"font-size:12.5px; line-height:1.6; color: #FFFFFF !important; "
-                f"box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 1px solid rgba(255,255,255,0.02);'>"
-                f"<span style='font-weight:800; color:{color}; letter-spacing:0.5px; margin-bottom:4px; display:inline-block;'>[{label}]</span> "
-                f"<span style='color:rgba(255,255,255,0.4); font-size:10px; margin-left:6px;'>{ts}</span><br/>"
-                f"{ann['content']}</div>"
-            )
-
-        if ann_map.get(i):
-            rows.append("<div style='height:4px;'></div>")
+    return "<div style='font-family:Georgia,serif;padding:4px 2px;'>" + "".join(rows) + "</div>"
 
     return "<div style='font-family:Georgia,serif;padding:4px 2px;'>" + "".join(rows) + "</div>"
 
@@ -239,31 +232,33 @@ def _render_pdf_pages(course_id: str, filename: str, annotations: list, page_con
     if current_idx - 1 >= 0:
         _fetch_page_image(course_id, filename, current_idx - 1, token)
 
-    # Show all annotations below the page
-    if annotations:
+    # Show current page annotations below the page
+    page_anns = [a for a in annotations if a.get("page_index") == current_idx]
+    if page_anns:
         st.markdown(
-            "<div style='margin-top:8px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:6px;'>"
-            "Annotations</div>",
+            f"<div style='margin-top:20px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1);'>"
+            f"<b style='color:{PRIMARY_ACCENT}; font-size:0.9rem;'>PAGE {current_idx+1} ANNOTATIONS</b>"
+            f"</div>",
             unsafe_allow_html=True
         )
-        with st.container(height=300):
-            for ann in annotations:
-                atype  = ann.get("type", "note")
-                label  = atype.replace("_", " ").title()
-                color  = ANNOTATION_COLORS.get(atype, "#aaa")
-                ts     = ann.get("created_at", "")[:16].replace("T", " ")
-                pidx   = ann.get("paragraph_index", -1)
-                st.markdown(
-                    f"<div style='background:rgba(255,255,255,0.03); border-left:4px solid {color}; "
-                    f"padding:12px; margin:10px 0; border-radius:12px; "
-                    f"font-size:12.5px; line-height:1.5; color: #FFFFFF !important; "
-                    f"box-shadow: 0 4px 10px rgba(0,0,0,0.1);'>"
-                    f"<span style='font-weight:800; color:{color};'>[{label}]</span> "
-                    f"<span style='color:rgba(255,255,255,0.4); font-size:10px; margin-left:8px;'>P{pidx+1} · {ts}</span><br/>"
-                    f"<div style='margin-top:4px;'>{ann['content']}</div>"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
+        for ann in page_anns:
+            atype  = ann.get("type", "note")
+            label  = atype.replace("_", " ").title()
+            color  = ANNOTATION_COLORS.get(atype, "#aaa")
+            ts     = ann.get("created_at", "")[:16].replace("T", " ")
+            st.markdown(
+                f"<div style='background:rgba(255,255,255,0.03); border-left:4px solid {color}; "
+                f"padding:12px; margin:10px 0; border-radius:12px; "
+                f"font-size:12.5px; line-height:1.5; color: #FFFFFF !important; "
+                f"box-shadow: 0 4px 10px rgba(0,0,0,0.1);'>"
+                f"<div style='display:flex; justify-content:space-between; margin-bottom:4px;'>"
+                f"<span style='font-weight:800; color:{color};'>[{label}]</span>"
+                f"<span style='color:rgba(255,255,255,0.4); font-size:10px;'>{ts}</span>"
+                f"</div>"
+                f"<div>{ann['content']}</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
 
 
 def show_document_panel(page_context: str = ""):
@@ -318,7 +313,15 @@ def show_document_panel(page_context: str = ""):
         with c_open:
             if st.button("Open", key=f"dv_openfile_{page_context}", use_container_width=True):
                 with st.spinner("Loading..."):
-                    paras, stys, anns = _fetch_paragraphs_and_annotations(course_id, selected)
+                    ext = os.path.splitext(selected)[1].lower()
+                    # Optimize: Don't extract paragraphs for PDFs as we use page images
+                    if ext == ".pdf":
+                        r = requests.get(f"{API_URL}/api/documents/annotations/{course_id}/{selected}", headers=_h(), timeout=10)
+                        anns = r.json().get("annotations", []) if r.status_code == 200 else []
+                        paras, stys = ["PDF Content"], ["body"]
+                    else:
+                        paras, stys, anns = _fetch_paragraphs_and_annotations(course_id, selected)
+                        
                 st.session_state[K_FILE]  = selected
                 st.session_state[K_PARAS] = paras
                 st.session_state[K_STYS]  = stys
@@ -327,23 +330,25 @@ def show_document_panel(page_context: str = ""):
 
         with c_exp:
             if st.session_state.get(K_FILE):
-                try:
-                    exp = requests.get(
-                        f"{API_URL}/api/documents/export/{course_id}/{st.session_state[K_FILE]}",
-                        headers=_h(), timeout=120  # Increased for large books
-                    )
-                    if exp.status_code == 200:
-                        ename = f"annotated_{os.path.splitext(st.session_state[K_FILE])[0]}.docx"
-                        st.download_button(
-                            "Download annotated .docx",
-                            data=exp.content,
-                            file_name=ename,
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                            key=f"dv_export_{page_context}",
-                            use_container_width=True,
-                        )
-                except Exception:
-                    pass
+                if st.button("Generate .docx Export", key=f"dv_prep_exp_{page_context}", use_container_width=True):
+                    with st.spinner("Preparing..."):
+                        try:
+                            exp = requests.get(
+                                f"{API_URL}/api/documents/export/{course_id}/{st.session_state[K_FILE]}",
+                                headers=_h(), timeout=120
+                            )
+                            if exp.status_code == 200:
+                                ename = f"annotated_{os.path.splitext(st.session_state[K_FILE])[0]}.docx"
+                                st.download_button(
+                                    "⬇️ Download Now",
+                                    data=exp.content,
+                                    file_name=ename,
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    key=f"dv_download_{page_context}",
+                                    use_container_width=True,
+                                )
+                        except Exception:
+                            st.error("Export failed")
 
         with c_close:
             if st.button("Close", key=f"dv_close_{page_context}", use_container_width=True):
@@ -391,21 +396,48 @@ def show_document_panel(page_context: str = ""):
                     "</div>",
                     unsafe_allow_html=True,
                 )
+                
+                # Non-PDF page annotations are always "First (and only) Page"
+                page_anns = [a for a in annotations if a.get("page_index") == 0]
+                if page_anns:
+                    st.markdown("<hr style='opacity:0.1; margin:20px 0;'>", unsafe_allow_html=True)
+                    for ann in page_anns:
+                        atype  = ann.get("type", "note")
+                        label  = atype.replace("_", " ").title()
+                        color  = ANNOTATION_COLORS.get(atype, "#aaa")
+                        ts     = ann.get("created_at", "")[:16].replace("T", " ")
+                        st.markdown(
+                            f"<div style='background:rgba(255,255,255,0.03); border-left:4px solid {color}; "
+                            f"padding:12px; margin:10px 0; border-radius:12px; "
+                            f"font-size:12.5px; line-height:1.5; color: #FFFFFF !important; "
+                            f"box-shadow: 0 4px 10px rgba(0,0,0,0.1);'>"
+                            f"<div style='display:flex; justify-content:space-between; margin-bottom:4px;'>"
+                            f"<span style='font-weight:800; color:{color};'>[{label}]</span>"
+                            f"<span style='color:rgba(255,255,255,0.4); font-size:10px;'>{ts}</span>"
+                            f"</div>"
+                            f"<div>{ann['content']}</div>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
 
         # RIGHT: annotation form + list
         with col_ann:
             st.markdown("**Add annotation**")
 
-            para_labels = [
-                f"P{i+1} - {p[:55]}{'...' if len(p) > 55 else ''}"
-                for i, p in enumerate(paragraphs)
-            ]
-            para_idx = st.selectbox(
-                "Attach to paragraph",
-                range(len(para_labels)),
-                format_func=lambda i: para_labels[i],
-                key=f"para_pick_{page_context}",
-            )
+            if ext == ".pdf":
+                p_count = st.session_state.get(f"dv_pcount_{page_context}", 1)
+                current_p = st.session_state.get(f"pdf_slider_{page_context}", 1)
+                
+                target_idx = st.selectbox(
+                    "Attach to page",
+                    range(p_count),
+                    index=current_p-1,
+                    format_func=lambda i: f"Page {i+1}",
+                    key=f"page_pick_{page_context}"
+                )
+            else:
+                target_idx = 0
+                st.info("Attaching to Page 1 (Main View)")
 
             atype_label = st.selectbox(
                 "Type",
@@ -424,8 +456,9 @@ def show_document_panel(page_context: str = ""):
             if st.button("Save", key=f"asave_{page_context}", use_container_width=True, type="primary"):
                 if atext.strip():
                     if _save_annotation(
-                        course_id, filename, para_idx,
-                        atext.strip(), ANNOTATION_TYPES[atype_label]
+                        course_id, filename, target_idx,
+                        atext.strip(), ANNOTATION_TYPES[atype_label],
+                        is_page=True
                     ):
                         st.success("Saved!")
                         paras, stys, anns = _fetch_paragraphs_and_annotations(course_id, filename)
@@ -455,12 +488,18 @@ def show_document_panel(page_context: str = ""):
 
                         ca, cd = st.columns([5, 1])
                         with ca:
+                            page_idx_val = ann.get("page_index", -1)
+                            if page_idx_val >= 0:
+                                loc_ref = f"Page {page_idx_val+1}"
+                            else:
+                                loc_ref = f"P{pidx+1}" if pidx >= 0 else "general"
+                                
                             st.markdown(
                                 f"<div style='background:rgba(255,255,255,0.03); backdrop-filter: blur(8px); "
                                 f"-webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.05); "
                                 f"border-left:3px solid {color}; padding:10px; margin:6px 0; border-radius:12px; "
                                 f"font-size:11px; color: #FFFFFF !important;'>"
-                                f"<b style='color:{color};'>[{label}]</b> {pref} "
+                                f"<b style='color:{color};'>[{label}]</b> {loc_ref} "
                                 f"<span style='color:rgba(255,255,255,0.4); font-size:9px;'>{ts}</span><br/>"
                                 f"<div style='margin-top:3px;'>{preview}</div></div>",
                                 unsafe_allow_html=True,
