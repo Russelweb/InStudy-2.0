@@ -60,10 +60,22 @@ uvicorn main:app --reload --port 8000
 ```
 *(Ensure you have your LLM credentials configured inside your `.env` file.)*
 
-### Step 2: Start the Next-Gen Frontend
+### Step 2: Choose Your Frontend
+
+**Option A: The Next-Gen Neural Web App (React)**
+Provides the complete, interactive experience with inline annotations and dynamic flashcards.
 ```bash
 cd frontend-v2
+npm install
 npm run dev
+```
+
+**Option B: The Prototype Interface (Streamlit)**
+Provides a fast, modular prototyping environment for testing core AI logic and workflows.
+```bash
+cd frontend
+pip install -r requirements.txt
+streamlit run app.py
 ```
 
 ### Alternatively: Launch via Quick Start Script
@@ -74,7 +86,13 @@ start.bat
 
 ---
 
-## 🛠️ Key Technical Details (React Version)
-- **Universal Reader:** Replaced basic DOM reading with custom text parsers that support Word docs, Txt, and iframe streams natively.
-- **Global Event Propagation:** Utilizes sophisticated React hooks to share annotation states globally across complex DOM trees like the Neural Deck.
-- **AI Token Reliability:** Uses heavily typed prompts with strict JSON payload fallback parsing to keep external LLM APIs from breaking UI structures during dynamic quiz and schema generation.
+## 🛠️ Key Technical Details
+
+### Neural Web App (React)
+- **Universal Reader:** Replaces basic DOM reading with custom text parsers that support Word docs, Txt, and iframe streams natively.
+- **Global Event Propagation:** Utilizes sophisticated React state to share annotation states globally across complex DOM trees like the Neural Deck.
+- **AI Token Reliability:** Uses heavily typed prompts with strict JSON payload fallback parsing to keep external LLM APIs from breaking UI structures during dynamic quiz generation.
+
+### Prototype Interface (Streamlit)
+- **Session State Management:** Heavily relies on Streamlit's `st.session_state` to orchestrate multi-step chat logic and maintain context across page reruns.
+- **Rapid Prototyping Modules:** Every feature (Flashcards, Quiz, Summary, Document Upload) is broken into isolated modular pages, allowing swift testing of backend service logic without dealing with asynchronous DOM reconciliation.
