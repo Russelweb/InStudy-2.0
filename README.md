@@ -52,15 +52,23 @@ This repository features a robust FastAPI backend combined with **two distinct f
 
 To launch the full InStudy 2.0 ecosystem:
 
-### Step 1: Start the Backend
+### Step 1: Configure Environment Credentials
+The backend requires setting up an LLM provider (like Groq or local Ollama).
+1. Navigate into the `backend/` folder.
+2. Copy the example environment file:
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+3. Open `.env` and set your preferred keys (e.g., `GROQ_API_KEY` or custom `OLLAMA` variables).
+
+### Step 2: Start the Backend
 ```bash
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
-*(Ensure you have your LLM credentials configured inside your `.env` file.)*
 
-### Step 2: Choose Your Frontend
+### Step 3: Choose Your Frontend
 
 **Option A: The Next-Gen Neural Web App (React)**
 Provides the complete, interactive experience with inline annotations and dynamic flashcards.
