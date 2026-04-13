@@ -65,6 +65,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     request.state.user = user
                     request.state.user_id = user.id
                     
+                    # Extract Groq API Key if provided
+                    request.state.groq_api_key = request.headers.get("X-Groq-API-Key")
+                    
                     logger.debug(f"Authenticated request for user {user.id}: {request.url.path}")
                     
                 except Exception as auth_error:
@@ -75,6 +78,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         status_code=500,
                         content={"detail": f"Authentication error: {str(auth_error)}"}
                     )
+            else:
+                # Even for public routes, try to extract Groq API Key if available
+                request.state.groq_api_key = request.headers.get("X-Groq-API-Key")
             
             # Continue with request
             response = await call_next(request)

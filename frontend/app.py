@@ -126,7 +126,7 @@ div[data-testid="stMetric"] {
     background: rgba(255, 127, 80, 0.4);
 }
 
-/* Primary Buttons (The Active/Coral UI) */
+/* Primary Buttons (Pure Coral Focus - The Lead) */
 button[kind="primary"], div.stButton > button:not([kind="secondary"]) {
     background: linear-gradient(90deg, #FF7F50 0%, #FF6347 100%) !important;
     color: white !important;
@@ -143,16 +143,16 @@ button[kind="primary"], div.stButton > button:not([kind="secondary"]) {
 
 button[kind="primary"]:hover, div.stButton > button:not([kind="secondary"]):hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 15px 40px rgba(255, 127, 80, 0.6) !important;
-    background: #FF7F50 !important;
+    box-shadow: 0 15px 40px rgba(255, 127, 80, 0.4) !important;
+    background: #FF6347 !important;
     opacity: 1 !important;
 }
 
-/* Alternative/Secondary Buttons (The Ghost UI + Orange Hover) */
+/* Alternative/Secondary Buttons (Muted Sage Accents) */
 button[kind="secondary"] {
-    background: rgba(255, 255, 255, 0.05) !important;
+    background: rgba(67, 126, 111, 0.05) !important;
     color: rgba(255, 255, 255, 0.6) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(67, 126, 111, 0.2) !important;
     border-radius: 12px !important;
     padding: 0.6rem 2.2rem !important;
     font-weight: 600 !important;
@@ -160,14 +160,12 @@ button[kind="secondary"] {
     text-transform: uppercase;
     letter-spacing: 0.8px;
     font-size: 0.85rem !important;
-    box-shadow: none !important;
 }
 
 button[kind="secondary"]:hover {
-    background: #FF7F50 !important; /* Switch to Coral on hover */
+    background: rgba(67, 126, 111, 0.2) !important;
     color: white !important;
-    border-color: #FF7F50 !important;
-    box-shadow: 0 10px 25px rgba(255, 127, 80, 0.3) !important;
+    border-color: #437e6f !important;
     transform: translateY(-2px) !important;
 }
 
@@ -185,101 +183,149 @@ button[kind="secondary"]:hover {
     filter: drop-shadow(0 0 10px rgba(255, 127, 80, 0.2));
 }
 
-/* Progress bar color */
+/* Progress bar color (Subtle Sage-Coral Mix) */
 .stProgress > div > div > div > div {
-    background-image: linear-gradient(to right, #FF7F50, #FF6347) !important;
+    background-image: linear-gradient(to right, #FF7F50, #437e6f) !important;
 }
 
-/* Hide Streamlit elements */
+/* Hide specific Streamlit brand elements but keep the header area for controls */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-header {visibility: hidden;}
+header[data-testid="stHeader"] {background: transparent !important;}
 
-/* Mobile Responsiveness Rules */
-@media (max-width: 768px) {
-    section.main > div.block-container {
-        padding-top: 5rem !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    
-    [data-testid="stMetricValue"] {
-        font-size: 1.5rem !important;
-    }
-    
-    /* Shrink the horizontal navigation on tablets/phones */
-    nav.nav.nav-pills {
-        padding: 0.5rem 0.5rem !important;
-    }
-    .nav-link {
-        padding: 0.4rem 0.2rem !important;
-        font-size: 11px !important;
-    }
-    
-    /* Compact buttons for mobile */
-    button[kind="primary"], button[kind="secondary"], div.stButton > button {
-        padding: 0.5rem 1rem !important;
-        font-size: 0.75rem !important;
+/* Ensure sidebar toggle button is visible and styled */
+[data-testid="stSidebarCollapsedControl"] {
+    background-color: rgba(255, 127, 80, 0.1) !important;
+    border-radius: 0 8px 8px 0 !important;
+    color: #FF7F50 !important;
+    top: 10px !important;
+}
+
+/* --- RESPONSIVE NAVIGATION OVERRIDES --- */
+
+/* 1. Desktop: Hide Mobile Menu, keep Horizontal UI */
+@media (min-width: 769px) {
+    /* Hide the mobile nav container in the sidebar */
+    [data-testid="stSidebar"] .mobile-nav-container {
+        display: none !important;
     }
 }
 
-@media (max-width: 480px) {
-    [data-testid="stMetricValue"] {
-        font-size: 1.2rem !important;
+/* 2. Mobile: Hide Top Menu, show Sidebar Menu */
+@media (max-width: 768px) {
+    /* Hide the top horizontal menu */
+    .top-nav-container {
+        display: none !important;
     }
-    .nav-link {
-        font-size: 10px !important;
+    
+    /* Make the mobile sidebar menu visible and pretty */
+    [data-testid="stSidebar"] .mobile-nav-container {
+        display: block !important;
+        margin-top: 1rem;
     }
+
+    section.main > div.block-container {
+        padding-top: 2rem !important; /* Less padding on mobile since top-bar is gone */
+    }
+}
+
+/* Sticky Top Bar Container */
+.top-nav-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(8, 12, 22, 0.8) !important;
+    backdrop-filter: blur(20px) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Main navigation menu (horizontal at top, now fixed)
-selected = option_menu(
+# --- NAVIGATION LOGIC ---
+
+# 1. Top Navigation (Desktop Only)
+st.markdown('<div class="top-nav-container">', unsafe_allow_html=True)
+selected_top = option_menu(
     menu_title=None,
     options=menu_options,
     icons=menu_icons,
     default_index=menu_options.index(st.session_state.selected_page) if st.session_state.selected_page in menu_options else 0,
     orientation="horizontal",
-    key="main_menu",
+    key="main_menu_desktop",
     styles={
-        "container": {
-            "padding": "0!important", 
-            "background-color": "transparent",
-            "border-radius": "0"
-        },
+        "container": {"padding": "0!important", "background-color": "transparent", "border-radius": "0"},
         "icon": {"color": "#FF7F50", "font-size": "18px"}, 
-        "nav-link": {
-            "font-size": "15px", 
-            "text-align": "center", 
-            "margin":"0px", 
-            "color": "rgba(255,255,255,0.7)",
-            "font-weight": "500",
-            "transition": "all 0.3s ease"
-        },
-        "nav-link-selected": {
-            "background": "rgba(255, 127, 80, 0.1)",
-            "color": "#FF7F50",
-            "border-bottom": "2px solid #FF7F50",
-            "border-radius": "0"
-        },
+        "nav-link": {"font-size": "14px", "text-align": "center", "margin":"0px", "color": "rgba(255,255,255,0.7)", "transition": "all 0.3s ease"},
+        "nav-link-selected": {"background": "rgba(255, 127, 80, 0.1)", "color": "#FF7F50", "border-bottom": "2px solid #FF7F50", "border-radius": "0"},
     }
 )
+st.markdown('</div>', unsafe_allow_html=True)
 
-# Update session state when selection changes
-if selected != st.session_state.selected_page:
-    st.session_state.selected_page = selected
-
-# Sidebar with user info only
+# 2. Sidebar Navigation (Mobile Only + User Info)
 with st.sidebar:
     st.title("📚 InStudy 2.0")
     st.caption("Your AI Study Assistant")
+    st.divider()
     
-    # Show current page
-    st.info(f"📍 Current: **{selected}**")
+    # The Mobile Menu (Hidden on Desktop via CSS)
+    st.markdown('<div class="mobile-nav-container">', unsafe_allow_html=True)
+    selected_mobile = option_menu(
+        menu_title="Navigation",
+        options=menu_options,
+        icons=menu_icons,
+        default_index=menu_options.index(st.session_state.selected_page) if st.session_state.selected_page in menu_options else 0,
+        orientation="vertical",
+        key="main_menu_mobile",
+        styles={
+            "container": {"padding": "5px", "background-color": "rgba(255,255,255,0.02)", "border-radius": "15px"},
+            "icon": {"color": "#437e6f", "font-size": "16px"}, 
+            "nav-link": {"font-size": "14px", "text-align": "left", "margin":"5px", "color": "rgba(255,255,255,0.8)"},
+            "nav-link-selected": {"background": "linear-gradient(90deg, #FF7F50, #437e6f)", "color": "white"},
+        }
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    # Show user info and logout button
+    st.divider()
     show_user_info()
+    st.divider()
+    
+    # Groq API Key Configuration
+    st.subheader("⚙️ LLM Settings")
+    st.caption("Enter your Groq API Key to power InStudy 2.0.")
+    
+    # Get initial value from session state
+    current_key = st.session_state.get("groq_api_key", "")
+    
+    new_key = st.text_input(
+        "Groq API Key", 
+        value=current_key,
+        type="password",
+        help="Get your key from https://console.groq.com/keys",
+        placeholder="gsk_..."
+    )
+    
+    if new_key != current_key:
+        st.session_state.groq_api_key = new_key
+        st.success("API Key saved!")
+        st.rerun()
+        
+    if st.session_state.get("groq_api_key"):
+        if st.button("Clear API Key", key="clear_groq_key"):
+            st.session_state.groq_api_key = ""
+            st.rerun()
+
+# 3. Synchronize Selections
+new_selection = st.session_state.selected_page
+if selected_top != st.session_state.selected_page:
+    new_selection = selected_top
+elif selected_mobile != st.session_state.selected_page:
+    new_selection = selected_mobile
+
+if new_selection != st.session_state.selected_page:
+    st.session_state.selected_page = new_selection
+    st.rerun()
     
     # Temporary debug info
     if current_user:
@@ -296,21 +342,21 @@ with st.sidebar:
                 st.info("ℹ️ Regular user (not admin)")
 
 # Route to pages
-if selected == "Dashboard":
+if st.session_state.selected_page == "Dashboard":
     dashboard.show()
-elif selected == "Courses":
+elif st.session_state.selected_page == "Courses":
     courses.show()
-elif selected == "AI Tutor":
+elif st.session_state.selected_page == "AI Tutor":
     ai_tutor.show()
-elif selected == "Flashcards":
+elif st.session_state.selected_page == "Flashcards":
     flashcards.show()
-elif selected == "Quiz":
+elif st.session_state.selected_page == "Quiz":
     quiz.show()
-elif selected == "Summary":
+elif st.session_state.selected_page == "Summary":
     summary.show()
-elif selected == "Study Planner":
+elif st.session_state.selected_page == "Study Planner":
     planner.show()
-elif selected == "Mastery":
+elif st.session_state.selected_page == "Mastery":
     mastery.show()
-elif selected == "Admin Panel":
+elif st.session_state.selected_page == "Admin Panel":
     admin_dashboard.show()

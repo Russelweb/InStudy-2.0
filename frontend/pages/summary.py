@@ -64,7 +64,7 @@ def show():
             messages = ["Reading document structure...", "Analyzing core themes...", "Synthesizing intelligence...", "Structuring summary..."]
             headers = auth_manager.get_auth_headers()
             args = (st.session_state.current_course, doc_name, style_sel, headers)
-            res, err = run_with_dynamic_progress(_generate_summary_api, args=args, messages=messages, estimated_time=40.0)
+            res, err = run_with_dynamic_progress(_generate_summary_api, args=args, messages=messages, estimated_time=6.0)
             if res:
                 st.session_state.current_summary = res
                 st.rerun()

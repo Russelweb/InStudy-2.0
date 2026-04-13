@@ -69,13 +69,11 @@ app.include_router(mastery.router, prefix="/api/mastery", tags=["mastery"])
 
 @app.get("/")
 async def root():
+    from models.global_models import get_model_info
     return {
-        "message": "InStudy 2.0 API - Local Edition",
-        "status": "running",
-        "models": {
-            "embeddings": "sentence-transformers/all-MiniLM-L6-v2",
-            "llm": "llama3 (via Ollama)"
-        }
+        "message": "InStudy 2.0 API",
+        "status": "online",
+        "models": get_model_info()
     }
 
 @app.get("/health")

@@ -16,8 +16,8 @@ class RAGService:
     """
     
     def __init__(self):
-        # Use global LLM instance (loaded once)
-        self.llm = get_llm()
+        # Embeddings are global
+        self.embeddings = None # Loaded on demand via doc_processor
         self.doc_processor = DocumentProcessor()
         # Store conversation history per user/course
         self.conversation_memory: Dict[str, List[Dict[str, str]]] = {}
@@ -96,15 +96,42 @@ class RAGService:
         return None
     
     def _retrieve_page_specific_content(self, vector_store, page_num: int, k: int = 5) -> List[Any]:
-        """Retrieve content from a specific page"""
-        # Get more documents initially
-        all_docs = vector_store.similarity_search("", k=50)
+        """Retrieve content from a specific page with high precision and offset awareness"""
+        logger.info(f"Attempting deep retrieval for page: {page_num}")
         
-        # Filter for specific page
-        page_docs = [doc for doc in all_docs if doc.metadata.get('page') == page_num]
+        # Step 1: Try exact metadata filter (most precise)
+        # Check both the requested page and n-1 (for 0-indexed vs 1-indexed offsets)
+        target_pages = [page_num, page_num - 1] if page_num > 1 else [page_num]
         
-        # Return top k from that page
-        return page_docs[:k] if page_docs else []
+        try:
+            for p in target_pages:
+                page_docs = vector_store.similarity_search(
+                    f"page {p}", # Use specific page search
+                    k=min(20, k*2), 
+                    filter={"page": p}
+                )
+                if page_docs:
+                    logger.info(f"Found {len(page_docs)} chunks for target page {p}.")
+                    return page_docs[:k]
+        except Exception as e:
+            logger.warning(f"Metadata filtering failed: {e}")
+
+        # Step 2: Fallback - Manual filter on a large pool (Critical for large books)
+        logger.info(f"Performing deep sweep (k=500) for page {page_num}...")
+        all_docs = vector_store.similarity_search("", k=500) 
+        
+        # Filter for the page or its immediate neighbors (handling common PDF offsets)
+        page_docs = [doc for doc in all_docs if doc.metadata.get('page') in [page_num, page_num-1, page_num+1]]
+        
+        if page_docs:
+            # Prioritize the most exact matches
+            page_docs.sort(key=lambda x: abs(x.metadata.get('page', 0) - page_num))
+            logger.info(f"Found {len(page_docs)} documents in deep sweep.")
+            return page_docs[:k]
+            
+        # Step 3: Last resort - Content-based marker search
+        logger.info(f"Searching for content markers for page {page_num}...")
+        return vector_store.similarity_search(f"page {page_num} pg {page_num} {page_num}", k=k)
     
     def _retrieve_exercise_content(self, vector_store, exercise_ref: str, question: str, k: int = 5) -> List[Any]:
         """Retrieve content related to specific exercise"""
@@ -121,18 +148,54 @@ class RAGService:
         
         return exercise_docs[:k] if exercise_docs else docs[:k]
     
-    def answer_question_stream(self, user_id: str, course_id: str, question: str, use_eli12: bool = False):
+    def _extract_section_reference(self, question: str) -> Optional[str]:
+        """Extract section or chapter number from question"""
+        # Patterns: "section 1.2", "sec 5", "chapter 3", "ch 4"
+        patterns = [
+            r'section\s*([\d.]+)',
+            r'sec\s*([\d.]+)',
+            r'chapter\s*(\d+)',
+            r'ch\s*(\d+)',
+            r'topic\s*([\d.]+)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, question.lower())
+            if match:
+                return match.group(1)
+        
+        return None
+    
+    def _retrieve_section_content(self, vector_store, section_ref: str, question: str, k: int = 5) -> List[Any]:
+        """Retrieve content related to specific section/chapter with higher sensitivity"""
+        # Search targets: "section 1.2", "1.2", etc.
+        search_query = f"section {section_ref} chapter {section_ref} topic {section_ref} {section_ref} header {section_ref}"
+        docs = vector_store.similarity_search(search_query, k=k*5) # Much larger k for sections
+        
+        # Filter docs that actually mention the section or have it in headers
+        section_docs = []
+        for doc in docs:
+            txt = doc.page_content.lower()
+            if section_ref in txt or f"section {section_ref}" in txt or f"chapter {section_ref}" in txt:
+                section_docs.append(doc)
+        
+        return section_docs[:k] if section_docs else docs[:k]
+    def answer_question_stream(self, user_id: str, course_id: str, question: str, use_eli12: bool = False, api_key: Optional[str] = None):
         """
         Stream answer word by word with page-aware retrieval and memory.
         Yields Server-Sent Events format.
         """
         logger.info(f"Streaming answer for user {user_id}, course {course_id}")
         
+        # Get appropriate LLM
+        llm = get_llm(api_key)
+        
         vector_store = self.doc_processor.get_vector_store(user_id, course_id)
         
-        # Extract page or exercise references
+        # Extract page, exercise, or section references
         page_ref = self._extract_page_reference(question)
         exercise_ref = self._extract_exercise_reference(question)
+        section_ref = self._extract_section_reference(question)
         
         # Check if relevant documents exist
         has_context = False
@@ -158,6 +221,13 @@ class RAGService:
                 if docs:
                     has_context = True
             
+            # Section-specific retrieval
+            elif section_ref:
+                logger.info(f"Section-specific query detected: {section_ref}")
+                docs = self._retrieve_section_content(vector_store, section_ref, question, k=5)
+                if docs:
+                    has_context = True
+            
             # General semantic search
             else:
                 docs_with_scores = vector_store.similarity_search_with_score(question, k=settings.TOP_K_RETRIEVAL)
@@ -173,7 +243,16 @@ class RAGService:
                     docs = []
             
             if has_context and docs:
-                sources = list(set([doc.metadata.get("document_name", "Unknown") for doc in docs]))
+                # Build unified sources with page numbers: "filename#page=X"
+                combined_sources = []
+                for doc in docs:
+                    name = doc.metadata.get("document_name", "Unknown")
+                    page = doc.metadata.get("page")
+                    if page:
+                        combined_sources.append(f"{name}#page={page}")
+                    else:
+                        combined_sources.append(name)
+                sources = list(set(combined_sources))
                 
                 # Build context with page information
                 context_parts = []
@@ -227,8 +306,8 @@ Provide a structured explanation:
 If the question asks about a specific page or exercise, focus on that content."""
                 
                 # Add page info to sources
-                if page_info:
-                    sources.extend(page_info)
+                # Sources already included page info in the new unified format
+                pass
         
         if not has_context:
             logger.warning(f"No relevant documents found for question: '{question[:50]}...'")
@@ -277,10 +356,14 @@ Provide a clear explanation as if teaching a university student. Include:
         logger.info("Streaming response from LLM...")
         full_response = ""
         try:
-            for chunk in self.llm.stream(prompt):
+            for chunk in llm.stream(prompt):
                 if chunk:
-                    full_response += chunk
-                    yield f"data: {json.dumps({'type': 'content', 'text': chunk})}\n\n"
+                    # Extract text content (handles both strings from Ollama and objects from Groq)
+                    content = chunk if isinstance(chunk, str) else getattr(chunk, 'content', str(chunk))
+                    if content:
+                        full_response += content
+                        yield f"data: {json.dumps({'type': 'content', 'text': content})}\n\n"
+
         except Exception as e:
             logger.error(f"Error during streaming: {e}")
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
@@ -303,11 +386,14 @@ Provide a clear explanation as if teaching a university student. Include:
             "last_question": memory[-1]["question"] if memory else None
         }
     
-    def answer_question(self, user_id: str, course_id: str, question: str, use_eli12: bool = False):
+    def answer_question(self, user_id: str, course_id: str, question: str, use_eli12: bool = False, api_key: Optional[str] = None):
         """
         Enhanced hybrid AI answering system with page-aware retrieval and memory.
         """
         logger.info(f"Answering question for user {user_id}, course {course_id}")
+        
+        # Get appropriate LLM
+        llm = get_llm(api_key)
         
         vector_store = self.doc_processor.get_vector_store(user_id, course_id)
         
@@ -353,7 +439,16 @@ Provide a clear explanation as if teaching a university student. Include:
                     docs = []
             
             if has_context and docs:
-                sources = list(set([doc.metadata.get("document_name", "Unknown") for doc in docs]))
+                # Build unified sources with page numbers: "filename#page=X"
+                combined_sources = []
+                for doc in docs:
+                    name = doc.metadata.get("document_name", "Unknown")
+                    page = doc.metadata.get("page")
+                    if page:
+                        combined_sources.append(f"{name}#page={page}")
+                    else:
+                        combined_sources.append(name)
+                sources = list(set(combined_sources))
                 
                 # Build context with page information
                 context_parts = []
@@ -407,16 +502,15 @@ Provide a structured explanation:
 If the question asks about a specific page or exercise, focus on that content."""
                 
                 logger.info("Generating answer with context...")
-                response = self.llm.invoke(prompt)
+                response = llm.invoke(prompt)
+                # Extract text content
+                response = response if isinstance(response, str) else getattr(response, 'content', str(response))
                 
                 # Add to conversation memory
                 self._add_to_memory(user_id, course_id, question, response)
                 
-                # Build source info with pages
-                source_info = sources.copy()
-                if page_info:
-                    source_info.extend(page_info)
-                
+                # Sources already included page info in the new unified format
+                source_info = sources
                 return {
                     "answer": response,
                     "sources": source_info,
@@ -452,7 +546,9 @@ Provide a clear explanation as if teaching a university student. Include:
 3. Practical example
 4. Quick summary"""
         
-        response = self.llm.invoke(prompt)
+        response = llm.invoke(prompt)
+        # Extract text content (handles both strings from Ollama and objects from Groq)
+        response = response if isinstance(response, str) else getattr(response, 'content', str(response))
         
         # Add to conversation memory
         self._add_to_memory(user_id, course_id, question, response)

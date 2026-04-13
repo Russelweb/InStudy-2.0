@@ -1,4 +1,5 @@
 from config import settings
+from typing import Optional
 from models.global_models import get_llm
 from datetime import datetime
 from services.document_processor import DocumentProcessor
@@ -16,13 +17,15 @@ class PlannerService:
     """
     
     def __init__(self):
-        # Use global LLM instance
-        self.llm = get_llm()
+        # Doc processor is global/stateless enough
         self.doc_processor = DocumentProcessor()
     
-    def create_study_plan(self, user_id: str, course_name: str, exam_date: str, topics: list):
+    def create_study_plan(self, user_id: str, course_name: str, exam_date: str, topics: list, api_key: Optional[str] = None):
         """Generate personalized study plan using local LLM with mastery adaptation"""
         logger.info(f"Creating mastery-adaptive study plan for {course_name}")
+        
+        # Get appropriate LLM
+        llm = get_llm(api_key)
         
         today = datetime.now().strftime("%Y-%m-%d")
         
@@ -47,11 +50,14 @@ Format:
 Generate the plan now:"""
         
         logger.info("Generating study plan with LLM...")
-        response = self.llm.invoke(prompt)
+        response = llm.invoke(prompt)
+        
+        # Extract text content (handles both strings from Ollama and objects from Groq)
+        response_text = response if isinstance(response, str) else getattr(response, 'content', str(response))
         
         try:
             # Extract JSON from response (handle extra text)
-            response_text = response.strip()
+            response_text = response_text.strip()
             
             # Remove markdown code blocks
             if "```json" in response_text:

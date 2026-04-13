@@ -1,4 +1,5 @@
 from config import settings
+from typing import Optional
 from services.document_processor import DocumentProcessor
 from services.concept_service import concept_service
 from models.global_models import get_llm, get_embeddings
@@ -17,15 +18,17 @@ class QuizService:
     """
     
     def __init__(self):
-        # Use global LLM instance
-        self.llm = get_llm()
+        # Embeddings and doc processor are global/stateless enough
         self.embedding_model = get_embeddings()
         self.doc_processor = DocumentProcessor()
     
     def generate_quiz(self, user_id: str, course_id: str, num_questions: int, 
-                     difficulty: str, quiz_type: str):
+                     difficulty: str, quiz_type: str, api_key: Optional[str] = None):
         """Generate quiz from study materials using local LLM"""
         logger.info(f"Generating {num_questions} {difficulty} {quiz_type} questions with mastery awareness")
+        
+        # Get appropriate LLM
+        llm = get_llm(api_key)
         
         vector_store = self.doc_processor.get_vector_store(user_id, course_id)
         
@@ -67,7 +70,7 @@ CRITICAL INSTRUCTIONS:
 1. Return ONLY a valid JSON object, nothing else. No markdown or explanations outside the JSON.
 2. DO NOT add trailing commas. This causes JSON parse errors.
 3. For structural/short answer questions: provide concise, 1-sentence answers.
-4. Keep EVERY explanation extremely brief (maximum 1 short sentence). This is CRITICAL to avoid timeout truncation on long quizzes.
+4. For EVERY explanation, provide a detailed, highly educational note (2-3 sentences max). Explain gracefully why the answer is correct and why a student might get it wrong. This is the Tutor Note.
 5. For multiple choice: exactly 4 options. For true/false: ["True", "False"].
 6. For EVERY question, include a "concept" field that identifies the 1-2 word main topic.
 
@@ -84,16 +87,18 @@ Short Answer:
 Generate {num_questions} questions now:"""
         
         logger.info("Generating quiz with LLM...")
-        response = self.llm.invoke(prompt)
+        response = llm.invoke(prompt)
         
-        # Guard: LLM sometimes returns bool/None on failure instead of a string
-        if not isinstance(response, str):
-            logger.error(f"LLM returned non-string response: {type(response).__name__} = {response}")
+        # Extract text content (handles both strings from Ollama and objects from Groq)
+        response_text = response if isinstance(response, str) else getattr(response, 'content', str(response))
+
+        if not response_text:
+            logger.error(f"LLM returned empty response: {type(response).__name__}")
             return self._parse_quiz_fallback(num_questions, quiz_type)
 
         try:
             # Extract JSON from response (handle extra text)
-            response_text = response.strip()
+            response_text = response_text.strip()
             
             # Remove markdown code blocks
             if "```json" in response_text:

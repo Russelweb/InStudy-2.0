@@ -60,7 +60,7 @@ def show():
                 headers = auth_manager.get_auth_headers()
                 course_id = st.session_state.get("current_course", "")
                 args = (course_id, edate.strftime("%Y-%m-%d"), [t.strip() for t in topics.split("\n") if t.strip()], headers)
-                res, err = run_with_dynamic_progress(_create_planner_api, args=args, estimated_time=40.0)
+                res, err = run_with_dynamic_progress(_create_planner_api, args=args, estimated_time=6.0)
                 if res:
                     st.session_state.study_plan = res["plan"]
                     st.rerun()

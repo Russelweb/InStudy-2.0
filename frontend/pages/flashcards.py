@@ -95,7 +95,7 @@ def show():
             args = (st.session_state.current_course, num_cards, True, explanation_level, headers)
             # Re-using existing function but adding smart_mode to headers or similar if needed? 
             # Actually, I'll update the API call later. For now, we'll just send standard.
-            result, error = run_with_dynamic_progress(_generate_flashcards_api, args=args, messages=messages, estimated_time=45.0)
+            result, error = run_with_dynamic_progress(_generate_flashcards_api, args=args, messages=messages, estimated_time=6.0)
             
             if result:
                 st.session_state.flashcards = result["flashcards"]

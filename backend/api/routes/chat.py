@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from models.schemas import ChatRequest, ChatResponse
 from services.rag_service import RAGService
@@ -43,24 +43,27 @@ async def health_check():
 
 @router.post("/ask", response_model=ChatResponse)
 async def ask_question(
-    request: AuthenticatedChatRequest,
+    request: Request,
+    payload: AuthenticatedChatRequest,
     current_user: User = Depends(get_authenticated_user)
 ):
     """Ask AI tutor a question"""
     try:
         user_id = str(current_user.id)
+        api_key = getattr(request.state, "groq_api_key", None)
         
         result = rag_service.answer_question(
             user_id,
-            request.course_id,
-            request.question,
-            request.use_eli12
+            payload.course_id,
+            payload.question,
+            payload.use_eli12,
+            api_key=api_key
         )
         
         # Log the question
         log_activity(user_id, "question", {
-            "question": request.question,
-            "course": request.course_id
+            "question": payload.question,
+            "course": payload.course_id
         })
         
         return ChatResponse(**result)
@@ -72,17 +75,19 @@ async def ask_question(
 
 @router.post("/ask-stream")
 async def ask_question_stream(
-    request: AuthenticatedChatRequest,
+    request: Request,
+    payload: AuthenticatedChatRequest,
     current_user: User = Depends(get_authenticated_user)
 ):
     """Ask AI tutor a question with streaming response"""
     try:
         user_id = str(current_user.id)
+        api_key = getattr(request.state, "groq_api_key", None)
         
         # Log the question
         log_activity(user_id, "question", {
-            "question": request.question,
-            "course": request.course_id
+            "question": payload.question,
+            "course": payload.course_id
         })
         
         # Get streaming generator
@@ -90,9 +95,10 @@ async def ask_question_stream(
             try:
                 stream = rag_service.answer_question_stream(
                     user_id,
-                    request.course_id,
-                    request.question,
-                    request.use_eli12
+                    payload.course_id,
+                    payload.question,
+                    payload.use_eli12,
+                    api_key=api_key
                 )
                 
                 for chunk in stream:
@@ -104,9 +110,10 @@ async def ask_question_stream(
                 try:
                     result = rag_service.answer_question(
                         user_id,
-                        request.course_id,
-                        request.question,
-                        request.use_eli12
+                        payload.course_id,
+                        payload.question,
+                        payload.use_eli12,
+                        api_key=api_key
                     )
                     
                     # Send as streaming format

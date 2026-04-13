@@ -180,10 +180,19 @@ class AuthManager:
     
     def get_auth_headers(self) -> Dict[str, str]:
         """Get authentication headers for API requests"""
+        headers = {}
+        
+        # Add Bearer token
         token = self.get_session_token()
         if token:
-            return {"Authorization": f"Bearer {token}"}
-        return {}
+            headers["Authorization"] = f"Bearer {token}"
+            
+        # Add Groq API Key if stored in session
+        groq_key = st.session_state.get("groq_api_key")
+        if groq_key:
+            headers["X-Groq-API-Key"] = groq_key
+            
+        return headers
     
     def clear_session(self):
         """Clear all authentication session data"""

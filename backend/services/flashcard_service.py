@@ -1,4 +1,5 @@
 from config import settings
+from typing import Optional
 from services.document_processor import DocumentProcessor
 from services.image_service import ImageService
 from models.global_models import get_llm
@@ -18,15 +19,17 @@ class FlashcardService:
     """
     
     def __init__(self):
-        # Use global LLM instance
-        self.llm = get_llm()
+        # Doc processor and image service are global/stateless enough
         self.doc_processor = DocumentProcessor()
         self.image_service = ImageService()
         self.executor = ThreadPoolExecutor(max_workers=4)  # For parallel image processing
     
-    def generate_flashcards(self, user_id: str, course_id: str, num_cards: int, include_images: bool = True, explanation_level: str = "detailed"):
+    def generate_flashcards(self, user_id: str, course_id: str, num_cards: int, include_images: bool = True, explanation_level: str = "detailed", filename: Optional[str] = None, api_key: Optional[str] = None):
         """Generate flashcards with optional images from study materials"""
         logger.info(f"Generating {num_cards} flashcards with mastery awareness.")
+        
+        # Get appropriate LLM
+        llm = get_llm(api_key)
         
         vector_store = self.doc_processor.get_vector_store(user_id, course_id)
         if not vector_store:
@@ -44,7 +47,23 @@ class FlashcardService:
             except: pass
             
         # Get content samples (prioritizing weak areas via search query)
-        docs = vector_store.similarity_search(search_query, k=min(20, num_cards * 3))
+        k_fetch = min(50, num_cards * 5) if filename else min(20, num_cards * 3)
+        docs = vector_store.similarity_search(search_query, k=k_fetch)
+        
+        if filename:
+            # Filter docs by filename metadata
+            filtered_docs = []
+            for doc in docs:
+                source = doc.metadata.get('source', '')
+                # Ensure the path contains the specific filename requested
+                if filename in source:
+                    filtered_docs.append(doc)
+            if not filtered_docs:
+                logger.warning(f"No documents found exactly matching {filename}, falling back to all")
+            else:
+                docs = filtered_docs
+                
+        # Limit the number of documents to send to context
         context = "\n\n".join([doc.page_content for doc in docs[:10]])
         
         # Customize prompt based on mastery context
@@ -86,11 +105,14 @@ CRITICAL: Return ONLY a JSON object.
 Generate {num_cards} educational flashcards now:"""
         
         logger.info("Generating flashcards with LLM...")
-        response = self.llm.invoke(prompt)
+        response = llm.invoke(prompt)
+        
+        # Extract text content (handles both strings from Ollama and objects from Groq)
+        response_text = response if isinstance(response, str) else getattr(response, 'content', str(response))
         
         try:
             # Extract JSON from response (handle extra text)
-            response_text = response.strip()
+            response_text = response_text.strip()
             
             # Remove markdown code blocks
             if "```json" in response_text:

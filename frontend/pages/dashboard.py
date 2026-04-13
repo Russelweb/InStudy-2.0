@@ -14,7 +14,7 @@ API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 # Design constants
 PRIMARY_ACCENT = "#FF7F50"  # Coral
-SECONDARY_ACCENT = "#FF6347" # Orange Red
+SECONDARY_ACCENT = "#437e6f" # Muted Sage Green
 DARK_BG = "rgba(11, 17, 32, 0)" # Transparent for plotting on glass cards
 GRID_COLOR = "rgba(255, 255, 255, 0.05)"
 TEXT_COLOR = "rgba(255, 255, 255, 0.7)"
@@ -244,9 +244,12 @@ def show():
     # Global Period Selection
     col_sel, _ = st.columns([1, 2])
     with col_sel:
-        period = st.selectbox("Timeline Filter", ["This Month", "Last 3 Months", "All Time"], index=0, label_visibility="collapsed", key="global_period")
+        period = st.selectbox("Timeline Filter", ["This Month", "Last 3 Months", "Last 6 Months", "All Time"], index=0, label_visibility="collapsed", key="global_period")
     
-    period_hours = round(df_all["hours"].sum(), 1) if not df_all.empty else 0.0
+    # Fix: Apply the period filter to the dataframe
+    df_filtered = _filter_by_period(df_all, period)
+    
+    period_hours = round(df_filtered["hours"].sum(), 1) if not df_filtered.empty else 0.0
 
     # Row 1: Greeting & Momentum
     col_greet, col_momentum = st.columns([2, 1])
@@ -277,7 +280,7 @@ def show():
     c1, c2 = st.columns([2, 1])
     with c1:
         st.markdown('<div class="fintech-card"><b>Study Velocity</b>', unsafe_allow_html=True)
-        st.plotly_chart(create_study_hours_chart(df_all, period), use_container_width=True)
+        st.plotly_chart(create_study_hours_chart(df_filtered, period), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
     with c2:
         st.markdown('<div class="fintech-card">', unsafe_allow_html=True)

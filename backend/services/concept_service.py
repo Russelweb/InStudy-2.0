@@ -13,10 +13,12 @@ logger = logging.getLogger(__name__)
 
 class ConceptService:
     def __init__(self):
-        self.llm = get_llm()
+        pass
     
-    def extract_concepts_from_text(self, text: str) -> List[str]:
+    def extract_concepts_from_text(self, text: str, api_key: Optional[str] = None) -> List[str]:
         """Ask the LLM to identify the main concepts in a block of text"""
+        # Get appropriate LLM
+        llm = get_llm(api_key)
         prompt = f"""
         Identify the 1-3 most important core concepts discussed in this text.
         Text: {text[:2000]}
@@ -25,9 +27,11 @@ class ConceptService:
         Do not include any other explanations.
         """
         try:
-            response = self.llm.invoke(prompt)
+            response = llm.invoke(prompt)
+            # Extract text content (handles both strings from Ollama and objects from Groq)
+            response_text = response if isinstance(response, str) else getattr(response, 'content', str(response))
             # Clean and split into a list
-            concepts = [c.strip() for c in response.split(",")]
+            concepts = [c.strip() for c in response_text.split(",")]
             # Filter out empty or noise
             concepts = [c for c in concepts if len(c) > 2 and len(c) < 50]
             return list(set(concepts))[:3]

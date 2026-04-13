@@ -17,13 +17,15 @@ class SummaryService:
     """
     
     def __init__(self):
-        # Use global LLM instance
-        self.llm = get_llm()
+        # Doc processor is global/stateless enough
         self.doc_processor = DocumentProcessor()
     
-    def generate_summary(self, user_id: str, course_id: str, document_name: str = None, style: str = "short"):
+    def generate_summary(self, user_id: str, course_id: str, document_name: str = None, style: str = "short", api_key: Optional[str] = None):
         """Generate high-quality summary with mastery adaptation."""
         logger.info(f"Generating summary with mastery adaptation for user {user_id}")
+        
+        # Get appropriate LLM
+        llm = get_llm(api_key)
         
         vector_store = self.doc_processor.get_vector_store(user_id, course_id)
         if not vector_store:
@@ -68,7 +70,8 @@ digraph {{
 """
         
         logger.info("Generating high-quality textual and visual summary...")
-        response_text = self.llm.invoke(prompt)
+        response = llm.invoke(prompt)
+        response_text = response if isinstance(response, str) else getattr(response, 'content', str(response))
         
         try:
             summary = response_text

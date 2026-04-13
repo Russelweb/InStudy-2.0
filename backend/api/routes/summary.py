@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from models.schemas import SummaryRequest, SummaryResponse
 from services.summary_service import SummaryService
 from api.routes.auth import get_authenticated_user
@@ -17,18 +17,21 @@ class AuthenticatedSummaryRequest(BaseModel):
 
 @router.post("/generate", response_model=SummaryResponse)
 async def generate_summary(
-    request: AuthenticatedSummaryRequest,
+    request: Request,
+    payload: AuthenticatedSummaryRequest,
     current_user: User = Depends(get_authenticated_user)
 ):
     """Generate summary of documents"""
     try:
         user_id = str(current_user.id)
+        api_key = getattr(request.state, "groq_api_key", None)
         
         result = summary_service.generate_summary(
             user_id,
-            request.course_id,
-            request.document_name,
-            request.style
+            payload.course_id,
+            payload.document_name,
+            payload.style,
+            api_key=api_key
         )
         
         # If it's the new dict format, return as is

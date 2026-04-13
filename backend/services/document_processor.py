@@ -1,6 +1,6 @@
 import os
 from typing import List
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_community.vectorstores import FAISS
 from config import settings
@@ -65,7 +65,7 @@ class DocumentProcessor:
                     raise ValueError("DOCX file is empty")
                 
                 # Create a document object manually with page estimation
-                from langchain.schema import Document
+                from langchain_core.documents import Document
                 word_count = len(text.split())
                 estimated_pages = max(1, word_count // 500)
                 
@@ -148,6 +148,7 @@ class DocumentProcessor:
             vector_store = FAISS.load_local(
                 vector_store_path,
                 self.embeddings,
+                allow_dangerous_deserialization=True
             )
             vector_store.add_documents(all_chunks)
         else:
@@ -177,4 +178,5 @@ class DocumentProcessor:
         return FAISS.load_local(
             vector_store_path,
             self.embeddings,
+            allow_dangerous_deserialization=True
         )

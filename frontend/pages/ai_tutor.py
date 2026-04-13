@@ -22,19 +22,19 @@ def show():
     }
     
     [data-testid="stChatMessage"]:has([data-testid="stChatMessageContent"]):nth-child(even) {
-        background: rgba(255, 127, 80, 0.05) !important;
-        border: 1px solid rgba(255, 127, 80, 0.1) !important;
+        background: rgba(67, 126, 111, 0.05) !important;
+        border: 1px solid rgba(67, 126, 111, 0.1) !important;
     }
 
     .tutor-header {
-        background: linear-gradient(90deg, rgba(255, 127, 80, 0.1) 0%, rgba(255, 99, 71, 0.1) 100%);
+        background: linear-gradient(135deg, rgba(255, 127, 80, 0.1) 0%, rgba(67, 126, 111, 0.1) 100%);
         border-radius: 24px;
         padding: 2rem;
-        border: 1px solid rgba(255, 127, 80, 0.2);
+        border: 1px solid rgba(67, 126, 111, 0.2);
         margin-bottom: 2rem;
         text-align: center;
     }
-
+    
     .doc-card {
         background: rgba(255, 255, 255, 0.03);
         border-radius: 12px;
@@ -80,6 +80,12 @@ def show():
     
     show_document_panel("ai_tutor")
     
+    # Show success notification if recently uploaded
+    if st.session_state.get("upload_success"):
+        st.toast("✅ Document processed successfully!")
+        st.success("Your document is ready!")
+        del st.session_state["upload_success"]
+    
     # Sidebar-like layout for tools
     col_chat, col_tools = st.columns([3, 1])
     
@@ -107,9 +113,9 @@ def show():
                     try:
                         files = {"file": uploaded_file}
                         data = {"course_id": st.session_state.current_course}
-                        response = requests.post(f"{API_URL}/api/documents/upload", files=files, data=data, headers=headers, timeout=300)
+                        response = requests.post(f"{API_URL}/api/documents/upload", files=files, data=data, headers=headers, timeout=900)
                         if response.status_code == 200:
-                            st.success("Processed!")
+                            st.session_state.upload_success = True
                             st.rerun()
                         else:
                             st.error("Upload failed")
@@ -141,7 +147,25 @@ def show():
                 with st.chat_message(msg["role"]):
                     st.markdown(msg["content"])
                     if msg.get("sources"):
-                        st.markdown(f"<p style='font-size:0.75rem; color:rgba(255,255,255,0.3);'>📄 Sources: {', '.join(msg['sources'])}</p>", unsafe_allow_html=True)
+                        st.markdown("<hr style='opacity:0.05; margin:10px 0 5px 0;'>", unsafe_allow_html=True)
+                        
+                        # Render links/buttons for each source
+                        for i, raw_source in enumerate(msg["sources"]):
+                            if "#page=" in raw_source:
+                                try:
+                                    fname, p_ref = raw_source.split("#")
+                                    p_num = p_ref.replace("page=", "")
+                                    
+                                    # Create a small button that acts as a jump link
+                                    if st.button(f"🔍 • Page {p_num}", key=f"jump_{raw_source}_{i}_{hash(msg['content'])}", type="secondary"):
+                                        st.session_state["dv_file_ai_tutor"] = fname
+                                        st.session_state["pdf_slider_ai_tutor"] = int(p_num)
+                                        st.session_state["dv_open_ai_tutor"] = True
+                                        st.rerun()
+                                except Exception:
+                                    st.caption(f"📄 {raw_source}")
+                            else:
+                                st.caption(f"📄 {raw_source}")
         
         # 2. Stop Button - Only shown when is_streaming is True
         if st.session_state.get("is_streaming", False):

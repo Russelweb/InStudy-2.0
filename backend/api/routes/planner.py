@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from models.schemas import StudyPlanRequest, StudyPlanResponse
 from services.planner_service import PlannerService
 from api.routes.auth import get_authenticated_user
@@ -17,17 +17,21 @@ class AuthenticatedStudyPlanRequest(BaseModel):
 
 @router.post("/create", response_model=StudyPlanResponse)
 async def create_study_plan(
-    request: AuthenticatedStudyPlanRequest,
+    request: Request,
+    payload: AuthenticatedStudyPlanRequest,
     current_user: User = Depends(get_authenticated_user)
 ):
     """Create personalized study plan"""
     try:
         user_id = str(current_user.id)
+        api_key = getattr(request.state, "groq_api_key", None)
+        
         plan = planner_service.create_study_plan(
             user_id,
-            request.course_name,
-            request.exam_date,
-            request.topics
+            payload.course_name,
+            payload.exam_date,
+            payload.topics,
+            api_key=api_key
         )
         
         return StudyPlanResponse(plan=plan)

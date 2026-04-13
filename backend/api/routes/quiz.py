@@ -59,8 +59,8 @@ def get_user_from_request(request: Request) -> Optional[User]:
 
 @router.post("/generate", response_model=QuizResponse)
 async def generate_quiz(
-    request_data: AuthenticatedQuizRequest,
-    request: Request
+    request: Request,
+    payload: AuthenticatedQuizRequest
 ):
     """Generate quiz from study materials"""
     try:
@@ -70,13 +70,15 @@ async def generate_quiz(
             raise HTTPException(401, "Authentication required")
         
         user_id = str(current_user.id)
+        api_key = getattr(request.state, "groq_api_key", None)
         
         questions = quiz_service.generate_quiz(
             user_id,
-            request_data.course_id,
-            request_data.num_questions,
-            request_data.difficulty,
-            request_data.quiz_type
+            payload.course_id,
+            payload.num_questions,
+            payload.difficulty,
+            payload.quiz_type,
+            api_key=api_key
         )
         
         # Log quiz generation
