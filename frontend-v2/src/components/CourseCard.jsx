@@ -1,15 +1,25 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 
-const CourseCard = ({ title, lastAccessed, materialCount, mastery, image, onOpen }) => {
+const CourseCard = ({ id, title, lastAccessed, materialCount, mastery, image, onOpen, onSelect, isActive }) => {
   const [imgError, setImgError] = useState(false);
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.95 }}
       whileInView={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -5 }}
-      className="group bg-surface-container-low rounded-2xl p-6 ghost-border hover:border-primary/40 hover:bg-surface-container-high transition-all duration-500 relative flex flex-col aura-glow overflow-hidden"
+      onClick={() => onSelect && onSelect(id)}
+      className={`group bg-surface-container-low rounded-2xl p-6 ghost-border transition-all duration-500 relative flex flex-col aura-glow overflow-hidden cursor-pointer ${
+        isActive 
+          ? 'ring-2 ring-secondary bg-secondary/5 border-secondary/40' 
+          : 'hover:border-primary/40 hover:bg-surface-container-high'
+      }`}
     >
+      {isActive && (
+        <div className="absolute top-0 left-0 bg-secondary text-on-secondary px-3 py-1 rounded-br-xl text-[10px] font-black uppercase tracking-widest z-20 shadow-lg">
+          Active Course
+        </div>
+      )}
       <div className="h-48 mb-6 rounded-xl overflow-hidden relative">
         {image && !imgError ? (
           <img
@@ -62,11 +72,13 @@ const CourseCard = ({ title, lastAccessed, materialCount, mastery, image, onOpen
           <div className="w-8 h-8 rounded-full border-2 border-surface bg-surface-container-high"></div>
         </div>
         <button
-          onClick={onOpen}
-          className="p-2 rounded-full hover:bg-primary/20 text-primary transition-colors"
-          title="Open Workspace"
+          onClick={(e) => { e.stopPropagation(); onOpen(); }}
+          className="p-2 rounded-full bg-secondary/10 text-secondary hover:bg-secondary/20 transition-all hover:scale-110 active:scale-90"
+          title="Launch Workspace"
         >
-          <span className="material-symbols-outlined">arrow_forward</span>
+
+          <span className="material-symbols-outlined">rocket_launch</span>
+
         </button>
       </div>
     </motion.div>

@@ -39,9 +39,24 @@ export const authService = {
   login: async (email, password) => {
     const response = await API.post('/auth/login', { email, password });
     if (response.data.success && response.data.session_token) {
+      const newUser = response.data.user;
+      const oldUserRaw = localStorage.getItem('user_info');
+      
+      // If a different user was logged in previously on this browser, purge session state
+      if (oldUserRaw) {
+        try {
+          const oldUser = JSON.parse(oldUserRaw);
+          if (oldUser.id !== newUser?.id) {
+            localStorage.clear();
+          }
+        } catch (e) {
+          localStorage.clear();
+        }
+      }
+
       localStorage.setItem('auth_token', response.data.session_token);
-      if (response.data.user) {
-        localStorage.setItem('user_info', JSON.stringify(response.data.user));
+      if (newUser) {
+        localStorage.setItem('user_info', JSON.stringify(newUser));
       }
       return response;
     }
@@ -62,9 +77,7 @@ export const authService = {
 
   logout: () => {
     API.post('/auth/logout').catch(() => {});
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_info');
-    localStorage.removeItem('groq_api_key');
+    localStorage.clear();
     window.location.href = '/login';
   },
 
@@ -101,6 +114,12 @@ export const documentService = {
     const token = localStorage.getItem('auth_token');
     const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
     return `${base}/documents/raw/${courseId}/${encodeURIComponent(filename)}?token=${token}`;
+  },
+
+  getThumbnailUrl: (courseId) => {
+    const token = localStorage.getItem('auth_token');
+    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+    return `${base}/documents/thumbnail/${courseId}?token=${token}`;
   },
 
   getParagraphs: (courseId, filename) =>
@@ -217,7 +236,23 @@ export const summaryService = {
 };
 
 export const plannerService = {
-  generate: (courseId) => API.post('/planner/generate', { course_id: courseId }),
+  create: (courseId, courseName, examDate, topics) => 
+    API.post('/planner/create', { course_id: courseId, course_name: courseName, exam_date: examDate, topics }),
+  discoverTopics: (courseId) =>
+    API.get(`/planner/discover/${courseId}`),
+};
+
+// ---------------------------------------------------------------------------
+// Admin
+// ---------------------------------------------------------------------------
+export const adminService = {
+  getStats: () => API.get('/admin/stats'),
+  getUsers: () => API.get('/admin/users'),
+  getUserCourses: (userId) => API.get(`/admin/users/${userId}/courses`),
+  deleteUser: (userId) => API.delete(`/admin/users/${userId}`),
+  makeAdmin: (userId) => API.post(`/admin/users/${userId}/make-admin`),
+  revokeAdmin: (userId) => API.post(`/admin/users/${userId}/revoke-admin`),
+  deleteCourse: (userId, courseId) => API.delete(`/admin/courses/${userId}/${courseId}`),
 };
 
 export default API;

@@ -1,0 +1,389 @@
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { plannerService, statService } from '../services/api';
+
+const Planner = () => {
+  const [step, setStep] = useState('setup'); // 'setup' | 'loading' | 'timeline'
+  const [courses, setCourses] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [examDate, setExamDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 14); // Default to 2 weeks from now
+    return d.toISOString().split('T')[0];
+  });
+  const [topics, setTopics] = useState([]);
+  const [newTopic, setNewTopic] = useState('');
+  const [plan, setPlan] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const isInitialized = useRef(false);
+
+  useEffect(() => {
+    // Load persisted state
+    const savedPlan = localStorage.getItem('planner_plan');
+    const savedCourse = localStorage.getItem('planner_course');
+    const savedDate = localStorage.getItem('planner_date');
+    const savedTopics = localStorage.getItem('planner_topics');
+    const savedStep = localStorage.getItem('planner_step');
+
+    if (savedPlan) setPlan(JSON.parse(savedPlan));
+    if (savedCourse) setSelectedCourse(savedCourse);
+    if (savedDate) setExamDate(savedDate);
+    if (savedTopics) setTopics(JSON.parse(savedTopics));
+    if (savedStep) setStep(savedStep);
+
+    console.log('Planner Initialized. Persisted state loaded.');
+    setTimeout(() => { isInitialized.current = true; }, 100);
+  }, []);
+
+  useEffect(() => {
+    // Only persist after initialization and if state is valid
+    if (!isInitialized.current) return;
+    
+    console.log('Persisting Planner State...');
+    if (plan) localStorage.setItem('planner_plan', JSON.stringify(plan));
+    else localStorage.removeItem('planner_plan');
+    
+    localStorage.setItem('planner_course', selectedCourse);
+    localStorage.setItem('planner_date', examDate);
+    localStorage.setItem('planner_topics', JSON.stringify(topics));
+    localStorage.setItem('planner_step', step);
+  }, [plan, selectedCourse, examDate, topics, step]);
+
+  useEffect(() => {
+    console.log('Planner Step changed to:', step);
+  }, [step]);
+
+  useEffect(() => {
+    statService.getCourses().then(res => {
+      const coursesList = res.data.courses || [];
+      setCourses(coursesList);
+      
+      // Only auto-select if nothing is currently selected (neither from state nor persistence)
+      if (coursesList.length > 0 && !selectedCourse && !localStorage.getItem('planner_course')) {
+        console.log('Auto-selecting course:', coursesList[0].id);
+        setSelectedCourse(coursesList[0].id || coursesList[0].name);
+      }
+    });
+  }, []);
+
+  const addTopic = () => {
+    if (newTopic.trim()) {
+      setTopics([...topics, newTopic.trim()]);
+      setNewTopic('');
+    }
+  };
+
+  const removeTopic = (index) => {
+    setTopics(topics.filter((_, i) => i !== index));
+  };
+
+  const discoverTopics = async () => {
+    if (!selectedCourse) return;
+    setIsDiscovering(true);
+    try {
+      const res = await plannerService.discoverTopics(selectedCourse);
+      const newTopics = res.data.topics || [];
+      if (newTopics.length === 0) {
+        alert("No clear topics found in documents. Try adding them manually.");
+      } else {
+        // Add only unique new topics
+        setTopics(prev => [...new Set([...prev, ...newTopics])]);
+      }
+    } catch (err) {
+      console.error('Discovery failed:', err);
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
+  const synthesizePlan = async () => {
+    console.log('Synthesize Clicked. State:', { selectedCourse, examDate, topics });
+    if (!selectedCourse || !examDate) {
+      console.warn('Synthesis aborted: Missing selection or date');
+      return;
+    }
+    setIsLoading(true);
+    setStep('loading');
+    try {
+      // Find course name if selectedCourse is an ID
+      const courseObj = courses.find(c => c.id === selectedCourse || c.name === selectedCourse);
+      const courseName = courseObj?.name || selectedCourse;
+
+      console.log('Synthesizing plan for:', { courseName, examDate, topics });
+      const res = await plannerService.create(selectedCourse, courseName, examDate, topics);
+      console.log('Plan received:', res.data);
+      if (res.data?.plan) {
+        setPlan(res.data.plan);
+        setStep('timeline');
+      } else {
+        throw new Error('Invalid plan format received from server');
+      }
+    } catch (err) {
+      console.error('Failed to generate plan:', err);
+      alert('Neural synthesis failed. Please check your topics and try again.');
+      setStep('setup');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 min-h-screen bg-background text-on-surface p-4 md:p-8 pb-32">
+      <div className="max-w-5xl mx-auto">
+        <AnimatePresence mode="wait">
+          {step === 'setup' && (
+            <motion.section 
+              key="setup"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative"
+            >
+              <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary/10 blur-[120px] rounded-full pointer-events-none"></div>
+              <div className="relative bg-surface-container/40 backdrop-blur-xl border border-outline-variant/15 rounded-2xl md:rounded-3xl p-5 sm:p-8 md:p-10 shadow-2xl overflow-hidden group">
+                {/* Decorative background intensity */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 group-hover:opacity-100 transition-opacity opacity-0 pointer-events-none"></div>
+                
+                <div className="relative text-center mb-6 md:mb-10">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Intelligent Study Plan</h1>
+                  <p className="text-on-surface-variant text-xs sm:text-sm font-medium">Initialize your high-performance Study Plan.</p>
+                </div>
+
+                <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Target Course</label>
+                    <div className="relative">
+                      <select 
+                        value={selectedCourse}
+                        onChange={(e) => setSelectedCourse(e.target.value)}
+                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-on-surface focus:border-primary transition-all appearance-none"
+                      >
+                        {courses.map(c => (
+                          <option key={c.id || c.name} value={c.id || c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                      <span className="material-symbols-outlined absolute right-3 top-3 text-on-surface-variant pointer-events-none">expand_more</span>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Objective Deadline</label>
+                    <input 
+                      type="date"
+                      value={examDate}
+                      onChange={(e) => setExamDate(e.target.value)}
+                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-on-surface focus:border-primary transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="relative mt-8 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Core Topics</label>
+                    <button 
+                      onClick={discoverTopics} 
+                      disabled={!selectedCourse || isDiscovering}
+                      className="text-[10px] font-bold text-secondary flex items-center gap-1.5 hover:opacity-80 transition-opacity disabled:opacity-30"
+                    >
+                      <span className={`material-symbols-outlined text-[14px] ${isDiscovering ? 'animate-spin' : ''}`}>psychology_alt</span>
+                      {isDiscovering ? 'Discovering...' : 'Smart Topic Discovery'}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 p-4 bg-surface-container-low border border-outline-variant/20 rounded-2xl min-h-[100px] flex-row items-center content-start">
+                    {topics.map((t, i) => (
+                      <motion.span 
+                        layout
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        key={i} 
+                        className="px-4 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-bold flex items-center gap-2 group/tag shadow-sm"
+                      >
+                        {t}
+                        <button onClick={() => removeTopic(i)} className="material-symbols-outlined text-[14px] opacity-60 hover:opacity-100 hover:text-error transition-all">close</button>
+                      </motion.span>
+                    ))}
+                    <input 
+                      className="bg-transparent border-none focus:ring-0 text-sm text-on-surface min-w-[200px] py-1"
+                      placeholder="Enter a central concept..."
+                      value={newTopic}
+                      onChange={(e) => setNewTopic(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && addTopic()}
+                    />
+                    {newTopic && (
+                      <button onClick={addTopic} className="text-secondary hover:text-secondary-fixed text-xs font-black uppercase tracking-widest ml-auto">Add</button>
+                    )}
+                  </div>
+                </div>
+
+                <button 
+                  onClick={synthesizePlan}
+                  disabled={!selectedCourse || !examDate}
+                  className="relative z-10 w-full mt-10 bg-gradient-to-r from-primary to-secondary text-on-primary font-black py-5 rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale uppercase tracking-widest text-sm cursor-pointer"
+                >
+                  Synthesize Study Plan
+                </button>
+              </div>
+            </motion.section>
+          )}
+
+          {step === 'loading' && (
+            <motion.section 
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center py-32 space-y-8"
+            >
+              <div className="relative">
+                <div className="w-40 h-40 rounded-full border border-primary/20 flex items-center justify-center relative">
+                  <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                    className="absolute inset-0 rounded-full border-t border-secondary border-transparent"
+                  ></motion.div>
+                  <motion.div 
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="w-full h-full absolute inset-0 rounded-full bg-primary/5 blur-xl"
+                  ></motion.div>
+                  <span className="material-symbols-outlined text-6xl text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>psychology</span>
+                </div>
+                {/* HUD Overlay Decorations from mockup */}
+                <div className="absolute -right-32 top-8 space-y-2 opacity-50 font-mono text-[9px]">
+                  <p className="text-secondary flex items-center gap-2">
+                    <span className="w-1 h-1 rounded-full bg-secondary animate-pulse"></span>
+                    SYNA_MAP: ACTIVE
+                  </p>
+                  <p className="text-primary flex items-center gap-2">
+                    <span className="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
+                    RETENTION_CALC: 98.2%
+                  </p>
+                  <p className="text-on-surface-variant">0x8F2... COMPILING</p>
+                </div>
+              </div>
+              <div className="text-center space-y-2">
+                <h3 className="text-2xl font-black tracking-tight text-on-surface">Study Plan Synthesis in Progress</h3>
+                <p className="text-sm text-on-surface-variant font-medium">Calibrating Study Topics for maximum retention...</p>
+              </div>
+            </motion.section>
+          )}
+
+          {step === 'timeline' && plan && (
+            <motion.section 
+              key="timeline"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="space-y-12"
+            >
+              <div className="flex justify-between items-end border-b border-outline-variant/10 pb-8">
+                <div>
+                  <h2 className="text-4xl font-black tracking-tighter">Optimized Pathway</h2>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-secondary border border-secondary/20 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+                      Active Strategy
+                    </span>
+                    <p className="text-on-surface-variant text-sm font-medium">Study Plan targeted for {examDate}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => window.print()} className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-on-surface transition-colors shadow-sm">
+                    <span className="material-symbols-outlined">print</span>
+                  </button>
+                  <button onClick={() => setStep('setup')} className="px-5 py-3 rounded-xl bg-primary/10 text-primary border border-primary/20 font-bold text-xs uppercase tracking-widest hover:bg-primary/20 transition-all">
+                    Modify Settings
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative border-l-2 border-outline-variant/10 ml-6 pl-12 space-y-12">
+                {plan.weeks?.map((week, wIdx) => (
+                  <div key={wIdx} className="space-y-8">
+                    <div className="relative flex items-center gap-4 mb-4">
+                        <div className="absolute -left-[54px] w-4 h-4 rounded-full bg-background border-2 border-primary ring-4 ring-primary/10 shadow-[0_0_15px_rgba(189,157,255,0.4)]"></div>
+                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-primary-fixed-dim bg-primary/5 px-4 py-1 rounded-full border border-primary/10 flex items-center gap-2">
+                             <span className="material-symbols-outlined text-sm">hub</span>
+                             Week {week.week_number}: {week.focus}
+                        </h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6">
+                      {week.days?.map((day, dIdx) => (
+                        <motion.div 
+                          whileHover={{ x: 8 }}
+                          key={dIdx} 
+                          className="relative group lg:max-w-4xl"
+                        >
+                          {/* Day Marker */}
+                          <div className="absolute -left-[53px] top-6 w-3 h-3 rounded-full bg-surface-container-highest border border-outline-variant group-hover:bg-secondary group-hover:border-transparent transition-all shadow-[0_0_10px_rgba(105,246,184,0)] group-hover:shadow-[0_0_15px_rgba(105,246,184,0.3)]"></div>
+                          
+                          <div className="bg-surface-container-low/50 backdrop-blur-md border border-outline-variant/15 p-6 rounded-2xl group-hover:border-secondary/30 group-hover:bg-surface-container-low transition-all shadow-sm group-hover:shadow-xl">
+                            <div className="flex justify-between items-start mb-4">
+                              <div>
+                                <span className="text-[10px] font-black uppercase tracking-[0.15em] text-on-surface-variant group-hover:text-secondary transition-colors">{day.day}</span>
+                                <h4 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                                  {day.tasks?.[0] || 'Core Reinforcement'}
+                                  {day.duration && <span className="text-[10px] font-mono text-on-surface-variant/60 ml-2">({day.duration})</span>}
+                                </h4>
+                              </div>
+                              <span className="px-3 py-1 bg-surface-variant/50 text-on-surface-variant text-[9px] font-bold rounded-full border border-outline-variant/10">PENDING</span>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-3">
+                              {day.tasks?.map((task, tsIndex) => (
+                                <div key={tsIndex} className="bg-surface-container-lowest/40 px-4 py-2 rounded-xl border border-outline-variant/10 flex items-center gap-3 group/task">
+                                  <div className="w-5 h-5 rounded border border-outline-variant group-hover/task:border-secondary transition-all flex items-center justify-center">
+                                    <div className="w-2.5 h-2.5 rounded-sm bg-secondary opacity-0 group-hover/task:opacity-20 transition-opacity"></div>
+                                  </div>
+                                  <p className="text-xs font-medium text-on-surface-variant group-hover:text-on-surface transition-colors">{task}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tips Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8">
+                <div className="bg-surface-container-low/30 border border-outline-variant/10 rounded-3xl p-8 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-primary text-3xl">psychology_alt</span>
+                    <h3 className="text-xl font-bold">Revision Strategy</h3>
+                  </div>
+                  <ul className="space-y-3">
+                    {plan.revision_plan?.map((tip, i) => (
+                      <li key={i} className="flex items-start gap-4 text-sm text-on-surface-variant transition-colors hover:text-on-surface group">
+                        <span className="material-symbols-outlined text-sm text-primary mt-0.5 group-hover:scale-125 transition-transform">star</span>
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="bg-surface-container-low/30 border border-outline-variant/10 rounded-3xl p-8 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-secondary text-3xl">bolt</span>
+                    <h3 className="text-xl font-bold">Exam Edge</h3>
+                  </div>
+                  <ul className="space-y-3">
+                    {plan.exam_tips?.map((tip, i) => (
+                      <li key={i} className="flex items-start gap-4 text-sm text-on-surface-variant transition-colors hover:text-on-surface group">
+                        <span className="material-symbols-outlined text-sm text-secondary mt-0.5 group-hover:scale-125 transition-transform">auto_awesome</span>
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
+export default Planner;

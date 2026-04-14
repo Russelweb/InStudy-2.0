@@ -17,15 +17,27 @@ const AITutorChat = ({ courseId }) => {
     }
   }, [messages, isStreaming]);
 
-  // Add a welcome message when a course is loaded
+  // Load persisted chat history
   useEffect(() => {
     if (courseId) {
-      setMessages([{
-        type: 'ai',
-        text: `Neural link established for this course. Ask me anything about your documents.`,
-      }]);
+      const savedMessages = localStorage.getItem(`chat_history_${courseId}`);
+      if (savedMessages) {
+        setMessages(JSON.parse(savedMessages));
+      } else {
+        setMessages([{
+          type: 'ai',
+          text: `Neural link established for this course. Ask me anything about your documents.`,
+        }]);
+      }
     }
   }, [courseId]);
+
+  // Persist messages on change
+  useEffect(() => {
+    if (courseId && messages.length > 0) {
+      localStorage.setItem(`chat_history_${courseId}`, JSON.stringify(messages));
+    }
+  }, [messages, courseId]);
 
   const appendChunkToLast = (chunk) => {
     setMessages((prev) => {
@@ -143,6 +155,18 @@ const AITutorChat = ({ courseId }) => {
           <span className="text-xs font-bold tracking-tighter uppercase text-secondary">
             {isStreaming ? 'Aether Processing...' : 'Neural Analyst Live'}
           </span>
+          <button 
+            onClick={() => {
+              if (window.confirm('Clear neural history for this course?')) {
+                setMessages([{ type: 'ai', text: 'Neural link reset. How can I assist you further?' }]);
+                localStorage.removeItem(`chat_history_${courseId}`);
+              }
+            }}
+            className="text-[10px] text-on-surface-variant hover:text-error transition-colors"
+            title="Clear Chat History"
+          >
+            <span className="material-symbols-outlined text-[14px]">delete_sweep</span>
+          </button>
         </div>
         {/* ELI12 Toggle */}
         <button

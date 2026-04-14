@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [react()],
 
   server: {
+    allowedHosts: [
+      "jenelle-coleopterous-doreen.ngrok-free.dev"
+    ],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
@@ -31,4 +34,3 @@ export default defineConfig({
     }
   }
 })
-

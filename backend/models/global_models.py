@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # Global instances (loaded once)
 _embeddings = None
 _llm = None
+_local_llm = None
 _user_llms = {}  # Cache for user-specific LLM instances
 
 def get_embeddings():
@@ -33,6 +34,68 @@ def get_embeddings():
         logger.info("Embeddings model loaded successfully")
     
     return _embeddings
+
+def get_local_llm():
+    """Returns a local Ollama instance for fallback."""
+    global _local_llm
+    if _local_llm is None:
+        logger.info(f"Initializing local fallback LLM: {settings.OLLAMA_MODEL}")
+        _local_llm = Ollama(
+            base_url=settings.OLLAMA_BASE_URL,
+            model=settings.OLLAMA_MODEL,
+            temperature=settings.LLM_TEMPERATURE
+        )
+    return _local_llm
+
+class HybridLLM:
+    """Wrapper that falls back to local LLM if cloud LLM fails."""
+    def __init__(self, cloud_llm, local_llm):
+        self.cloud_llm = cloud_llm
+        self.local_llm = local_llm
+        self.last_used = "cloud"
+
+    def invoke(self, *args, **kwargs):
+        try:
+            res = self.cloud_llm.invoke(*args, **kwargs)
+            self.last_used = "cloud"
+            return res
+        except Exception as e:
+            logger.error(f"Cloud LLM error: {e}. Falling back to LOCAL LLM.")
+            self.last_used = "local"
+            return self.local_llm.invoke(*args, **kwargs)
+
+    async def ainvoke(self, *args, **kwargs):
+        try:
+            res = await self.cloud_llm.ainvoke(*args, **kwargs)
+            self.last_used = "cloud"
+            return res
+        except Exception as e:
+            logger.error(f"Cloud LLM (Async) error: {e}. Falling back to LOCAL LLM.")
+            self.last_used = "local"
+            return await self.local_llm.ainvoke(*args, **kwargs)
+
+    def generate(self, *args, **kwargs):
+        try:
+            res = self.cloud_llm.generate(*args, **kwargs)
+            self.last_used = "cloud"
+            return res
+        except Exception as e:
+            logger.error(f"Cloud LLM generate error: {e}. Falling back to LOCAL LLM.")
+            self.last_used = "local"
+            return self.local_llm.generate(*args, **kwargs)
+
+    def stream(self, *args, **kwargs):
+        try:
+            yield from self.cloud_llm.stream(*args, **kwargs)
+            self.last_used = "cloud"
+        except Exception as e:
+            logger.error(f"Cloud LLM stream error: {e}. Falling back to LOCAL LLM.")
+            self.last_used = "local"
+            yield from self.local_llm.stream(*args, **kwargs)
+
+    @property
+    def _llm_type(self):
+        return "hybrid"
 
 def get_llm(api_key: Optional[str] = None):
     """
@@ -57,6 +120,12 @@ def get_llm(api_key: Optional[str] = None):
             except Exception as e:
                 logger.error(f"Error creating user Groq LLM: {e}")
                 return get_llm(None) # Fallback to default
+            
+            # Wrap user LLM with local fallback
+            _user_llms[api_key] = HybridLLM(
+                cloud_llm=_user_llms[api_key],
+                local_llm=get_local_llm()
+            )
         return _user_llms[api_key]
 
     # CASE 2: Global Singleton (if not already created)
@@ -81,13 +150,10 @@ def get_llm(api_key: Optional[str] = None):
         
         # Fallback to Ollama if Groq failed or wasn't configured
         if _llm is None:
-            logger.info(f"Connecting to Ollama at {settings.OLLAMA_BASE_URL}")
-            _llm = Ollama(
-                base_url=settings.OLLAMA_BASE_URL,
-                model=settings.OLLAMA_MODEL,
-                temperature=settings.LLM_TEMPERATURE
-            )
-            logger.info(f"Local LLM connected: {settings.OLLAMA_MODEL}")
+            _llm = get_local_llm()
+        else:
+            # Wrap the global Groq with local fallback
+            _llm = HybridLLM(cloud_llm=_llm, local_llm=get_local_llm())
     
     return _llm
 
@@ -105,6 +171,9 @@ def get_model_info(api_key: Optional[str] = None):
     """Get info about current models for UI display"""
     from config import settings
     
+    current_llm = get_llm(api_key)
+    is_hybrid = isinstance(current_llm, HybridLLM)
+    
     if api_key:
         llm_info = f"Groq (User Key - {settings.GROQ_MODEL})"
         mode = "Cloud (Personal)"
@@ -112,8 +181,11 @@ def get_model_info(api_key: Optional[str] = None):
         llm_info = f"Groq (Default - {settings.GROQ_MODEL})"
         mode = "Cloud (Shared)"
     else:
-        llm_info = f"Ollama ({settings.OLLAMA_MODEL})"
-        mode = "Local"
+        llm_info = f"Local ({settings.OLLAMA_MODEL})"
+        mode = "Local Only"
+        
+    if is_hybrid:
+        mode = f"Hybrid ({mode} -> Local)"
         
     return {
         "llm": llm_info,

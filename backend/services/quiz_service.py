@@ -70,9 +70,10 @@ CRITICAL INSTRUCTIONS:
 1. Return ONLY a valid JSON object, nothing else. No markdown or explanations outside the JSON.
 2. DO NOT add trailing commas. This causes JSON parse errors.
 3. For structural/short answer questions: provide concise, 1-sentence answers.
-4. For EVERY explanation, provide a detailed, highly educational note (2-3 sentences max). Explain gracefully why the answer is correct and why a student might get it wrong. This is the Tutor Note.
+4. For EVERY explanation, provide a detailed, highly educational note (3-4 sentences). Explain why the answer is correct, provide additional context or an analogy, and mention common pitfalls. This is the Tutor Note.
 5. For multiple choice: exactly 4 options. For true/false: ["True", "False"].
 6. For EVERY question, include a "concept" field that identifies the 1-2 word main topic.
+7. For mixed type: ensure a balanced variety of multiple_choice, true_false, and short_answer.
 
 Format:
 {{"questions": [{{"question": "Q?", "type": "multiple_choice", "options": ["A","B","C","D"], "correct_answer": "A", "explanation": "Detailed explanation why this is correct", "concept": "Topic"}}]}}

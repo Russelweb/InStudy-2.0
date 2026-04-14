@@ -32,7 +32,13 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
       const files = res.data.documents || [];
       setDocuments(files);
       if (files.length > 0) {
-        setSelectedDoc((prev) => (files.includes(prev) ? prev : files[0]));
+        // Restore last selected document for this course if available
+        const savedDoc = localStorage.getItem(`last_doc_${courseId}`);
+        if (savedDoc && files.indexOf(savedDoc) !== -1) {
+          setSelectedDoc(savedDoc);
+        } else {
+          setSelectedDoc(files[0]);
+        }
       } else {
         setSelectedDoc(null);
         setDocContent(null);
@@ -155,7 +161,11 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
           {documents.length > 0 ? (
             <select
               value={selectedDoc || ''}
-              onChange={(e) => setSelectedDoc(e.target.value)}
+              onChange={(e) => {
+                const newDoc = e.target.value;
+                setSelectedDoc(newDoc);
+                localStorage.setItem(`last_doc_${courseId}`, newDoc);
+              }}
               className="text-xs font-bold tracking-widest text-on-surface-variant uppercase bg-transparent border-none focus:ring-0 cursor-pointer max-w-[200px] truncate"
             >
               {documents.map((doc) => (

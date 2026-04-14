@@ -21,7 +21,7 @@ const AITutor = () => {
   }, []);
 
   return (
-    <div className="flex-1 ml-64 pt-20 px-12 h-screen relative bg-background flex flex-col items-center justify-center">
+    <div className="flex-1 min-h-screen p-8 relative bg-background flex flex-col items-center justify-center">
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-secondary/5 rounded-full blur-[120px] pointer-events-none"></div>
       
       <motion.div 

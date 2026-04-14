@@ -61,6 +61,7 @@ class SummaryResponse(BaseModel):
 
 class StudyPlanRequest(BaseModel):
     user_id: str
+    course_id: str
     course_name: str
     exam_date: str
     topics: List[str]

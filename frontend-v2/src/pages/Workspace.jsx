@@ -65,22 +65,22 @@ const Workspace = () => {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden text-on-background">
       {/* Top Workspace Nav */}
-      <nav className="shrink-0 w-full z-50 bg-[#0a0f0b]/60 backdrop-blur-3xl flex justify-between items-center px-8 h-16 shadow-[0px_20px_40px_rgba(189,157,255,0.05)] border-b border-primary/10">
-        <Link to="/" className="text-2xl font-black tracking-tighter text-[#bd9dff]">InStudy 2.0</Link>
-        <div className="hidden md:flex items-center gap-6">
+      <nav className="shrink-0 w-full z-50 bg-[#040805]/80 backdrop-blur-3xl flex justify-between items-center px-4 md:px-8 h-16 shadow-[0px_20px_40px_rgba(189,157,255,0.05)] border-b border-primary/10">
+        <Link to="/" className="text-xl md:text-2xl font-black tracking-tighter text-[#bd9dff] shrink-0">InStudy 2.0</Link>
+        <div className="hidden sm:flex items-center gap-4 md:gap-6 overflow-hidden">
           {courseName && (
-            <span className="text-on-surface-variant text-sm font-medium">
-              Circuit: <span className="text-secondary font-bold">{courseName}</span>
+            <span className="text-on-surface-variant text-[10px] md:text-sm font-medium truncate max-w-[150px] md:max-w-none">
+              Course: <span className="text-secondary font-bold">{courseName}</span>
             </span>
           )}
-          <div className="h-4 w-px bg-outline-variant/20"></div>
-          <Link className="text-[#f8fef6]/60 hover:text-[#f8fef6] text-sm tracking-tight transition-all" to="/knowledge">Library</Link>
-          <span className="text-[#bd9dff] border-b-2 border-[#bd9dff] pb-1 text-sm tracking-tight">Workspace</span>
-          <Link className="text-[#f8fef6]/60 hover:text-[#f8fef6] text-sm tracking-tight transition-all" to="/flashcards">Flashcards</Link>
+          <div className="h-4 w-px bg-outline-variant/20 hidden md:block"></div>
+          <Link className="text-[#f8fef6]/60 hover:text-[#f8fef6] text-xs md:text-sm tracking-tight transition-all hidden lg:block" to="/knowledge">Library</Link>
+          <span className="text-[#bd9dff] border-b-2 border-[#bd9dff] pb-1 text-xs md:text-sm tracking-tight whitespace-nowrap">Workspace</span>
+          <Link className="text-[#f8fef6]/60 hover:text-[#f8fef6] text-xs md:text-sm tracking-tight transition-all hidden lg:block" to="/flashcards">Flashcards</Link>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="material-symbols-outlined text-[#bd9dff] cursor-pointer">settings</span>
-          <Link to="/"><span className="material-symbols-outlined text-[#bd9dff] cursor-pointer">home</span></Link>
+        <div className="flex items-center gap-3 md:gap-4">
+{/*           <span className="material-symbols-outlined text-[#bd9dff] cursor-pointer text-xl md:text-2xl">settings</span> */}
+          <Link to="/"><span className="material-symbols-outlined text-[#bd9dff] cursor-pointer text-xl md:text-2xl">home</span></Link>
         </div>
       </nav>
 
@@ -88,7 +88,7 @@ const Workspace = () => {
         {/* Workspace Side Nav */}
         <aside className="w-20 md:w-64 bg-[#000000] flex flex-col py-8 px-4 gap-6 shrink-0 border-r border-outline-variant/10">
           <div className="px-2 mb-4 hidden md:block">
-            <p className="text-xs font-bold tracking-widest uppercase text-secondary/40">AI Workspace</p>
+            <p className="text-xs font-bold tracking-widest uppercase text-secondary/40">AI Tutor Workspace</p>
             <p className="text-[10px] text-primary/60">{courseId ? 'Bio-Sync Active' : 'No course selected'}</p>
           </div>
           <div className="flex flex-col gap-2">
@@ -100,14 +100,31 @@ const Workspace = () => {
 {/*               <span className="material-symbols-outlined">psychology</span> */}
 {/*               <span className="hidden md:block text-sm font-medium">AI Analyst</span> */}
 {/*             </button> */}
+            <Link to="/" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
+              <span className="material-symbols-outlined">home</span>
+              <span className="hidden md:block text-sm font-medium">Dashboard</span>
+            </Link>
+            <Link to="/knowledge" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
+              <span className="material-symbols-outlined">database</span>
+              <span className="hidden md:block text-sm font-medium">Knowledge Base</span>
+            </Link>
             <Link to="/flashcards" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
               <span className="material-symbols-outlined">style</span>
               <span className="hidden md:block text-sm font-medium">Flashcards</span>
             </Link>
             <Link to="/quiz" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
               <span className="material-symbols-outlined">quiz</span>
-              <span className="hidden md:block text-sm font-medium">Quiz</span>
+              <span className="hidden md:block text-sm font-medium"> Smart Quiz</span>
             </Link>
+            <Link to="/ai-tutor" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
+              <span className="material-symbols-outlined">smart_toy</span>
+              <span className="hidden md:block text-sm font-medium">AI Tutor</span>
+            </Link>
+            <Link to="/planner" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
+              <span className="material-symbols-outlined">event_note</span>
+              <span className="hidden md:block text-sm font-medium">Study Planner</span>
+            </Link>
+
           </div>
           <div className="mt-auto md:px-2">
             <button

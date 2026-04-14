@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { authService } from '../services/api';
 
-const TopBar = () => {
+const TopBar = ({ onMenuClick }) => {
   const [user, setUser] = useState(null);
   const [auraMessage, setAuraMessage] = useState('System performance: Normal.');
 
   useEffect(() => {
-    // Try to load user from cache, then refresh from backend
     const cached = authService.getCurrentUser();
     if (cached) setUser(cached);
 
@@ -15,50 +14,57 @@ const TopBar = () => {
         setUser(res.data);
         localStorage.setItem('user_info', JSON.stringify(res.data));
       })
-      .catch(() => {}); // Silently fail — token stays valid via interceptor
+      .catch(() => {});
   }, []);
 
   const displayName = user?.email?.split('@')[0] || 'Architect';
 
   return (
-    <header className="fixed top-0 right-0 left-64 h-16 bg-[#202821]/60 backdrop-blur-3xl flex justify-between items-center px-8 z-40 border-b border-white/5">
-      {/* Left: Aura Pill */}
+    <header className="fixed top-0 right-0 left-0 md:left-64 h-16 bg-[#040805]/80 backdrop-blur-3xl flex justify-between items-center px-4 md:px-8 z-40 border-b border-white/5 transition-all">
+      {/* Left Area */}
       <div className="flex items-center gap-4">
-        <div className="glass px-4 py-1.5 rounded-full flex items-center gap-3 border border-secondary/20 group hover:scale-105 transition-transform duration-300">
+        <button 
+          onClick={onMenuClick}
+          className="md:hidden p-2 rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors"
+        >
+          <span className="material-symbols-outlined">menu</span>
+        </button>
+        
+        <div className="glass px-4 py-1.5 rounded-full flex items-center gap-3 border border-secondary/20 hidden sm:flex group hover:scale-105 transition-transform duration-300">
           <span className="flex h-2 w-2 relative">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
           </span>
-          <span className="text-secondary text-xs font-bold tracking-tight">
+          <span className="text-secondary text-[10px] md:text-xs font-bold tracking-tight">
             🔥 Aura: <span className="text-on-surface font-normal">{auraMessage}</span>
           </span>
         </div>
       </div>
 
-      {/* Right: User + Actions */}
-      <div className="flex items-center gap-6">
-        <div className="relative group">
+      {/* Right Area */}
+      <div className="flex items-center gap-3 md:gap-6">
+        <div className="relative group hidden sm:block">
           <span className="material-symbols-outlined text-[#f8fef6]/60 group-hover:text-secondary cursor-pointer transition-colors">notifications</span>
           <span className="absolute -top-1 -right-1 w-2 h-2 bg-secondary rounded-full animate-pulse"></span>
         </div>
 
         <div className="flex items-center gap-3 cursor-pointer group">
-          <div className="w-8 h-8 rounded-full signature-gradient flex items-center justify-center shadow-[0_0_12px_rgba(105,246,184,0.3)] group-hover:scale-110 transition-transform">
-            <span className="text-on-primary text-xs font-black uppercase">
+          <div className="w-8 h-8 rounded-full signature-gradient flex items-center justify-center shadow-[0_0_12px_rgba(189,157,255,0.3)] group-hover:scale-110 transition-transform">
+            <span className="text-white text-xs font-black uppercase">
               {displayName.charAt(0)}
             </span>
           </div>
-          <span className="text-[#f8fef6]/80 font-medium text-sm hidden md:block">
+          <span className="text-on-surface font-medium text-sm hidden lg:block">
             {displayName}
           </span>
         </div>
 
         <button
-          onClick={authService.logout}
+          onClick={() => authService.logout()}
+          className="p-2 rounded-lg text-error/60 hover:text-error hover:bg-error/10 transition-all"
           title="Logout"
-          className="text-on-surface-variant/50 hover:text-error transition-colors"
         >
-          <span className="material-symbols-outlined">logout</span>
+          <span className="material-symbols-outlined text-xl">logout</span>
         </button>
       </div>
     </header>

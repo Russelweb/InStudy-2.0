@@ -27,7 +27,7 @@ const Signup = () => {
       await authService.signup(formData);
       navigate('/login');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed. Neural ID may already exist.');
+      setError(err.response?.data?.detail || 'Registration failed. User may already exist.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +65,7 @@ const Signup = () => {
             )}
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#69f6b8]/60 ml-1">Email Terminal</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#69f6b8]/60 ml-1">Email</label>
               <input
                 required
                 type="email"
@@ -78,7 +78,7 @@ const Signup = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">Access Protocol (Password)</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">Password</label>
               <input
                 required
                 type="password"
@@ -91,7 +91,7 @@ const Signup = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">Confirm Access Protocol</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">Confirm Password</label>
               <input
                 required
                 type="password"
@@ -106,11 +106,11 @@ const Signup = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 rounded-xl signature-gradient text-on-primary font-black text-sm uppercase tracking-widest shadow-lg scale-100 hover:scale-[1.02] active:scale-95 transition-transform relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-4 rounded-xl signature-gradient text-on-primary font-black text-sm uppercase tracking-widest shadow-lg scale-100 hover:scale-[1.02] active:scale-95 transition-transform relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed text-white opacity-90"
             >
               {loading
                 ? <span className="material-symbols-outlined animate-spin">sync</span>
-                : 'Forge ID'}
+                : 'Become An InStudent'}
             </button>
           </form>
 
@@ -118,7 +118,7 @@ const Signup = () => {
             <p className="text-xs text-on-surface-variant">
               Already have an ID?{' '}
               <Link to="/login" className="text-secondary font-bold hover:underline underline-offset-4">
-                Authenticate Here
+                Login Here
               </Link>
             </p>
           </div>

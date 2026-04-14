@@ -15,6 +15,7 @@ const KnowledgeBase = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [filter, setFilter] = useState('all');
+  const [activeCourseId, setActiveCourseId] = useState(localStorage.getItem('activeCourse'));
   const navigate = useNavigate();
 
   const fetchDocuments = async () => {
@@ -26,7 +27,7 @@ const KnowledgeBase = () => {
         lastAccessed: new Date().toLocaleDateString(),
         materialCount: course.document_count,
         mastery: course.mastery || 0,
-        image: `https://source.unsplash.com/random/400x300?tech,abstract&sig=${course.id}`,
+        image: documentService.getThumbnailUrl(course.id),
       }));
       setCourses(transformed);
       // Auto-select first course for uploads if none selected
@@ -101,7 +102,7 @@ const KnowledgeBase = () => {
   });
 
   return (
-    <div className="flex-1 ml-64 min-h-screen pb-20">
+    <div className="flex-1 min-h-screen pb-20 p-4 md:p-8">
       {/* Create Course Modal */}
       <AnimatePresence>
         {showCreateModal && (
@@ -117,7 +118,7 @@ const KnowledgeBase = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-surface-container shadow-2xl rounded-2xl border border-outline-variant/10 w-full max-w-md p-8"
             >
-              <h2 className="text-2xl font-black text-on-surface mb-2">New Circuit</h2>
+              <h2 className="text-2xl font-black text-on-surface mb-2">New Course</h2>
               <p className="text-sm text-on-surface-variant mb-6">
                 Give your course a name. Documents uploaded here will be grouped under this course.
               </p>
@@ -140,9 +141,9 @@ const KnowledgeBase = () => {
                 <button
                   onClick={handleCreateCourse}
                   disabled={!newCourseName.trim() || isCreating}
-                  className="flex-1 py-3 rounded-xl signature-gradient text-on-primary font-black text-sm uppercase tracking-widest scale-100 hover:scale-[1.02] active:scale-95 transition-transform disabled:opacity-50"
+                  className="flex-1 py-3 rounded-xl signature-gradient text-on-primary font-black text-sm uppercase tracking-widest scale-100 hover:scale-[1.02] active:scale-95 text-primary transition-transform disabled:text-white opacity-90"
                 >
-                  {isCreating ? 'Creating...' : 'Create Circuit'}
+                  {isCreating ? 'Creating...' : 'Create Course'}
                 </button>
               </div>
             </motion.div>
@@ -151,14 +152,14 @@ const KnowledgeBase = () => {
       </AnimatePresence>
 
       {/* Page Header */}
-      <section className="px-12 mt-12 mb-8 max-w-screen-2xl mx-auto flex items-end justify-between">
+      <section className="px-4 md:px-12 mt-8 md:mt-12 mb-8 max-w-screen-2xl mx-auto flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h2 className="text-6xl font-black tracking-tighter text-on-surface mb-2">Knowledge Base</h2>
-          <p className="text-lg text-on-surface-variant font-light tracking-wide">Manage and access your courses and study materials.</p>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter text-on-surface mb-2">Knowledge Base</h2>
+          <p className="text-sm md:text-lg text-on-surface-variant font-light tracking-wide">Manage and access your courses and study materials.</p>
         </motion.div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="px-8 py-4 signature-gradient rounded-full font-bold text-on-surface aura-glow flex items-center gap-3 transition-transform hover:scale-105 active:scale-95"
+          className="w-full md:w-auto px-8 py-4 signature-gradient rounded-full font-bold text-on-surface aura-glow flex items-center justify-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
         >
           <span className="material-symbols-outlined">add</span>
           Create New Course
@@ -166,10 +167,10 @@ const KnowledgeBase = () => {
       </section>
 
       {/* Upload Zone */}
-      <section className="px-12 mb-4 max-w-screen-2xl mx-auto">
+      <section className="px-4 md:px-12 mb-4 max-w-screen-2xl mx-auto">
         {/* Course selector for upload */}
-        <div className="flex items-center gap-4 mb-4">
-          <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Upload to course:</label>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+          <label className="text-[10px] md:text-xs font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">Upload to course:</label>
           <select
             value={selectedCourseForUpload}
             onChange={(e) => setSelectedCourseForUpload(e.target.value)}
@@ -192,9 +193,9 @@ const KnowledgeBase = () => {
       </section>
 
       {/* Content Area */}
-      <section className="px-12 max-w-screen-2xl mx-auto">
+      <section className="px-4 md:px-12 max-w-screen-2xl mx-auto">
         {/* Filter Tabs */}
-        <div className="flex items-center gap-3 mb-10 overflow-x-auto pb-4">
+        <div className="flex items-center gap-3 mb-10 overflow-x-auto pb-4 custom-scrollbar">
           {[
             { label: 'All Circuits', value: 'all' },
             { label: 'In Progress', value: 'in-progress' },
@@ -221,11 +222,16 @@ const KnowledgeBase = () => {
             <p className="text-on-surface-variant font-bold">No courses found. Create a course and upload documents to get started.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {filteredCourses.map((course, idx) => (
               <CourseCard
-                key={idx}
+                key={course.id}
                 {...course}
+                isActive={activeCourseId === course.id}
+                onSelect={(id) => {
+                  setActiveCourseId(id);
+                  localStorage.setItem('activeCourse', id);
+                }}
                 onOpen={() => {
                   localStorage.setItem('activeCourse', course.id);
                   navigate(`/workspace?id=${course.id}`);

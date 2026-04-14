@@ -121,13 +121,21 @@ async def verify_token(credentials: Optional[HTTPAuthorizationCredentials] = Dep
         logger.error(f"Token verification error: {e}")
         return {"valid": False, "message": "Verification failed"}
 
-# Dependency to get current user for protected routes
-async def get_authenticated_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> User:
-    """Dependency to get authenticated user for protected routes"""
-    if not credentials:
+async def get_authenticated_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+) -> User:
+    """Dependency to get authenticated user for protected routes (supports query param 'token')"""
+    token = None
+    if credentials:
+        token = credentials.credentials
+    if not token:
+        # Fallback to query param
+        token = request.query_params.get("token")
+
+    if not token:
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    token = credentials.credentials
     user = auth_service.get_current_user(token)
     
     if not user:

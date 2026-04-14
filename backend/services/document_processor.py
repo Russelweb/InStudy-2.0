@@ -180,3 +180,12 @@ class DocumentProcessor:
             self.embeddings,
             allow_dangerous_deserialization=True
         )
+
+    def extract_text(self, file_path: str) -> str:
+        """Extract all text from a document as a single string"""
+        try:
+            docs = self.load_document(file_path)
+            return "".join(d.page_content for d in docs)
+        except Exception as e:
+            logger.error(f"Failed to extract text from {file_path}: {e}")
+            return ""

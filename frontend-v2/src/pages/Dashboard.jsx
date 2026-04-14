@@ -285,16 +285,16 @@ const Dashboard = () => {
   const recentQueries= [...(stats.recent_questions || [])].reverse().slice(0, 3);
 
   return (
-    <div className="lg:pl-64 pt-24 px-8 pb-12">
+    <div className="p-4 md:p-8 pb-12">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4"
+        className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6"
       >
         <div>
-          <h1 className="text-4xl font-black tracking-tighter text-on-surface mb-1">Welcome back, {displayName}!</h1>
-          <p className="text-on-surface-variant text-sm tracking-wide">What course do you plan on overhauling today?</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-on-surface mb-1">Welcome back, {displayName}!</h1>
+          <p className="text-on-surface-variant text-xs sm:text-sm tracking-wide">What course do you plan on overhauling today?</p>
         </div>
         <div className="glass px-6 py-3 rounded-full flex items-center gap-3 border-secondary/20 group hover:scale-105 transition-transform duration-500">
           <span className="flex h-3 w-3 relative">
@@ -392,7 +392,7 @@ const Dashboard = () => {
             </div>
             <Link to="/knowledge">
               <button className="w-full mt-8 py-3 text-xs font-bold uppercase tracking-widest border border-primary/20 rounded-lg hover:bg-primary/5 transition-all">
-                View All Circuits
+                View All Courses
               </button>
             </Link>
           </div>
@@ -417,8 +417,8 @@ const Dashboard = () => {
             <div className="absolute -right-4 -top-4 opacity-10 rotate-12 group-hover:scale-110 transition-transform duration-700">
               <span className="material-symbols-outlined text-[120px]">bolt</span>
             </div>
-            <h3 className="text-on-primary-fixed text-xl font-black mb-2">Upgrade to Ultra</h3>
-            <p className="text-on-primary-fixed/80 text-xs mb-4">Unlock the neural-direct interface and unlimited concept mapping.</p>
+            <h3 className="text-on-primary-fixed text-xl font-black mb-2 text-white">Upgrade to Ultra</h3>
+            <p className="text-on-primary-fixed/80 text-xs mb-4 text-white">Unlock the neural-direct interface and unlimited concept mapping.</p>
             <button className="bg-on-primary-fixed text-primary px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest">Go Ultra</button>
           </div>
         </div>

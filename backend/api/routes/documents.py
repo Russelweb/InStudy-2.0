@@ -12,6 +12,8 @@ import logging
 from datetime import datetime
 from config import settings
 import traceback
+from services.thumbnail_service import thumbnail_service
+from fastapi.responses import FileResponse
 import docx2txt
 import fitz  # PyMuPDF
 from functools import lru_cache
@@ -537,4 +539,27 @@ async def get_pdf_page_count(
         doc.close()
         return {"page_count": count}
     except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@router.get("/thumbnail/{course_id}")
+async def get_course_thumbnail(
+    course_id: str,
+    current_user: User = Depends(get_authenticated_user)
+):
+    """Get or generate a thumbnail for a course based on its first document."""
+    try:
+        user_id = str(current_user.id)
+        thumb_path = thumbnail_service.get_course_thumbnail(user_id, course_id)
+        
+        if thumb_path and os.path.exists(thumb_path):
+            return FileResponse(thumb_path)
+            
+        # If no thumbnail could be generated, raise 404
+        # The frontend can then use a fallback
+        raise HTTPException(404, "No thumbnail available")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Thumbnail error: {e}")
         raise HTTPException(500, str(e))

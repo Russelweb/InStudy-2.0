@@ -1,11 +1,13 @@
 from config import settings
 from typing import Optional
+from pathlib import Path
 from models.global_models import get_llm
 from datetime import datetime
 from services.document_processor import DocumentProcessor
 from services.concept_service import concept_service
 import json
 import logging
+from utils.file_utils import get_absolute_path
 
 logger = logging.getLogger(__name__)
 
@@ -20,17 +22,17 @@ class PlannerService:
         # Doc processor is global/stateless enough
         self.doc_processor = DocumentProcessor()
     
-    def create_study_plan(self, user_id: str, course_name: str, exam_date: str, topics: list, api_key: Optional[str] = None):
+    def create_study_plan(self, user_id: str, course_id: str, course_name: str, exam_date: str, topics: list, api_key: Optional[str] = None):
         """Generate personalized study plan using local LLM with mastery adaptation"""
-        logger.info(f"Creating mastery-adaptive study plan for {course_name}")
+        logger.info(f"Creating mastery-adaptive study plan for {course_name} ({course_id})")
         
         # Get appropriate LLM
         llm = get_llm(api_key)
         
         today = datetime.now().strftime("%Y-%m-%d")
         
-        # Get mastery context
-        mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_name)
+        # Get mastery context — use course_id for DB lookup
+        mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
         
         prompt_prefix = f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize allocating more study days/hours to 'WEAK' concepts.\n\n" if mastery_context else ""
         
@@ -85,6 +87,31 @@ Generate the plan now:"""
             logger.error(f"Unexpected error parsing study plan: {e}")
             return self._fallback_study_plan(course_name, topics)
     
+    def discover_topics(self, user_id: str, course_id: str):
+        """Discover potential study topics by analyzing course documents"""
+        logger.info(f"Discovering topics for course {course_id}")
+        
+        user_dir = Path(get_absolute_path(settings.UPLOAD_DIR)) / user_id / course_id
+        if not user_dir.exists():
+            return []
+            
+        all_concepts = []
+        # Analyze up to 5 documents to find topics
+        docs = [f for f in user_dir.iterdir() if f.is_file() and not f.name.endswith(".json")]
+        
+        for doc_path in docs[:5]:
+            try:
+                # Extract text from first 2000 chars
+                text = self.doc_processor.extract_text(str(doc_path))
+                if text:
+                    concepts = concept_service.extract_concepts_from_text(text[:2000])
+                    all_concepts.extend(concepts)
+            except:
+                continue
+                
+        # Unique and limit
+        return list(set(all_concepts))[:8]
+
     def _fallback_study_plan(self, course_name: str, topics: list):
         """Generate a basic fallback study plan"""
         logger.warning("Using fallback study plan")

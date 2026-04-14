@@ -19,7 +19,7 @@ const Login = () => {
       await authService.login(email, password);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Neural authentication failed. Please check your credentials.');
+      setError(err.response?.data?.detail || 'User authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -41,7 +41,7 @@ const Login = () => {
           
           <div className="text-center mb-10">
             <h1 className="text-4xl font-black tracking-tighter text-on-surface mb-2">InStudy 2.0</h1>
-            <p className="text-xs text-on-surface-variant uppercase tracking-[0.4em] font-bold">Neural Entry Point</p>
+            <p className="text-xs text-on-surface-variant uppercase tracking-[0.4em] font-bold">InStudent Login</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
@@ -56,7 +56,7 @@ const Login = () => {
             )}
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#69f6b8]/60 ml-1">Identity (Email)</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#69f6b8]/60 ml-1">InStudent Email</label>
               <input 
                 required
                 type="email" 
@@ -68,7 +68,7 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">Access Protocol (Password)</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">InStudent Password</label>
               <input 
                 required
                 type="password" 
@@ -82,7 +82,7 @@ const Login = () => {
             <button 
               type="submit"
               disabled={loading}
-              className="w-full py-4 rounded-xl signature-gradient text-on-primary font-black text-sm uppercase tracking-widest shadow-lg scale-100 hover:scale-[1.02] active:scale-95 transition-transform relative overflow-hidden group"
+              className="w-full py-4 rounded-xl signature-gradient text-on-primary font-black text-sm uppercase tracking-widest shadow-lg scale-100 hover:scale-[1.02] active:scale-95 transition-transform relative overflow-hidden group text-white opacity-90"
             >
               {loading ? (
                 <span className="material-symbols-outlined animate-spin">sync</span>
@@ -94,9 +94,9 @@ const Login = () => {
 
           <div className="mt-8 text-center space-y-4">
             <p className="text-xs text-on-surface-variant">
-              New to the system? <Link to="/signup" className="text-secondary font-bold hover:underline underline-offset-4">Register Neural ID</Link>
+              New to the system? <Link to="/signup" className="text-secondary font-bold hover:underline underline-offset-4">Register(SignUp)</Link>
             </p>
-            <Link to="#" className="block text-[10px] text-on-surface-variant/40 hover:text-on-surface-variant transition-colors uppercase tracking-widest">Forgot Access Protocol?</Link>
+            <Link to="#" className="block text-[10px] text-on-surface-variant/40 hover:text-on-surface-variant transition-colors uppercase tracking-widest">Forgot Password?</Link>
           </div>
         </div>
       </motion.div>
