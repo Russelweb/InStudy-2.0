@@ -65,8 +65,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     request.state.user = user
                     request.state.user_id = user.id
                     
-                    # Extract Groq API Key if provided
-                    request.state.groq_api_key = request.headers.get("X-Groq-API-Key")
+                    # Extract Groq API Key if provided in header, otherwise fetch from DB
+                    header_key = request.headers.get("X-Groq-API-Key")
+                    if header_key:
+                        request.state.groq_api_key = header_key
+                        logger.debug(f"Using Groq key from header for user {user.id}")
+                    else:
+                        db_key = auth_service.get_groq_key(user.id)
+                        request.state.groq_api_key = db_key
+                        if db_key:
+                            logger.debug(f"Using stored Groq key for user {user.id}")
                     
                     logger.debug(f"Authenticated request for user {user.id}: {request.url.path}")
                     

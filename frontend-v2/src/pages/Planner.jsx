@@ -146,8 +146,8 @@ const Planner = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 group-hover:opacity-100 transition-opacity opacity-0 pointer-events-none"></div>
                 
                 <div className="relative text-center mb-6 md:mb-10">
-                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Intelligent Study Plan</h1>
-                  <p className="text-on-surface-variant text-xs sm:text-sm font-medium">Initialize your high-performance Study Plan.</p>
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-[#551a8b] bg-clip-text text-transparent">Intelligent Study Plan</h1>
+                  <p className="text-on-surface-variant text-xs sm:text-sm font-medium">Create your high-performance Study Plan.</p>
                 </div>
 
                 <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -218,7 +218,7 @@ const Planner = () => {
                 <button 
                   onClick={synthesizePlan}
                   disabled={!selectedCourse || !examDate}
-                  className="relative z-10 w-full mt-10 bg-gradient-to-r from-primary to-secondary text-on-primary font-black py-5 rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale uppercase tracking-widest text-sm cursor-pointer"
+                  className="relative z-10 w-full mt-10 bg-[#551a8b] text-on-white font-black py-5 rounded-2xl shadow-xl shadow-primary/14 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale uppercase tracking-widest text-sm cursor-pointer"
                 >
                   Synthesize Study Plan
                 </button>

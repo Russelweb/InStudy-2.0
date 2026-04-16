@@ -28,7 +28,7 @@ const QuizSetup = ({ onStart, availableCourses }) => {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 group-hover:opacity-100 transition-opacity opacity-0 pointer-events-none"></div>
         
         <div className="relative text-center mb-6 md:mb-10">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent uppercase italic">Neural Assessment Lab</h1>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-[#551a8b] bg-clip-text text-transparent uppercase italic">Instudent Assessment Lab</h1>
           <p className="text-on-surface-variant text-xs sm:text-sm font-medium">Customize Your Smart Quiz.</p>
         </div>
 
@@ -104,9 +104,9 @@ const QuizSetup = ({ onStart, availableCourses }) => {
           <button 
             onClick={() => onStart(selectedCourse, difficulty, count, quizType)}
             disabled={!selectedCourse}
-            className="w-full mt-4 py-5 rounded-2xl bg-gradient-to-r from-primary to-secondary text-on-primary font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50"
+            className="w-full mt-4 py-5 rounded-2xl bg-[#551a8b] text-on-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50"
           >
-            Synthesize Assessment ⚡
+            Synthesize Assessment
           </button>
         </div>
       </div>
@@ -267,7 +267,7 @@ const QuizAssessment = ({ questions, onComplete, onAbort }) => {
           <button 
             onClick={handleNext}
             disabled={!selected}
-            className={`px-8 py-3 rounded-lg signature-gradient text-on-primary font-black text-xs uppercase tracking-widest scale-100 active:scale-95 text-primary transition-transform ${!selected ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`px-8 py-3 rounded-lg bg-[#551a8b] text-on-white font-black text-xs uppercase tracking-widest scale-100 active:scale-95 text-white opacity-100 transition-transform ${!selected ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {currentIndex === questions.length - 1 ? 'Finalize Submission' : 'Next Question'}
           </button>
@@ -340,7 +340,7 @@ const QuizEvaluation = ({ results, onRestart }) => (
           <button onClick={onRestart} className="flex-1 py-4 bg-surface-container-highest border border-outline-variant/20 text-on-surface rounded-xl font-bold shadow-lg hover:bg-surface-variant active:scale-95 transition-all text-xs uppercase tracking-widest">
             Recustomize
           </button>
-          <button onClick={onRestart} className="flex-1 py-4 rounded-xl signature-gradient text-on-primary font-black shadow-lg hover:scale-[1.02] active:scale-95 transition-all text-xs uppercase tracking-widest text-white opacity-90">
+          <button onClick={onRestart} className="flex-1 py-4 rounded-xl bg-[#551a8b] text-on-white font-black shadow-lg hover:scale-[1.02] active:scale-95 transition-all text-xs uppercase tracking-widest text-white opacity-90">
             Restart Quiz
           </button>
         </div>

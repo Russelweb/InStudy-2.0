@@ -147,13 +147,13 @@ const AITutorChat = ({ courseId }) => {
   };
 
   return (
-    <div className="glass-panel rounded-xl w-[45%] flex flex-col border border-secondary/10 overflow-hidden min-w-0 shrink-0">
+    <div className="glass-panel rounded-xl w-full md:w-[45%] h-[50vh] md:h-full flex flex-col border border-secondary/10 overflow-hidden min-w-0 shrink-0">
       {/* Chat Header */}
       <div className="px-6 py-4 flex justify-between items-center bg-surface-container-low shrink-0">
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${isStreaming ? 'bg-yellow-400 animate-ping' : 'bg-secondary animate-pulse'} shadow-[0_0_8px_#69f6b8]`}></div>
-          <span className="text-xs font-bold tracking-tighter uppercase text-secondary">
-            {isStreaming ? 'Aether Processing...' : 'Neural Analyst Live'}
+          <span className="text-xs font-bold tracking-tighter text-secondary">
+            {isStreaming ? 'Aether Processing...' : 'InTeacher is LIVE'}
           </span>
           <button 
             onClick={() => {
@@ -193,7 +193,7 @@ const AITutorChat = ({ courseId }) => {
             animate={{ opacity: 1, scale: 1 }}
             className={`flex gap-4 max-w-[90%] ${ms.type === 'user' ? 'self-end flex-row-reverse' : ''}`}
           >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ms.type === 'ai' ? 'signature-gradient shadow-lg shadow-primary/20' : 'bg-primary/20 border border-primary/40'}`}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ms.type === 'ai' ? 'bg-[#06402b] shadow-lg shadow-primary/20' : 'bg-primary/20 border border-primary/40'}`}>
               <span className="material-symbols-outlined text-sm text-on-surface">
                 {ms.type === 'ai' ? 'psychology' : 'person'}
               </span>
@@ -223,7 +223,7 @@ const AITutorChat = ({ courseId }) => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-surface-container-lowest border-t border-outline-variant/10 shrink-0 space-y-2">
+      <div className="p-4 bg-surface-container-lowest border-t border-outline-variant/10 shrink-0 space-y-2 mb-[120px] md:mb-0">
         {isStreaming && (
           <button
             onClick={handleStop}

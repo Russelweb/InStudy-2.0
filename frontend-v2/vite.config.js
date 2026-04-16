@@ -6,9 +6,9 @@ export default defineConfig({
   plugins: [react()],
 
   server: {
-    allowedHosts: [
-      "jenelle-coleopterous-doreen.ngrok-free.dev"
-    ],
+    host: '0.0.0.0',   // Bind to all interfaces so phones on the same WiFi can connect
+    port: 5173,
+    allowedHosts: ['jenelle-coleopterous-doreen.ngrok-free.dev'],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
@@ -18,17 +18,13 @@ export default defineConfig({
   },
 
   build: {
-    // Raise the warning threshold slightly — charts libraries are inherently large
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
-          // React core + routing
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // Animation library (framer-motion is ~100kB)
-          'vendor-framer': ['framer-motion'],
-          // Chart library (recharts is ~400kB)
-          'vendor-recharts': ['recharts'],
+          'vendor-react':   ['react', 'react-dom', 'react-router-dom'],
+          'vendor-framer':  ['framer-motion'],
+          'vendor-recharts':['recharts'],
         }
       }
     }

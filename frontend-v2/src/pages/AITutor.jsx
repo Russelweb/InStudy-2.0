@@ -30,7 +30,7 @@ const AITutor = () => {
         className="mb-12 text-center"
       >
         <div className="w-20 h-20 mx-auto rounded-3xl signature-gradient flex items-center justify-center shadow-[0_0_40px_rgba(105,246,184,0.3)] mb-6">
-          <span className="material-symbols-outlined text-4xl text-on-primary">psychology</span>
+          <span className="material-symbols-outlined text-4xl text-on-white">computer</span>
         </div>
         <h1 className="text-4xl font-black tracking-tighter text-on-surface mb-4">AI Tutor Interface</h1>
         <p className="text-sm font-medium text-on-surface-variant max-w-lg mx-auto leading-relaxed">

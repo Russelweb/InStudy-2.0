@@ -13,6 +13,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Planner from './pages/Planner'
 import AdminDashboard from './pages/AdminDashboard'
+import Settings from './pages/Settings'
 
 const ProtectedRoute = () => {
   const token = localStorage.getItem('auth_token');
@@ -50,12 +51,12 @@ function MainLayout() {
         </main>
       </div>
       
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
-        <button className="w-12 h-12 md:w-14 md:h-14 rounded-full signature-gradient shadow-lg flex items-center justify-center hover:scale-110 transition-transform active:scale-95 group">
-          <span className="material-symbols-outlined text-white text-xl md:text-2xl group-hover:rotate-12 transition-transform">terminal</span>
-        </button>
-      </div>
+{/*        */}{/* Floating Action Button */}
+{/*       <div className="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8"> */}
+{/*         <button className="w-12 h-12 md:w-14 md:h-14 rounded-full signature-gradient shadow-lg flex items-center justify-center hover:scale-110 transition-transform active:scale-95 group"> */}
+{/*           <span className="material-symbols-outlined text-white text-xl md:text-2xl group-hover:rotate-12 transition-transform">terminal</span> */}
+{/*         </button> */}
+{/*       </div> */}
     </div>
   );
 }
@@ -79,8 +80,9 @@ function App() {
               <Route path="flashcards" element={<Flashcards />} />
               <Route path="quiz" element={<Quiz />} />
               <Route path="ai-tutor" element={<AITutor />} />
-              <Route path="planner" element={<Planner />} />
-              <Route path="admin" element={<AdminDashboard />} />
+              <Route path="planner"  element={<Planner />} />
+              <Route path="admin"    element={<AdminDashboard />} />
+              <Route path="settings" element={<Settings />} />
             </Route>
             
             {/* Workspace Mode (Full Screen) */}

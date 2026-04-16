@@ -24,8 +24,18 @@ const Signup = () => {
 
     setLoading(true);
     try {
-      await authService.signup(formData);
-      navigate('/login');
+      const res = await authService.signup(formData);
+      // Auto-login after signup so we can redirect straight to onboarding
+      if (res.data?.success && res.data?.session_token) {
+        localStorage.setItem('auth_token', res.data.session_token);
+        if (res.data.user) localStorage.setItem('user_info', JSON.stringify(res.data.user));
+      } else {
+        // Fallback: log them in manually
+        await authService.login(formData.email, formData.password);
+      }
+      // Mark as new user so Dashboard shows the welcome modal
+      localStorage.setItem('is_new_user', 'true');
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed. User may already exist.');
     } finally {

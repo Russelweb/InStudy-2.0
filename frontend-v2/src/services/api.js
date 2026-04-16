@@ -1,8 +1,19 @@
 import axios from 'axios';
 
+// Helper to determine the best API base URL
+const getBaseURL = () => {
+  // Explicit override via env var (set VITE_API_BASE_URL in .env for production)
+  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
+
+  // In dev, Vite proxies /api → localhost:8000, so use a relative path.
+  // This works on any device (phone, tablet, PC) because the request goes to
+  // whatever host is serving the frontend, and Vite forwards it to the backend.
+  return '/api';
+};
+
 // Create base instance
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  baseURL: getBaseURL(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -88,6 +99,10 @@ export const authService = {
     }
     return null;
   },
+
+  saveGroqKey: (key) => API.post('/auth/groq-key', { groq_api_key: key }),
+  getGroqKey:  ()    => API.get('/auth/groq-key'),
+  deleteGroqKey: ()  => API.post('/auth/groq-key', { groq_api_key: '' }),
 };
 
 // ---------------------------------------------------------------------------
@@ -112,14 +127,12 @@ export const documentService = {
   // Signed URL to view raw file inside an <iframe>
   getRawUrl: (courseId, filename) => {
     const token = localStorage.getItem('auth_token');
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-    return `${base}/documents/raw/${courseId}/${encodeURIComponent(filename)}?token=${token}`;
+    return `/api/documents/raw/${courseId}/${encodeURIComponent(filename)}?token=${token}`;
   },
 
   getThumbnailUrl: (courseId) => {
     const token = localStorage.getItem('auth_token');
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-    return `${base}/documents/thumbnail/${courseId}?token=${token}`;
+    return `/api/documents/thumbnail/${courseId}?token=${token}`;
   },
 
   getParagraphs: (courseId, filename) =>
@@ -158,13 +171,12 @@ export const chatService = {
   streamMessage: async (message, courseId, useEli12 = false) => {
     const token = localStorage.getItem('auth_token');
     const groqKey = localStorage.getItem('groq_api_key');
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     if (groqKey) headers['X-Groq-API-Key'] = groqKey;
 
-    return fetch(`${base}/chat/ask-stream`, {
+    return fetch(`/api/chat/ask-stream`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ course_id: courseId, question: message, use_eli12: useEli12 }),

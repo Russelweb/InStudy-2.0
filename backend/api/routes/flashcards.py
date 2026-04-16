@@ -41,6 +41,10 @@ async def generate_flashcards(
         
         return FlashcardResponse(flashcards=flashcards)
     
+    except ValueError as e:
+        if "NO_DOCUMENTS" in str(e):
+            raise HTTPException(400, "No documents uploaded yet. Go to Knowledge Base and upload a document to this course first.")
+        raise HTTPException(400, str(e))
     except Exception as e:
         print(f"Error in generate_flashcards: {str(e)}")
         print(traceback.format_exc())

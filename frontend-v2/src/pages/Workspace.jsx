@@ -178,8 +178,8 @@ const Workspace = () => {
             )}
           </AnimatePresence>
 
-          {/* Split Pane — Document Viewer + Chat */}
-          <main className="flex flex-1 overflow-hidden pb-[120px]">
+          {/* Split Pane — stacked on mobile, side-by-side on desktop */}
+          <main className="flex flex-1 flex-col md:flex-row overflow-hidden pb-[120px]">
             <DocumentViewer courseId={courseId} refreshTick={docRefreshTick} onAnnotationsLoaded={setActiveAnnotations}/>
             <AITutorChat courseId={courseId} />
           </main>

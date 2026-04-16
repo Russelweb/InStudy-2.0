@@ -11,6 +11,7 @@ class User(BaseModel):
     id: int
     email: str
     is_admin: bool = False
+    has_groq_key: bool = False
     created_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
 
@@ -57,3 +58,7 @@ class SessionInfo(BaseModel):
     user_id: int
     created_at: datetime
     expires_at: datetime
+
+class GroqKeyRequest(BaseModel):
+    """Request model for saving a Groq API key"""
+    groq_api_key: str

@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = None
     GROQ_MODEL: str = "llama-3.1-8b-instant"
 
+    # Encryption key for storing user API keys (32+ chars)
+    ENCRYPTION_KEY: str = "instudy-default-encryption-key-32chars!"
+
     # Embedding Model
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
 
@@ -35,6 +38,9 @@ class Settings(BaseSettings):
     LLM_TEMPERATURE: float = 0.2
     LLM_TIMEOUT: int = 180  # Timeout for LLM requests in seconds
     STREAM_CHUNK_SIZE: int = 1024  # Size of streaming chunks
+    
+    # Security
+    ENCRYPTION_KEY: str = "instudy_secret_key_32_bytes_long_!!" # Should be 32 bytes for Fernet
 
     class Config:
         env_file = ".env"

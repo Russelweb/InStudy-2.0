@@ -6,6 +6,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { statService, authService } from '../services/api';
+import WelcomeModal from '../components/WelcomeModal';
 
 // ---------------------------------------------------------------------------
 // Helpers — transform raw daily_activity from backend into chart rows
@@ -255,6 +256,7 @@ const StatCard = ({ icon, title, value, change, accentColor }) => (
 // Dashboard
 // ---------------------------------------------------------------------------
 const Dashboard = () => {
+  const [showWelcome, setShowWelcome] = useState(() => localStorage.getItem('is_new_user') === 'true');
   const [stats, setStats]     = useState({ total_documents: 0, total_courses: 0, study_hours: 0, quizzes_taken: 0, courses: [], recent_questions: [], daily_activity: {} });
   const [loading, setLoading] = useState(true);
   const [period, setPeriod]   = useState('1m');
@@ -286,6 +288,8 @@ const Dashboard = () => {
 
   return (
     <div className="p-4 md:p-8 pb-12">
+      {/* Welcome modal — shown once for new users */}
+      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -382,7 +386,7 @@ const Dashboard = () => {
                       initial={{ width: 0 }}
                       animate={{ width: `${course.mastery}%` }}
                       transition={{ duration: 1, delay: 0.5 + i * 0.2 }}
-                      className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
+                      className="h-full bg-primary rounded-full"
                     ></motion.div>
                   </div>
                 </div>
@@ -403,7 +407,7 @@ const Dashboard = () => {
             <div className="space-y-4">
               {recentQueries.length > 0 ? recentQueries.map((q, i) => (
                 <div key={i} className={`p-3 rounded-lg bg-surface-container-highest/50 border-l-2 ${i % 2 === 0 ? 'border-primary' : 'border-secondary'} hover:bg-surface-container-highest transition-all`}>
-                  <p className="text-xs text-on-surface mb-1 line-clamp-2">"{q.question}"</p>
+                  <p className="text-xs text-on-surface mb-1 line-clamp-2">{q.question}</p>
                   <span className="text-[10px] text-on-surface-variant font-mono uppercase tracking-widest">{q.course || 'General'}</span>
                 </div>
               )) : (
@@ -413,13 +417,13 @@ const Dashboard = () => {
           </div>
 
           {/* Upgrade CTA */}
-          <div className="signature-gradient p-6 rounded-2xl relative overflow-hidden group cursor-pointer shadow-2xl">
+          <div className="bg-[#551a8b] p-6 rounded-2xl relative overflow-hidden group cursor-pointer shadow-2xl">
             <div className="absolute -right-4 -top-4 opacity-10 rotate-12 group-hover:scale-110 transition-transform duration-700">
-              <span className="material-symbols-outlined text-[120px]">bolt</span>
+              <span className="material-symbols-outlined text-[160px]">bolt</span>
             </div>
             <h3 className="text-on-primary-fixed text-xl font-black mb-2 text-white">Upgrade to Ultra</h3>
             <p className="text-on-primary-fixed/80 text-xs mb-4 text-white">Unlock the neural-direct interface and unlimited concept mapping.</p>
-            <button className="bg-on-primary-fixed text-primary px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest">Go Ultra</button>
+            <button className="bg-on-primary-fixed text-white px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest">Go Ultra</button>
           </div>
         </div>
       </div>

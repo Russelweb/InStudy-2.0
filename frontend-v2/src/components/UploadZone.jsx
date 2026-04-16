@@ -23,8 +23,8 @@ const UploadZone = ({ onFileSelected, isUploading, progress }) => {
           accept=".pdf,.txt,.docx"
         />
         <div className="h-64 border-2 border-dashed border-secondary/20 rounded-2xl bg-surface-container-low flex flex-col items-center justify-center transition-all group-hover:border-secondary/50 group-hover:bg-surface-container-high/50 cursor-pointer overflow-hidden">
-          <div className="signature-gradient w-16 h-16 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <span className="material-symbols-outlined text-3xl opacity-60">upload_file</span>
+          <div className="bg-[#551a8b] w-16 h-16 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <span className="material-symbols-outlined text-3xl">upload_file</span>
           </div>
           <h3 className="text-xl font-bold text-on-surface">Upload Your Study Material</h3>
           <p className="text-on-surface-variant mt-1">Drag and Drop PDF, TXT, or DOCX files</p>

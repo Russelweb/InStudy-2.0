@@ -159,7 +159,7 @@ const KnowledgeBase = () => {
         </motion.div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="w-full md:w-auto px-8 py-4 signature-gradient rounded-full font-bold text-on-surface aura-glow flex items-center justify-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
+          className="w-full md:w-auto px-8 py-4 bg-[#551a8b]/90 rounded-full font-bold text-on-surface aura-glow flex items-center justify-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
         >
           <span className="material-symbols-outlined">add</span>
           Create New Course

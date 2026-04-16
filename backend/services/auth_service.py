@@ -183,6 +183,14 @@ class AuthService:
         """Validate password requirements"""
         return len(password) >= 8
     
+    def update_groq_key(self, user_id: int, key: str) -> bool:
+        """Update user's Groq API key"""
+        return self.auth_db.update_groq_key(user_id, key)
+
+    def get_groq_key(self, user_id: int) -> Optional[str]:
+        """Get user's Groq API key"""
+        return self.auth_db.get_groq_key(user_id)
+    
     def cleanup_expired_sessions(self):
         """Clean up expired sessions"""
         try:

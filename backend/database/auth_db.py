@@ -10,6 +10,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import logging
+import base64
+from cryptography.fernet import Fernet
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +20,11 @@ class AuthDatabase:
     def __init__(self, db_path: str = "backend/users.db"):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(exist_ok=True)
+        # Derive a valid 32-byte Fernet key from the config string
+        raw = settings.ENCRYPTION_KEY.encode()
+        # Pad/truncate to exactly 32 bytes, then base64-encode → valid Fernet key
+        raw = (raw * ((32 // len(raw)) + 1))[:32]
+        self.fernet = Fernet(base64.urlsafe_b64encode(raw))
         self.init_database()
     
     def init_database(self):
@@ -28,10 +36,18 @@ class AuthDatabase:
                     email TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
                     is_admin INTEGER DEFAULT 0,
+                    groq_api_key TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_login TIMESTAMP
                 )
             """)
+            
+            # Check if groq_api_key column exists (for existing databases)
+            cursor = conn.execute("PRAGMA table_info(users)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'groq_api_key' not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN groq_api_key TEXT")
+                logger.info("Added groq_api_key column to users table")
             
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS sessions (
@@ -234,7 +250,7 @@ class AuthDatabase:
             with sqlite3.connect(self.db_path, timeout=10.0, check_same_thread=False) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
-                    "SELECT id, email, is_admin, created_at, last_login FROM users WHERE id = ?",
+                    "SELECT id, email, is_admin, (groq_api_key IS NOT NULL) as has_groq_key, created_at, last_login FROM users WHERE id = ?",
                     (user_id,)
                 )
                 user = cursor.fetchone()
@@ -355,6 +371,35 @@ class AuthDatabase:
         except Exception as e:
             logger.error(f"Error verifying password: {e}")
             return False
+
+    def update_groq_key(self, user_id: int, key: str) -> bool:
+        """Encrypt and store user's Groq API key"""
+        try:
+            encrypted_key = self.fernet.encrypt(key.encode()).decode()
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute(
+                    "UPDATE users SET groq_api_key = ? WHERE id = ?",
+                    (encrypted_key, user_id)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error updating Groq key: {e}")
+            return False
+
+    def get_groq_key(self, user_id: int) -> Optional[str]:
+        """Fetch and decrypt user's Groq API key"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute("SELECT groq_api_key FROM users WHERE id = ?", (user_id,))
+                row = cursor.fetchone()
+                if row and row[0]:
+                    decrypted_key = self.fernet.decrypt(row[0].encode()).decode()
+                    return decrypted_key
+                return None
+        except Exception as e:
+            logger.error(f"Error fetching/decrypting Groq key: {e}")
+            return None
 
 # Global instance
 auth_db = AuthDatabase()

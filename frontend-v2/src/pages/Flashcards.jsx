@@ -122,8 +122,15 @@ const Flashcards = () => {
       setSessionStats({ learned: 0, remaining: newCards.length, correct: 0, total: newCards.length });
     } catch (error) {
       console.error('Failed to generate cards:', error);
-      alert('Failed to generate flashcards. Please check if documents exist in this module.');
-      setShowSettings(true); // show settings again on failure
+      const msg = error.response?.data?.detail || '';
+      if (msg.includes('No documents')) {
+        alert('📂 No documents found in this course.\n\nGo to Knowledge Base → select this course → upload a PDF or document first, then come back to generate flashcards.');
+      } else if (msg.includes('API key') || error.response?.status === 401) {
+        alert('🔑 No AI key configured.\n\nGo to Settings and paste your Groq API key to enable AI features.');
+      } else {
+        alert('Something went wrong generating flashcards. Please try again.');
+      }
+      setShowSettings(true);
     } finally {
       setIsGenerating(false);
     }
@@ -272,7 +279,7 @@ const Flashcards = () => {
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 group-hover:opacity-100 transition-opacity opacity-0 pointer-events-none"></div>
                   
                   <div className="relative text-center mb-6 md:mb-10">
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent italic uppercase">Deck Configuration</h2>
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-[#551a8b] bg-clip-text text-transparent italic uppercase">Deck Configuration</h2>
                     <p className="text-on-surface-variant text-xs sm:text-sm font-medium">Customize Your Flashcard Deck.</p>
                   </div>
                   
@@ -350,7 +357,7 @@ const Flashcards = () => {
                       <button 
                         onClick={generateCards}
                         disabled={!currentDeckId}
-                        className="relative z-10 w-full mt-4 py-5 rounded-2xl bg-gradient-to-r from-primary to-secondary text-on-primary font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50"
+                        className="relative z-10 w-full mt-4 py-5 rounded-2xl bg-[#551a8b] text-on-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50"
                       >
                         Synthesize Deck
                       </button>
@@ -359,21 +366,63 @@ const Flashcards = () => {
             </motion.div>
 
           ) : isGenerating ? (
-            <motion.div key="generating" className="flex flex-col items-center gap-6">
-              <div className="w-16 h-16 signature-gradient rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(189,157,255,0.4)] relative">
-                 <div className="absolute inset-0 rounded-full border-2 border-white/20 animate-ping"></div>
-                 <span className="material-symbols-outlined text-white text-3xl animate-spin">memory</span>
-              </div>
-              <p className="text-secondary font-black tracking-[0.4em] uppercase text-xs animate-pulse">Synthesizing Flashcards...</p>
-            </motion.div>
+            <motion.div
+  key="generating"
+  className="flex flex-col items-center gap-6 text-center mt-40"
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  exit={{ opacity: 0 }}
+>
+  {/* Core AI Orb */}
+  <div className="relative w-20 h-20">
+
+    {/* Glow */}
+    <div className="absolute inset-0 rounded-full bg-purple-500/20 blur-2xl animate-pulse"></div>
+
+    {/* Rotating ring */}
+    <motion.div
+      className="absolute inset-0 rounded-full border-2 border-purple-400/40"
+      animate={{ rotate: 360 }}
+      transition={{ repeat: Infinity, duration: 6, ease: "linear" }}
+    />
+
+    {/* Inner core */}
+    <div className="w-full h-full rounded-full bg-[#551a8b] flex items-center justify-center shadow-[0_0_60px_rgba(189,157,255,0.6)]">
+      <motion.span
+        className="material-symbols-outlined text-white text-3xl"
+        animate={{ rotate: 360 }}
+        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+      >
+        auto_awesome
+      </motion.span>
+    </div>
+  </div>
+
+  {/* Dynamic AI Text */}
+  <motion.p
+    className="text-secondary font-black tracking-[0.3em] uppercase text-xs"
+    animate={{ opacity: [0.4, 1, 0.4] }}
+    transition={{ repeat: Infinity, duration: 2 }}
+  >
+    Generating Knowledge Graph...
+  </motion.p>
+
+  {/* Sub-steps (THIS is the magic) */}
+  <div className="text-[10px] text-white/60 space-y-1">
+    <p>• Parsing content</p>
+    <p>• Extracting key concepts</p>
+    <p>• Structuring flashcards</p>
+  </div>
+</motion.div>
           ) : isComplete ? (
             <motion.div
               key="complete"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="text-center space-y-8"
+              className="text-center space-y-8 mt-40"
+
             >
-              <div className="w-24 h-24 mx-auto rounded-full signature-gradient flex items-center justify-center shadow-[0_0_40px_rgba(105,246,184,0.4)]">
+              <div className="w-24 h-24 mx-auto rounded-full bg-[#551a8b] flex items-center justify-center shadow-[0_0_40px_rgba(105,246,184,0.4)]">
                 <span className="material-symbols-outlined text-white text-4xl">celebration</span>
               </div>
               <div className="space-y-2">
@@ -391,7 +440,7 @@ const Flashcards = () => {
                 </button>
                 <button
                   onClick={generateCards}
-                  className="px-8 py-4 signature-gradient rounded-xl font-black text-on-primary hover:scale-105 transition-transform text-xs uppercase tracking-widest shadow-lg shadow-primary/20 text-white opacity-90"
+                  className="px-8 py-4 bg-[#551a8b] rounded-xl font-black text-on-primary hover:scale-105 transition-transform text-xs uppercase tracking-widest shadow-lg shadow-primary/20 text-white opacity-90"
                 >
                   Restart Deck
                 </button>

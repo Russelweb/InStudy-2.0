@@ -33,7 +33,7 @@ class FlashcardService:
         
         vector_store = self.doc_processor.get_vector_store(user_id, course_id)
         if not vector_store:
-            raise ValueError("No documents found for this course.")
+            raise ValueError("NO_DOCUMENTS")
             
         # Get mastery context
         mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
