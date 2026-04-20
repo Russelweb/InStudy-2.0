@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Math Rendering Test</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <style>
+    body { background: #0a0f0b; color: #f8fef6; font-family: system-ui; padding: 2rem; }
+    .test { background: #141b16; padding: 1rem; margin: 1rem 0; border-radius: 8px; }
+    h2 { color: #bd9dff; }
+  </style>
+</head>
+<body>
+  <h1>Math Rendering Test</h1>
+  
+  <div class="test">
+    <h2>Example 1: Chain Rule (with LaTeX)</h2>
+    <p>Consider the function $f(x) = \sin(x^2)$. To compute its derivative using the chain rule:</p>
+    <p>$$f'(x) = \cos(x^2) \cdot 2x$$</p>
+    <p>Where $g(x) = x^2$ and $g'(x) = 2x$</p>
+  </div>
+
+  <div class="test">
+    <h2>Example 2: What the AI should output</h2>
+    <pre style="background: #202821; padding: 1rem; border-radius: 4px; overflow-x: auto;">
+Consider the function $f(x) = \sin(x^2)$. To compute its derivative using the chain rule:
+
+$$f'(x) = \cos(x^2) \cdot 2x$$
+
+Using the chain rule formula:
+$$\frac{d}{dx}[f(g(x))] = f'(g(x)) \cdot g'(x)$$
+
+Where:
+- $g(x) = x^2$
+- $g'(x) = 2x$
+- $f(u) = \sin(u)$
+- $f'(u) = \cos(u)$
+
+Therefore: $f'(x) = \cos(x^2) \cdot 2x$
+    </pre>
+  </div>
+
+  <div class="test">
+    <h2>Common Math Patterns</h2>
+    <ul>
+      <li>Inline: $E = mc^2$, $\pi r^2$, $\frac{a}{b}$</li>
+      <li>Functions: $\sin(x)$, $\cos(x^2)$, $\ln(x)$</li>
+      <li>Derivatives: $f'(x)$, $\frac{dy}{dx}$</li>
+      <li>Greek: $\alpha$, $\beta$, $\theta$, $\lambda$</li>
+      <li>Display: $$\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}$$</li>
+    </ul>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      renderMathInElement(document.body, {
+        delimiters: [
+          {left: "$$", right: "$$", display: true},
+          {left: "$", right: "$", display: false}
+        ]
+      });
+    });
+  </script>
+</body>
+</html>
