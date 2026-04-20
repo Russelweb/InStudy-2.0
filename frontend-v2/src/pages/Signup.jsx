@@ -56,7 +56,7 @@ const Signup = () => {
         className="w-full max-w-md px-4 z-10"
       >
         <div className="glass-panel p-10 rounded-2xl border border-outline-variant/10 shadow-2xl relative">
-          <div className="absolute top-0 left-0 w-full h-1 signature-gradient opacity-50 rounded-t-2xl"></div>
+          <div className="absolute top-0 left-0 w-full h-1 bg-[#551a8b] opacity-50 rounded-t-2xl"></div>
 
           <div className="text-center mb-10">
             <h1 className="text-4xl font-black tracking-tighter text-on-surface mb-2">Join InStudy</h1>
@@ -75,7 +75,7 @@ const Signup = () => {
             )}
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#69f6b8]/60 ml-1">Email</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60  ml-1">Email</label>
               <input
                 required
                 type="email"
@@ -116,7 +116,7 @@ const Signup = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 rounded-xl signature-gradient text-on-primary font-black text-sm uppercase tracking-widest shadow-lg scale-100 hover:scale-[1.02] active:scale-95 transition-transform relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed text-white opacity-90"
+              className="w-full py-4 rounded-xl bg-[#551a8b] text-on-primary font-black text-sm uppercase tracking-widest shadow-lg scale-100 hover:scale-[1.02] active:scale-95 transition-transform relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed text-white opacity-90"
             >
               {loading
                 ? <span className="material-symbols-outlined animate-spin">sync</span>

@@ -37,7 +37,7 @@ const Login = () => {
         className="w-full max-w-md px-4 z-10"
       >
         <div className="glass-panel p-10 rounded-2xl border border-outline-variant/10 shadow-2xl relative">
-          <div className="absolute top-0 left-0 w-full h-1 signature-gradient opacity-50 rounded-t-2xl"></div>
+          <div className="absolute top-0 left-0 w-full h-1 bg-[#551a8b] opacity-50 rounded-t-2xl"></div>
           
           <div className="text-center mb-10">
             <h1 className="text-4xl font-black tracking-tighter text-on-surface mb-2">InStudy 2.0</h1>
@@ -74,7 +74,7 @@ const Login = () => {
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-surface-container-high border-none rounded-xl py-4 px-4 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/30"
+                className="w-full bg-surface-container-high border-none rounded-xl py-4 px-4 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/30 visible"
                 placeholder="••••••••••••"
               />
             </div>
@@ -82,7 +82,7 @@ const Login = () => {
             <button 
               type="submit"
               disabled={loading}
-              className="w-full py-4 rounded-xl signature-gradient text-on-primary font-black text-sm uppercase tracking-widest shadow-lg scale-100 hover:scale-[1.02] active:scale-95 transition-transform relative overflow-hidden group text-white opacity-90"
+              className="w-full py-4 rounded-xl bg-[#551a8b] text-on-primary font-black text-sm uppercase tracking-widest shadow-lg scale-100 hover:scale-[1.02] active:scale-95 transition-transform relative overflow-hidden group text-white opacity-90"
             >
               {loading ? (
                 <span className="material-symbols-outlined animate-spin">sync</span>
