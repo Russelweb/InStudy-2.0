@@ -56,7 +56,7 @@ const CourseCard = ({ id, title, lastAccessed, materialCount, mastery, image, on
         <h3 className="text-2xl font-bold text-on-surface mb-2 leading-tight">{title}</h3>
         <div className="flex items-center gap-4 text-on-surface-variant text-sm mb-6">
           <span className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-base">calendar_today</span>
+            <span className="material-symbols-outlined text-base">upload_file</span>
             {lastAccessed}
           </span>
           <span className="flex items-center gap-1.5">

@@ -24,7 +24,7 @@ const KnowledgeBase = () => {
       const transformed = (response.data.courses || []).map((course) => ({
         id: course.id,
         title: course.name,
-        lastAccessed: new Date().toLocaleDateString(),
+        lastAccessed: course.upload_date || new Date().toLocaleDateString(),
         materialCount: course.document_count,
         mastery: course.mastery || 0,
         image: documentService.getThumbnailUrl(course.id),
