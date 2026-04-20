@@ -96,3 +96,26 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 1.5rem;
 }
+
+/* KaTeX math rendering — dark theme overrides */
+.katex {
+  color: #f8fef6;
+  font-size: 1em;
+}
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.75rem 0;
+  margin: 0.5rem 0;
+}
+
+.katex-display > .katex {
+  display: block;
+  text-align: center;
+}
+
+/* Inline math sits nicely in text */
+.katex-inline {
+  display: inline;
+}

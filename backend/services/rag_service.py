@@ -275,12 +275,10 @@ Study Material (with page numbers):
 
 Current Question: {question}
 
-Explain this concept using:
-- Simple everyday language
-- Fun analogies and examples
-- Short sentences
-- No complex jargon
-- Reference the page numbers when relevant
+Explain this concept using simple everyday language, fun analogies, short sentences, and no complex jargon.
+IMPORTANT: For ANY mathematical expression, equation, or formula — always use LaTeX notation:
+- Inline math: $expression$ (e.g. $x^2$, $\\sin(x)$, $\\frac{{a}}{{b}}$)
+- Block/display math: $$expression$$ on its own line
 
 Structure:
 1. Simple Definition
@@ -296,6 +294,10 @@ Study Material (with page numbers):
 
 Current Question: {question}
 
+IMPORTANT: For ANY mathematical expression, equation, symbol, or formula — always use LaTeX notation:
+- Inline math: $expression$ (e.g. $f'(x)$, $\\cos(x^2)$, $\\frac{{d}}{{dx}}$)
+- Block/display math: $$expression$$ on its own line for standalone equations
+
 Provide a structured explanation:
 1. Concept Definition (mention page numbers if relevant)
 2. Step-by-Step Explanation
@@ -304,11 +306,7 @@ Provide a structured explanation:
 5. Quick Summary
 
 If the question asks about a specific page or exercise, focus on that content."""
-                
-                # Add page info to sources
-                # Sources already included page info in the new unified format
-                pass
-        
+
         if not has_context:
             logger.warning(f"No relevant documents found for question: '{question[:50]}...'")
             logger.info(f"Vector store exists: {vector_store is not None}")
@@ -332,16 +330,19 @@ If the question asks about a specific page or exercise, focus on that content.""
 
 Current Question: {question}
 
-Explain this concept using:
-- Simple everyday language
-- Fun analogies and examples
-- Short sentences
-- No complex jargon"""
+Explain this concept using simple everyday language, fun analogies, short sentences, and no complex jargon.
+IMPORTANT: For ANY mathematical expression, equation, or formula — always use LaTeX notation:
+- Inline math: $expression$ (e.g. $x^2$, $\\sin(x)$, $\\frac{{a}}{{b}}$)
+- Block/display math: $$expression$$ on its own line"""
             else:
                 prompt = f"""You are a knowledgeable AI tutor.
 {conversation_context}
 
 Current Question: {question}
+
+IMPORTANT: For ANY mathematical expression, equation, symbol, or formula — always use LaTeX notation:
+- Inline math: $expression$ (e.g. $f'(x)$, $\\cos(x^2)$, $\\frac{{d}}{{dx}}$)
+- Block/display math: $$expression$$ on its own line for standalone equations
 
 Provide a clear explanation as if teaching a university student. Include:
 1. Clear definition
@@ -471,12 +472,10 @@ Study Material (with page numbers):
 
 Current Question: {question}
 
-Explain this concept using:
-- Simple everyday language
-- Fun analogies and examples
-- Short sentences
-- No complex jargon
-- Reference the page numbers when relevant
+Explain this concept using simple everyday language, fun analogies, short sentences, and no complex jargon.
+IMPORTANT: For ANY mathematical expression, equation, or formula — always use LaTeX notation:
+- Inline math: $expression$ (e.g. $x^2$, $\\sin(x)$, $\\frac{{a}}{{b}}$)
+- Block/display math: $$expression$$ on its own line
 
 Structure:
 1. Simple Definition
@@ -491,6 +490,10 @@ Study Material (with page numbers):
 {context_text}
 
 Current Question: {question}
+
+IMPORTANT: For ANY mathematical expression, equation, symbol, or formula — always use LaTeX notation:
+- Inline math: $expression$ (e.g. $f'(x)$, $\\cos(x^2)$, $\\frac{{d}}{{dx}}$)
+- Block/display math: $$expression$$ on its own line for standalone equations
 
 Provide a structured explanation:
 1. Concept Definition (mention page numbers if relevant)
@@ -529,16 +532,19 @@ If the question asks about a specific page or exercise, focus on that content.""
 
 Current Question: {question}
 
-Explain this concept using:
-- Simple everyday language
-- Fun analogies and examples
-- Short sentences
-- No complex jargon"""
+Explain this concept using simple everyday language, fun analogies, short sentences, and no complex jargon.
+IMPORTANT: For ANY mathematical expression, equation, or formula — always use LaTeX notation:
+- Inline math: $expression$ (e.g. $x^2$, $\\sin(x)$, $\\frac{{a}}{{b}}$)
+- Block/display math: $$expression$$ on its own line"""
         else:
             prompt = f"""You are a knowledgeable AI tutor.
 {conversation_context}
 
 Current Question: {question}
+
+IMPORTANT: For ANY mathematical expression, equation, symbol, or formula — always use LaTeX notation:
+- Inline math: $expression$ (e.g. $f'(x)$, $\\cos(x^2)$, $\\frac{{d}}{{dx}}$)
+- Block/display math: $$expression$$ on its own line for standalone equations
 
 Provide a clear explanation as if teaching a university student. Include:
 1. Clear definition

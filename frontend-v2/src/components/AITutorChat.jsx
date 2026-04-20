@@ -1,6 +1,39 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { chatService } from '../services/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+
+/**
+ * Best-effort converter: wraps common plain-text math patterns in LaTeX delimiters
+ * so KaTeX can render them even when the LLM forgets to use $...$.
+ */
+function preprocessMath(text) {
+  if (!text) return text;
+
+  // Already has LaTeX delimiters — leave it alone
+  if (/\$/.test(text)) return text;
+
+  return text
+    // Fractions: a/b where a and b are expressions  e.g. d/dx, dy/dx, 1/2
+    .replace(/\b(d\/d[a-z]|[a-z]\/[a-z]|\d+\/\d+)\b/g, (m) => `$${m}$`)
+    // Superscripts: x^2, x^n, e^x, sin^2
+    .replace(/([a-zA-Z\d]+)\^(\{[^}]+\}|[a-zA-Z\d]+)/g, (m) => `$${m}$`)
+    // Common functions with args: sin(x), cos(x^2), ln(x), log(x), sqrt(x)
+    .replace(/\b(sin|cos|tan|cot|sec|csc|ln|log|exp|sqrt|lim|sum|int)\s*\(([^)]+)\)/g, (m) => `$${m}$`)
+    // Derivatives: f'(x), f''(x)
+    .replace(/\b([a-zA-Z])'+'?\s*\([^)]+\)/g, (m) => `$${m}$`)
+    // Greek letters written out: alpha, beta, theta, etc.
+    .replace(/\b(alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|sigma|omega|phi|psi)\b/g, (m) => `$\\${m}$`)
+    // Standalone equations with = sign containing math chars: f'(x) = 2x
+    .replace(/([a-zA-Z][a-zA-Z0-9'_^()*/+\-\s]*=[a-zA-Z0-9'_^()*/+\-\s]+)/g, (m) => {
+      // Only wrap if it looks like math (contains ^, *, or known functions)
+      if (/[\^*]|sin|cos|tan|ln|sqrt|d\/d/.test(m)) return `$${m.trim()}$`;
+      return m;
+    });
+}
 
 const AITutorChat = ({ courseId }) => {
   const [messages, setMessages] = useState([]);
@@ -203,10 +236,43 @@ const AITutorChat = ({ courseId }) => {
                 ? `bg-secondary/5 border-secondary/20 rounded-tl-none ${ms.isError ? 'border-error/30 bg-error/5' : ''}`
                 : 'bg-primary/10 border-primary/20 rounded-tr-none'
             }`}>
-              <p className={`text-sm leading-relaxed whitespace-pre-wrap ${ms.type === 'ai' ? 'text-on-surface' : 'text-primary-fixed-dim'}`}>
-                {ms.text}
-                {ms.streaming && <span className="inline-block w-1.5 h-4 bg-secondary ml-0.5 animate-pulse rounded-sm align-middle" />}
-              </p>
+              {ms.type === 'ai' ? (
+                <div className="text-sm leading-relaxed text-on-surface">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                    components={{
+                      h1: ({children}) => <h1 className="text-base font-bold text-on-surface mt-3 mb-1">{children}</h1>,
+                      h2: ({children}) => <h2 className="text-sm font-bold text-on-surface mt-3 mb-1">{children}</h2>,
+                      h3: ({children}) => <h3 className="text-sm font-semibold text-secondary mt-2 mb-1">{children}</h3>,
+                      p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
+                      ul: ({children}) => <ul className="my-1 pl-4 space-y-0.5 list-disc">{children}</ul>,
+                      ol: ({children}) => <ol className="my-1 pl-4 space-y-0.5 list-decimal">{children}</ol>,
+                      li: ({children}) => <li className="text-on-surface-variant">{children}</li>,
+                      strong: ({children}) => <strong className="font-bold text-secondary">{children}</strong>,
+                      em: ({children}) => <em className="italic text-on-surface-variant">{children}</em>,
+                      code: ({inline, children}) => inline
+                        ? <code className="bg-surface-container-highest px-1 py-0.5 rounded text-xs text-secondary font-mono">{children}</code>
+                        : <pre className="bg-surface-container-highest rounded-xl p-3 overflow-x-auto my-2"><code className="text-xs text-secondary font-mono">{children}</code></pre>,
+                      pre: ({children}) => <>{children}</>,
+                      blockquote: ({children}) => <blockquote className="border-l-2 border-secondary/40 pl-3 my-2 text-on-surface-variant italic">{children}</blockquote>,
+                      table: ({children}) => <div className="overflow-x-auto my-2"><table className="w-full text-xs border-collapse">{children}</table></div>,
+                      thead: ({children}) => <thead className="bg-surface-container-highest">{children}</thead>,
+                      th: ({children}) => <th className="px-3 py-2 text-left font-bold text-on-surface border border-outline-variant/20">{children}</th>,
+                      td: ({children}) => <td className="px-3 py-2 border border-outline-variant/10 text-on-surface-variant">{children}</td>,
+                      a: ({href, children}) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-secondary underline hover:opacity-80">{children}</a>,
+                      hr: () => <hr className="border-outline-variant/20 my-3" />,
+                    }}
+                  >
+                    {preprocessMath(ms.text)}
+                  </ReactMarkdown>
+                  {ms.streaming && <span className="inline-block w-1.5 h-4 bg-secondary ml-0.5 animate-pulse rounded-sm align-middle" />}
+                </div>
+              ) : (
+                <p className="text-sm leading-relaxed text-primary-fixed-dim whitespace-pre-wrap">
+                  {ms.text}
+                </p>
+              )}
               {/* Sources */}
               {ms.sources && ms.sources.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-secondary/10 flex flex-wrap gap-2">
