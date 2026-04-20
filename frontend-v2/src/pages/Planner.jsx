@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { plannerService, statService } from '../services/api';
+import { plannerService, statService, assetService } from '../services/api';
 
 const Planner = () => {
   const [step, setStep] = useState('setup'); // 'setup' | 'loading' | 'timeline'
@@ -16,21 +16,45 @@ const Planner = () => {
   const [plan, setPlan] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDiscovering, setIsDiscovering] = useState(false);
+  const [completedTasks, setCompletedTasks] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
   const isInitialized = useRef(false);
 
   useEffect(() => {
-    // Load persisted state
+    // Check for loaded asset from Saved Assets page FIRST
+    const loadedAsset = localStorage.getItem('load_asset_study_plan');
+    if (loadedAsset) {
+      try {
+        const asset = JSON.parse(loadedAsset);
+        console.log('Loading saved study plan:', asset.title);
+        setPlan(asset.data.plan || null);
+        setExamDate(asset.data.examDate || examDate);
+        setTopics(asset.data.topics || []);
+        setCompletedTasks(asset.data.completedTasks || {});
+        setSelectedCourse(asset.course_id);
+        setStep('timeline'); // Force show timeline
+        localStorage.removeItem('load_asset_study_plan');
+        setTimeout(() => { isInitialized.current = true; }, 100);
+        return; // Skip normal persistence loading
+      } catch (e) {
+        console.error('Failed to load asset:', e);
+      }
+    }
+
+    // Load persisted state (only if no asset was loaded)
     const savedPlan = localStorage.getItem('planner_plan');
     const savedCourse = localStorage.getItem('planner_course');
     const savedDate = localStorage.getItem('planner_date');
     const savedTopics = localStorage.getItem('planner_topics');
     const savedStep = localStorage.getItem('planner_step');
+    const savedCompletedTasks = localStorage.getItem('planner_completed_tasks');
 
     if (savedPlan) setPlan(JSON.parse(savedPlan));
     if (savedCourse) setSelectedCourse(savedCourse);
     if (savedDate) setExamDate(savedDate);
     if (savedTopics) setTopics(JSON.parse(savedTopics));
     if (savedStep) setStep(savedStep);
+    if (savedCompletedTasks) setCompletedTasks(JSON.parse(savedCompletedTasks));
 
     console.log('Planner Initialized. Persisted state loaded.');
     setTimeout(() => { isInitialized.current = true; }, 100);
@@ -48,7 +72,8 @@ const Planner = () => {
     localStorage.setItem('planner_date', examDate);
     localStorage.setItem('planner_topics', JSON.stringify(topics));
     localStorage.setItem('planner_step', step);
-  }, [plan, selectedCourse, examDate, topics, step]);
+    localStorage.setItem('planner_completed_tasks', JSON.stringify(completedTasks));
+  }, [plan, selectedCourse, examDate, topics, step, completedTasks]);
 
   useEffect(() => {
     console.log('Planner Step changed to:', step);
@@ -76,6 +101,35 @@ const Planner = () => {
 
   const removeTopic = (index) => {
     setTopics(topics.filter((_, i) => i !== index));
+  };
+
+  const toggleTask = (wIdx, dIdx, tsIndex) => {
+    const key = `${wIdx}-${dIdx}-${tsIndex}`;
+    setCompletedTasks(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleSavePlan = async () => {
+    if (!plan) return;
+    
+    const title = prompt('Name this study plan:');
+    if (!title) return;
+    
+    setIsSaving(true);
+    try {
+      await assetService.save(
+        selectedCourse,
+        'study_plan',
+        title,
+        { plan, examDate, topics, completedTasks },
+        { exam_date: examDate, topic_count: topics.length }
+      );
+      alert('✅ Study plan saved successfully!');
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('Failed to save plan. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const discoverTopics = async () => {
@@ -275,26 +329,59 @@ const Planner = () => {
               animate={{ opacity: 1, x: 0 }}
               className="space-y-12"
             >
-              <div className="flex justify-between items-end border-b border-outline-variant/10 pb-8">
-                <div>
-                  <h2 className="text-4xl font-black tracking-tighter">Optimized Pathway</h2>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-secondary border border-secondary/20 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
-                      Active Strategy
-                    </span>
-                    <p className="text-on-surface-variant text-sm font-medium">Study Plan targeted for {examDate}</p>
+              {(() => {
+                const allTasks = plan.weeks?.flatMap((w, wIdx) => w.days?.flatMap((d, dIdx) => d.tasks?.map((_, tsIndex) => `${wIdx}-${dIdx}-${tsIndex}`) || []) || []) || [];
+                const doneCount = allTasks.filter(k => completedTasks[k]).length;
+                const pct = allTasks.length > 0 ? Math.round((doneCount / allTasks.length) * 100) : 0;
+                return (
+                  <div className="flex justify-between items-end border-b border-outline-variant/10 pb-8">
+                    <div>
+                      <h2 className="text-4xl font-black tracking-tighter">Optimized Pathway</h2>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-secondary border border-secondary/20 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+                          Active Strategy
+                        </span>
+                        <p className="text-on-surface-variant text-sm font-medium">Study Plan targeted for {examDate}</p>
+                      </div>
+                      {allTasks.length > 0 && (
+                        <div className="mt-4 flex items-center gap-3">
+                          <div className="w-48 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${pct}%` }}
+                              className="h-full bg-secondary rounded-full"
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold text-secondary">{doneCount}/{allTasks.length} tasks · {pct}%</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleSavePlan}
+                        disabled={isSaving}
+                        className="px-5 py-3 rounded-xl bg-secondary/10 text-secondary border border-secondary/20 font-bold text-xs uppercase tracking-widest hover:bg-secondary/20 transition-all disabled:opacity-50"
+                      >
+                        {isSaving ? 'Saving...' : 'Save Plan'}
+                      </button>
+                      <button
+                        onClick={() => { setCompletedTasks({}); localStorage.removeItem('planner_completed_tasks'); }}
+                        className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-error transition-colors shadow-sm"
+                        title="Reset progress"
+                      >
+                        <span className="material-symbols-outlined">restart_alt</span>
+                      </button>
+                      <button onClick={() => window.print()} className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-on-surface transition-colors shadow-sm">
+                        <span className="material-symbols-outlined">print</span>
+                      </button>
+                      <button onClick={() => setStep('setup')} className="px-5 py-3 rounded-xl bg-primary/10 text-primary border border-primary/20 font-bold text-xs uppercase tracking-widest hover:bg-primary/20 transition-all">
+                        Modify Settings
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={() => window.print()} className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-on-surface transition-colors shadow-sm">
-                    <span className="material-symbols-outlined">print</span>
-                  </button>
-                  <button onClick={() => setStep('setup')} className="px-5 py-3 rounded-xl bg-primary/10 text-primary border border-primary/20 font-bold text-xs uppercase tracking-widest hover:bg-primary/20 transition-all">
-                    Modify Settings
-                  </button>
-                </div>
-              </div>
+                );
+              })()}
 
               <div className="relative border-l-2 border-outline-variant/10 ml-6 pl-12 space-y-12">
                 {plan.weeks?.map((week, wIdx) => (
@@ -308,16 +395,20 @@ const Planner = () => {
                     </div>
 
                     <div className="grid grid-cols-1 gap-6">
-                      {week.days?.map((day, dIdx) => (
+                      {week.days?.map((day, dIdx) => {
+                        const dayTasksDone = day.tasks?.filter((_, tsIndex) => completedTasks[`${wIdx}-${dIdx}-${tsIndex}`]).length || 0;
+                        const dayTasksTotal = day.tasks?.length || 0;
+                        const dayComplete = dayTasksTotal > 0 && dayTasksDone === dayTasksTotal;
+                        return (
                         <motion.div 
                           whileHover={{ x: 8 }}
                           key={dIdx} 
                           className="relative group lg:max-w-4xl"
                         >
                           {/* Day Marker */}
-                          <div className="absolute -left-[53px] top-6 w-3 h-3 rounded-full bg-surface-container-highest border border-outline-variant group-hover:bg-secondary group-hover:border-transparent transition-all shadow-[0_0_10px_rgba(105,246,184,0)] group-hover:shadow-[0_0_15px_rgba(105,246,184,0.3)]"></div>
+                          <div className={`absolute -left-[53px] top-6 w-3 h-3 rounded-full border transition-all shadow-[0_0_10px_rgba(105,246,184,0)] ${dayComplete ? 'bg-secondary border-secondary shadow-[0_0_15px_rgba(105,246,184,0.5)]' : 'bg-surface-container-highest border-outline-variant group-hover:bg-secondary group-hover:border-transparent group-hover:shadow-[0_0_15px_rgba(105,246,184,0.3)]'}`}></div>
                           
-                          <div className="bg-surface-container-low/50 backdrop-blur-md border border-outline-variant/15 p-6 rounded-2xl group-hover:border-secondary/30 group-hover:bg-surface-container-low transition-all shadow-sm group-hover:shadow-xl">
+                          <div className={`backdrop-blur-md border p-6 rounded-2xl transition-all shadow-sm group-hover:shadow-xl ${dayComplete ? 'bg-secondary/5 border-secondary/30' : 'bg-surface-container-low/50 border-outline-variant/15 group-hover:border-secondary/30 group-hover:bg-surface-container-low'}`}>
                             <div className="flex justify-between items-start mb-4">
                               <div>
                                 <span className="text-[10px] font-black uppercase tracking-[0.15em] text-on-surface-variant group-hover:text-secondary transition-colors">{day.day}</span>
@@ -326,22 +417,33 @@ const Planner = () => {
                                   {day.duration && <span className="text-[10px] font-mono text-on-surface-variant/60 ml-2">({day.duration})</span>}
                                 </h4>
                               </div>
-                              <span className="px-3 py-1 bg-surface-variant/50 text-on-surface-variant text-[9px] font-bold rounded-full border border-outline-variant/10">PENDING</span>
+                              <span className={`px-3 py-1 text-[9px] font-bold rounded-full border ${dayComplete ? 'bg-secondary/10 text-secondary border-secondary/30' : dayTasksDone > 0 ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface-variant/50 text-on-surface-variant border-outline-variant/10'}`}>
+                                {dayComplete ? '✓ DONE' : dayTasksDone > 0 ? `${dayTasksDone}/${dayTasksTotal}` : 'PENDING'}
+                              </span>
                             </div>
                             
                             <div className="flex flex-wrap gap-3">
-                              {day.tasks?.map((task, tsIndex) => (
-                                <div key={tsIndex} className="bg-surface-container-lowest/40 px-4 py-2 rounded-xl border border-outline-variant/10 flex items-center gap-3 group/task">
-                                  <div className="w-5 h-5 rounded border border-outline-variant group-hover/task:border-secondary transition-all flex items-center justify-center">
-                                    <div className="w-2.5 h-2.5 rounded-sm bg-secondary opacity-0 group-hover/task:opacity-20 transition-opacity"></div>
-                                  </div>
-                                  <p className="text-xs font-medium text-on-surface-variant group-hover:text-on-surface transition-colors">{task}</p>
-                                </div>
-                              ))}
+                              {day.tasks?.map((task, tsIndex) => {
+                                const taskKey = `${wIdx}-${dIdx}-${tsIndex}`;
+                                const done = !!completedTasks[taskKey];
+                                return (
+                                  <button
+                                    key={tsIndex}
+                                    onClick={() => toggleTask(wIdx, dIdx, tsIndex)}
+                                    className={`bg-surface-container-lowest/40 px-4 py-2 rounded-xl border flex items-center gap-3 transition-all text-left ${done ? 'border-secondary/30 bg-secondary/5' : 'border-outline-variant/10 hover:border-secondary/30'}`}
+                                  >
+                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${done ? 'bg-secondary border-secondary' : 'border-outline-variant'}`}>
+                                      {done && <span className="material-symbols-outlined text-[12px] text-on-secondary font-black">check</span>}
+                                    </div>
+                                    <p className={`text-xs font-medium transition-colors ${done ? 'line-through text-on-surface-variant/50' : 'text-on-surface-variant'}`}>{task}</p>
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         </motion.div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
