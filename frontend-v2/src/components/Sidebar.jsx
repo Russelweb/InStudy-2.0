@@ -14,6 +14,7 @@ const Sidebar = ({ mobile, onLinkClick }) => {
     { icon: 'quiz', label: 'Smart Quiz', path: '/quiz' },
     { icon: 'event_note', label: 'Study Planner', path: '/planner' },
     { icon: 'smart_toy', label: 'AI Tutor', path: '/ai-tutor' },
+    { icon: 'folder_special', label: 'Saved Assets', path: '/saved-assets' },
   ];
 
   if (isAdmin) {

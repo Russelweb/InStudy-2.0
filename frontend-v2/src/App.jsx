@@ -14,6 +14,7 @@ import Signup from './pages/Signup'
 import Planner from './pages/Planner'
 import AdminDashboard from './pages/AdminDashboard'
 import Settings from './pages/Settings'
+import SavedAssets from './pages/SavedAssets'
 
 const ProtectedRoute = () => {
   const token = localStorage.getItem('auth_token');
@@ -81,6 +82,7 @@ function App() {
               <Route path="quiz" element={<Quiz />} />
               <Route path="ai-tutor" element={<AITutor />} />
               <Route path="planner"  element={<Planner />} />
+              <Route path="saved-assets" element={<SavedAssets />} />
               <Route path="admin"    element={<AdminDashboard />} />
               <Route path="settings" element={<Settings />} />
             </Route>
