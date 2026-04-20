@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
-import { flashcardService, masteryService, documentService } from '../services/api';
+import { flashcardService, masteryService, documentService, assetService } from '../services/api';
 
 const Flashcards = () => {
   const [searchParams] = useSearchParams();
@@ -16,6 +16,7 @@ const Flashcards = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [sessionStats, setSessionStats] = useState({ learned: 0, remaining: 0, correct: 0, total: 0 });
+  const [isSaving, setIsSaving] = useState(false);
 
   // Settings State
   const [showSettings, setShowSettings] = useState(true);
@@ -46,7 +47,32 @@ const Flashcards = () => {
   useEffect(() => { 
     fetchDecks(); 
     
-    // Load persisted state
+    // Check for loaded asset from Saved Assets page FIRST
+    const loadedAsset = localStorage.getItem('load_asset_flashcards');
+    if (loadedAsset) {
+      try {
+        const asset = JSON.parse(loadedAsset);
+        console.log('Loading saved flashcard deck:', asset.title);
+        setCards(asset.data.cards || []);
+        setSettings(asset.data.settings || settings);
+        setCurrentDeckId(asset.course_id);
+        setShowSettings(false); // Force hide settings
+        setCurrentIndex(0);
+        setSessionStats({ 
+          learned: 0, 
+          remaining: asset.data.cards?.length || 0, 
+          correct: 0, 
+          total: asset.data.cards?.length || 0 
+        });
+        localStorage.removeItem('load_asset_flashcards');
+        setTimeout(() => { isInitialized.current = true; }, 100);
+        return; // Skip normal persistence loading
+      } catch (e) {
+        console.error('Failed to load asset:', e);
+      }
+    }
+    
+    // Load persisted state (only if no asset was loaded)
     const savedDeckId = localStorage.getItem('flashcards_deck_id');
     const savedCards = localStorage.getItem('flashcards_cards');
     const savedIndex = localStorage.getItem('flashcards_index');
@@ -77,6 +103,30 @@ const Flashcards = () => {
     localStorage.removeItem('flashcards_cards');
     localStorage.removeItem('flashcards_index');
     localStorage.removeItem('flashcards_show_settings');
+  };
+
+  const handleSave = async () => {
+    if (cards.length === 0) return;
+    
+    const title = prompt('Name this flashcard deck:');
+    if (!title) return;
+    
+    setIsSaving(true);
+    try {
+      await assetService.save(
+        currentDeckId,
+        'flashcards',
+        title,
+        { cards, settings },
+        { card_count: cards.length }
+      );
+      alert('✅ Flashcard deck saved successfully!');
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('Failed to save deck. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // ---------- Fetch Documents for active course ----------
@@ -226,6 +276,14 @@ const Flashcards = () => {
 
           {!showSettings && (
             <div className="flex gap-3">
+              <button
+                onClick={handleSave}
+                disabled={cards.length === 0 || isSaving}
+                className="px-4 py-2 rounded-xl bg-secondary/10 text-secondary border border-secondary/20 font-bold text-xs uppercase tracking-widest hover:bg-secondary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">save</span>
+                {isSaving ? 'Saving...' : 'Save Deck'}
+              </button>
               {hudStats.map((stat, i) => (
                 <motion.div
                   key={i}
