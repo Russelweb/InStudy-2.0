@@ -61,7 +61,16 @@ def get_user_stats(user_id: str):
             stats["daily_activity"] = daily
             total_hours = 0.0
             for day_data in daily.values():
-                total_hours += day_data.get("study_time", 0) + day_data.get("questions", 0) * 5 / 60
+                # Explicit study sessions
+                total_hours += day_data.get("study_time", 0)
+                # Questions asked: ~2 min each
+                total_hours += day_data.get("questions", 0) * 2 / 60
+                # Quizzes taken: ~5 min each
+                total_hours += day_data.get("quizzes", 0) * 5 / 60
+                # Documents uploaded/reviewed: ~10 min each
+                total_hours += day_data.get("documents_uploaded", 0) * 10 / 60
+                # Flashcard sessions: ~3 min each
+                total_hours += day_data.get("flashcards", 0) * 3 / 60
             stats["study_hours"] = round(total_hours, 2)
         except: pass
 
@@ -77,13 +86,23 @@ def get_user_stats(user_id: str):
         avg_quiz = sum(q_scores) / len(q_scores) if q_scores else 0
         mastery = (doc_score * 0.4) + (avg_quiz * 0.6) if q_scores else doc_score
         
+        # Get upload date from earliest file creation time
+        upload_date = None
+        if documents:
+            try:
+                earliest = min(documents, key=lambda f: f.stat().st_ctime)
+                upload_date = datetime.fromtimestamp(earliest.stat().st_ctime).strftime("%b %d, %Y")
+            except Exception:
+                pass
+        
         stats["courses"].append({
             "name": course_dir.name.replace("_", " ").title(),
             "id": course_dir.name,
             "document_count": len(documents),
             "documents": [f.name for f in documents],
             "mastery": round(mastery, 1),
-            "avg_quiz_score": round(avg_quiz, 1) if q_scores else None
+            "avg_quiz_score": round(avg_quiz, 1) if q_scores else None,
+            "upload_date": upload_date,
         })
     stats["total_documents"] = total_docs
 
@@ -162,6 +181,10 @@ def log_activity(user_id: str, activity_type: str, data: dict):
     
     elif activity_type == "document_upload":
         activity["daily_activity"][current_date]["documents_uploaded"] += 1
+    
+    elif activity_type == "flashcard":
+        activity["daily_activity"][current_date].setdefault("flashcards", 0)
+        activity["daily_activity"][current_date]["flashcards"] += 1
     
     activity["last_updated"] = datetime.now().isoformat()
     
