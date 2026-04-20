@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { quizService, flashcardService } from '../services/api';
+import { quizService, flashcardService, assetService } from '../services/api';
 
 const QuizSetup = ({ onStart, availableCourses }) => {
   const [selectedCourse, setSelectedCourse] = useState(availableCourses[0]?.id);
@@ -277,7 +277,7 @@ const QuizAssessment = ({ questions, onComplete, onAbort }) => {
   );
 };
 
-const QuizEvaluation = ({ results, onRestart }) => (
+const QuizEvaluation = ({ results, onRestart, onSave, isSaving }) => (
   <motion.section 
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
@@ -337,6 +337,9 @@ const QuizEvaluation = ({ results, onRestart }) => (
         </div>
         
         <div className="flex gap-4 mt-4 w-full">
+          <button onClick={onSave} disabled={isSaving} className="flex-1 py-4 bg-secondary/10 border border-secondary/20 text-secondary rounded-xl font-bold shadow-lg hover:bg-secondary/20 active:scale-95 transition-all text-xs uppercase tracking-widest disabled:opacity-50">
+            {isSaving ? 'Saving...' : 'Save Quiz'}
+          </button>
           <button onClick={onRestart} className="flex-1 py-4 bg-surface-container-highest border border-outline-variant/20 text-on-surface rounded-xl font-bold shadow-lg hover:bg-surface-variant active:scale-95 transition-all text-xs uppercase tracking-widest">
             Recustomize
           </button>
@@ -356,6 +359,7 @@ const Quiz = () => {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [evaluationResults, setEvaluationResults] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const isInitialized = useRef(false);
 
   useEffect(() => {
@@ -369,7 +373,25 @@ const Quiz = () => {
     };
     fetchCourses();
 
-    // Load persisted state
+    // Check for loaded asset from Saved Assets page FIRST
+    const loadedAsset = localStorage.getItem('load_asset_quiz');
+    if (loadedAsset) {
+      try {
+        const asset = JSON.parse(loadedAsset);
+        console.log('Loading saved quiz:', asset.title);
+        setCurrentQuestions(asset.data.questions || []);
+        setEvaluationResults(asset.data.results || null);
+        setSelectedCourse(asset.course_id);
+        setPhase(asset.data.results ? 'evaluation' : 'assessment');
+        localStorage.removeItem('load_asset_quiz');
+        setTimeout(() => { isInitialized.current = true; }, 100);
+        return; // Skip normal persistence loading
+      } catch (e) {
+        console.error('Failed to load asset:', e);
+      }
+    }
+
+    // Load persisted state (only if no asset was loaded)
     const savedPhase = localStorage.getItem('quiz_phase');
     const savedQuestions = localStorage.getItem('quiz_questions');
     const savedCourseId = localStorage.getItem('quiz_selected_course');
@@ -453,6 +475,33 @@ const Quiz = () => {
     setEvaluationResults(null);
   };
 
+  const handleSaveQuiz = async () => {
+    if (!evaluationResults) return;
+    
+    const title = prompt('Name this quiz:');
+    if (!title) return;
+    
+    setIsSaving(true);
+    try {
+      await assetService.save(
+        selectedCourse,
+        'quiz',
+        title,
+        { questions: currentQuestions, results: evaluationResults },
+        { 
+          score: evaluationResults.score_percentage, 
+          total_questions: evaluationResults.total_questions 
+        }
+      );
+      alert('✅ Quiz saved successfully!');
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('Failed to save quiz. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-8 min-h-screen flex flex-col items-center justify-center relative bg-background overflow-hidden">
       {isGenerating ? (
@@ -468,7 +517,7 @@ const Quiz = () => {
         <AnimatePresence mode="wait">
           {phase === 'setup' && <QuizSetup key="setup" availableCourses={courses} onStart={handleStartQuiz} />}
           {phase === 'assessment' && <QuizAssessment key="assessment" questions={currentQuestions} onComplete={handleCompleteQuiz} onAbort={handleAbortQuiz} />}
-          {phase === 'evaluation' && <QuizEvaluation key="evaluation" results={evaluationResults} onRestart={handleRestart} />}
+          {phase === 'evaluation' && <QuizEvaluation key="evaluation" results={evaluationResults} onRestart={handleRestart} onSave={handleSaveQuiz} isSaving={isSaving} />}
         </AnimatePresence>
       )}
 
