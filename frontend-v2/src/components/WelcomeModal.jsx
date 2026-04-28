@@ -28,9 +28,18 @@ const STEPS = [
     emoji: '🃏',
     accent: 'text-secondary',
     bg: 'from-secondary/10 to-transparent',
-    title: "Flashcards, quizzes & summaries — auto-generated",
-    body: "Stop spending hours making study cards. InStudy reads your documents and generates flashcards, practice quizzes, and clean summaries for you — in seconds. You just study. We do the prep work.",
+    title: "Flashcards & Quizzes — auto-generated",
+    body: "Stop spending hours making study cards. InStudy reads your documents and generates flashcards and practice quizzes for you — in seconds. You just study. We do the prep work.",
     cta: "Wait, seriously? →",
+  },
+  {
+    type: 'intro',
+    emoji: '📝',
+    accent: 'text-orange-400',
+    bg: 'from-orange-400/10 to-transparent',
+    title: "Instant Summaries — Cut through the noise",
+    body: "Tired of reading 50-page chapters? InStudy generates high-level summaries and key takeaway points from any document. Get the core concepts in seconds, then dive deeper whenever you're ready.",
+    cta: "Summarize it all! →",
   },
   {
     type: 'intro',
@@ -131,6 +140,13 @@ const WelcomeModal = ({ onClose }) => {
       dismiss();
     } else {
       setStep(s => s + 1);
+      setError('');
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 0) {
+      setStep(s => s - 1);
       setError('');
     }
   };
@@ -245,14 +261,26 @@ const WelcomeModal = ({ onClose }) => {
 
           {/* Actions */}
           <div className="flex items-center justify-between pt-2">
-            {current.skip ? (
-              <button
-                onClick={dismiss}
-                className="text-xs text-white/30 hover:text-white/60 transition-colors underline underline-offset-4"
-              >
-                Skip for now
-              </button>
-            ) : <div />}
+            <div className="flex items-center gap-4">
+              {step > 0 && !saving && (
+                <button
+                  onClick={handleBack}
+                  className="flex items-center gap-1 text-xs text-secondary font-black uppercase tracking-widest hover:text-primary transition-colors hover:underline underline-offset-4"
+                >
+                  <span className="material-symbols-outlined text-sm">arrow_back</span>
+                  Back
+                </button>
+              )}
+              
+              {current.skip && (
+                <button
+                  onClick={dismiss}
+                  className="text-xs text-white/30 hover:text-white/60 transition-colors underline underline-offset-4"
+                >
+                  Skip for now
+                </button>
+              )}
+            </div>
 
             <button
               onClick={handleNext}

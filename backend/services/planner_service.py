@@ -29,27 +29,60 @@ class PlannerService:
         # Get appropriate LLM
         llm = get_llm(api_key)
         
-        today = datetime.now().strftime("%Y-%m-%d")
+        today_dt = datetime.now()
+        today = today_dt.strftime("%Y-%m-%d")
+        
+        # Calculate duration until exam
+        try:
+            exam_dt = datetime.strptime(exam_date, "%Y-%m-%d")
+            delta = exam_dt - today_dt
+            days_until = delta.days
+            weeks_until = max(1, (days_until // 7) + 1)
+            # Cap to prevent LLM overload
+            plan_weeks = min(12, weeks_until)
+            duration_text = f"{plan_weeks} weeks ({days_until} days)"
+        except Exception:
+            plan_weeks = 2
+            duration_text = "2 weeks"
         
         # Get mastery context — use course_id for DB lookup
         mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
         
+        # Build prompt prefix with mastery awareness
         prompt_prefix = f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize allocating more study days/hours to 'WEAK' concepts.\n\n" if mastery_context else ""
         
-        prompt = f"""{prompt_prefix}Create a study plan for a student.
-
+        prompt = f"""{prompt_prefix}Create a comprehensive study plan for a student.
+        
 Course: {course_name}
+Duration: {duration_text}
+Start Date (Today): {today}
 Exam Date: {exam_date}
-Today: {today}
 Topics: {', '.join(topics)}
 
-CRITICAL: Return ONLY a JSON object, nothing else. No explanations, no markdown, just the JSON.
-Keep the plan concise (maximum of 2 weeks detailed, 1-2 tasks per day) to ensure rapid loading times.
+CRITICAL: Return ONLY a JSON object. No markdown, no extra text.
+The plan MUST start from today ({today}) and be organized by date.
 
 Format:
-{{"weeks": [{{"week_number": 1, "focus": "Topic", "days": [{{"day": "Monday", "tasks": ["Task"], "duration": "2h"}}]}}], "revision_plan": ["Tip"], "exam_tips": ["Tip"]}}
+{{
+  "weeks": [
+    {{
+      "week_number": 1,
+      "focus": "Topic",
+      "days": [
+        {{
+          "date": "YYYY-MM-DD",
+          "day": "DayName",
+          "tasks": ["Task 1", "Task 2"],
+          "duration": "2h"
+        }}
+      ]
+    }}
+  ],
+  "revision_plan": ["Tip"],
+  "exam_tips": ["Tip"]
+}}
 
-Generate the plan now:"""
+Generate the plan starting from {today}:"""
         
         logger.info("Generating study plan with LLM...")
         response = llm.invoke(prompt)

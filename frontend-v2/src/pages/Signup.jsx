@@ -9,6 +9,8 @@ const Signup = () => {
     password: '',
     confirm_password: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -37,7 +39,12 @@ const Signup = () => {
       localStorage.setItem('is_new_user', 'true');
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed. User may already exist.');
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        setError(detail[0].msg);
+      } else {
+        setError(detail || 'Registration failed. User may already exist.');
+      }
     } finally {
       setLoading(false);
     }
@@ -89,28 +96,50 @@ const Signup = () => {
 
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">Password</label>
-              <input
-                required
-                type="password"
-                value={formData.password}
-                onChange={update('password')}
-                className="w-full bg-surface-container-high border-none rounded-xl py-4 px-4 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/30"
-                placeholder="••••••••••••"
-                autoComplete="new-password"
-              />
+              <div className="relative">
+                <input
+                  required
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={update('password')}
+                  className="w-full bg-surface-container-high border-none rounded-xl py-4 pl-4 pr-12 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/30"
+                  placeholder="••••••••••••"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 hover:text-secondary transition-colors"
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {showPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">Confirm Password</label>
-              <input
-                required
-                type="password"
-                value={formData.confirm_password}
-                onChange={update('confirm_password')}
-                className="w-full bg-surface-container-high border-none rounded-xl py-4 px-4 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/30"
-                placeholder="••••••••••••"
-                autoComplete="new-password"
-              />
+              <div className="relative">
+                <input
+                  required
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={formData.confirm_password}
+                  onChange={update('confirm_password')}
+                  className="w-full bg-surface-container-high border-none rounded-xl py-4 pl-4 pr-12 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/30"
+                  placeholder="••••••••••••"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 hover:text-secondary transition-colors"
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {showConfirmPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <button

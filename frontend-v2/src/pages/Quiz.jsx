@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { quizService, flashcardService, assetService } from '../services/api';
+import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const QuizSetup = ({ onStart, availableCourses }) => {
   const [selectedCourse, setSelectedCourse] = useState(availableCourses[0]?.id);
@@ -523,6 +524,7 @@ const Quiz = () => {
 
       <div className="fixed top-1/4 -left-32 w-96 h-96 bg-[#581c87]/10 blur-[120px] rounded-full -z-20"></div>
       <div className="fixed bottom-1/4 -right-32 w-96 h-96 bg-[#064e3b]/10 blur-[120px] rounded-full -z-20"></div>
+      <ScrollToTopButton />
     </div>
   );
 };

@@ -18,6 +18,7 @@ const Workspace = () => {
   const [uploadError, setUploadError]       = useState('');
   const [docRefreshTick, setDocRefreshTick] = useState(0);
   const [activeAnnotations, setActiveAnnotations] = useState([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Resolve human-readable course name
   useEffect(() => {
@@ -65,7 +66,7 @@ const Workspace = () => {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden text-on-background">
       {/* Top Workspace Nav */}
-      <nav className="shrink-0 w-full z-50 bg-[#040805]/80 backdrop-blur-3xl flex justify-between items-center px-4 md:px-8 h-16 shadow-[0px_20px_40px_rgba(189,157,255,0.05)] border-b border-primary/10">
+      <nav className="shrink-0 w-full z-50 bg-[#0c1410]/80 backdrop-blur-3xl flex justify-between items-center px-4 md:px-8 h-16 shadow-[0px_20px_40px_rgba(189,157,255,0.05)] border-b border-primary/10">
         <Link to="/" className="text-xl md:text-2xl font-black tracking-tighter text-[#bd9dff] shrink-0">InStudy 2.0</Link>
         <div className="hidden sm:flex items-center gap-4 md:gap-6 overflow-hidden">
           {courseName && (
@@ -74,9 +75,9 @@ const Workspace = () => {
             </span>
           )}
           <div className="h-4 w-px bg-outline-variant/20 hidden md:block"></div>
-          <Link className="text-[#f8fef6]/60 hover:text-[#f8fef6] text-xs md:text-sm tracking-tight transition-all hidden lg:block" to="/knowledge">Library</Link>
+          <Link className="text-[#d8e8d6]/60 hover:text-[#d8e8d6] text-xs md:text-sm tracking-tight transition-all hidden lg:block" to="/knowledge">Library</Link>
           <span className="text-[#bd9dff] border-b-2 border-[#bd9dff] pb-1 text-xs md:text-sm tracking-tight whitespace-nowrap">Workspace</span>
-          <Link className="text-[#f8fef6]/60 hover:text-[#f8fef6] text-xs md:text-sm tracking-tight transition-all hidden lg:block" to="/flashcards">Flashcards</Link>
+          <Link className="text-[#d8e8d6]/60 hover:text-[#d8e8d6] text-xs md:text-sm tracking-tight transition-all hidden lg:block" to="/flashcards">Flashcards</Link>
         </div>
         <div className="flex items-center gap-3 md:gap-4">
 {/*           <span className="material-symbols-outlined text-[#bd9dff] cursor-pointer text-xl md:text-2xl">settings</span> */}
@@ -86,54 +87,59 @@ const Workspace = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Workspace Side Nav */}
-        <aside className="w-20 md:w-64 bg-[#000000] flex flex-col py-8 px-4 gap-6 shrink-0 border-r border-outline-variant/10">
-          <div className="px-2 mb-4 hidden md:block">
-            <p className="text-xs font-bold tracking-widest uppercase text-secondary/40">AI Tutor Workspace</p>
-            <p className="text-[10px] text-primary/60">{courseId ? 'Bio-Sync Active' : 'No course selected'}</p>
-          </div>
+        <aside className={`${sidebarCollapsed ? 'w-16' : 'w-20 md:w-64'} bg-[#0c1410] flex flex-col py-8 px-2 gap-6 shrink-0 border-r border-outline-variant/10 transition-all duration-300 overflow-y-auto`}>
+          {!sidebarCollapsed && (
+            <div className="px-2 mb-4 hidden md:block">
+              <p className="text-xs font-bold tracking-widest uppercase text-secondary/40">AI Tutor Workspace</p>
+              <p className="text-[10px] text-primary/60">{courseId ? 'Bio-Sync Active' : 'No course selected'}</p>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
-            <button className="flex items-center gap-4 p-3 text-[#69f6b8] bg-[#69f6b8]/10 rounded-lg transition-all duration-200">
-              <span className="material-symbols-outlined">menu_book</span>
-              <span className="hidden md:block text-sm font-medium">Reader</span>
+            <button
+              onClick={() => setSidebarCollapsed(v => !v)}
+              className="flex items-center justify-center p-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest rounded-lg transition-all"
+              title={sidebarCollapsed ? 'Expand' : 'Collapse'}
+            >
+              <span className="material-symbols-outlined text-lg">{sidebarCollapsed ? 'chevron_right' : 'chevron_left'}</span>
             </button>
-{/*             <button className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200"> */}
-{/*               <span className="material-symbols-outlined">psychology</span> */}
-{/*               <span className="hidden md:block text-sm font-medium">AI Analyst</span> */}
-{/*             </button> */}
-            <Link to="/" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
+            <button className="flex items-center gap-4 p-3 text-secondary bg-secondary/10 rounded-lg transition-all duration-200" title="Reader">
+              <span className="material-symbols-outlined">menu_book</span>
+              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">Reader</span>}
+            </button>
+            <Link to="/" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="Dashboard">
               <span className="material-symbols-outlined">home</span>
-              <span className="hidden md:block text-sm font-medium">Dashboard</span>
+              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">Dashboard</span>}
             </Link>
-            <Link to="/knowledge" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
+            <Link to="/knowledge" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="Knowledge Base">
               <span className="material-symbols-outlined">database</span>
-              <span className="hidden md:block text-sm font-medium">Knowledge Base</span>
+              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">Knowledge Base</span>}
             </Link>
-            <Link to="/flashcards" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
+            <Link to="/flashcards" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="Flashcards">
               <span className="material-symbols-outlined">style</span>
-              <span className="hidden md:block text-sm font-medium">Flashcards</span>
+              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">Flashcards</span>}
             </Link>
-            <Link to="/quiz" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
+            <Link to="/quiz" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="Smart Quiz">
               <span className="material-symbols-outlined">quiz</span>
-              <span className="hidden md:block text-sm font-medium"> Smart Quiz</span>
+              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">Smart Quiz</span>}
             </Link>
-            <Link to="/ai-tutor" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
+            <Link to="/ai-tutor" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="AI Tutor">
               <span className="material-symbols-outlined">smart_toy</span>
-              <span className="hidden md:block text-sm font-medium">AI Tutor</span>
+              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">AI Tutor</span>}
             </Link>
-            <Link to="/planner" className="flex items-center gap-4 p-3 text-[#f8fef6]/40 hover:bg-[#bd9dff]/5 hover:text-[#bd9dff] rounded-lg transition-all duration-200">
+            <Link to="/planner" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="Study Planner">
               <span className="material-symbols-outlined">event_note</span>
-              <span className="hidden md:block text-sm font-medium">Study Planner</span>
+              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">Study Planner</span>}
             </Link>
-
           </div>
-          <div className="mt-auto md:px-2">
+          <div className="mt-auto px-1">
             <button
               onClick={() => setIsUploadOpen(true)}
               disabled={!courseId}
               className="w-full signature-gradient text-on-surface py-3 rounded-xl font-bold text-xs tracking-widest uppercase transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="New Research"
             >
               <span className="material-symbols-outlined text-sm">add</span>
-              <span className="hidden md:block">New Research</span>
+              {!sidebarCollapsed && <span className="hidden md:block">New Research</span>}
             </button>
           </div>
         </aside>

@@ -5,6 +5,7 @@ Identifies key topics/concepts from study materials to enable adaptive learning.
 
 from models.global_models import get_llm
 from database.mastery_db import mastery_db
+from utils.concept_utils import normalize_concepts, extract_concept_from_text
 import json
 import logging
 from typing import List, Dict, Any, Optional
@@ -32,12 +33,21 @@ class ConceptService:
             response_text = response if isinstance(response, str) else getattr(response, 'content', str(response))
             # Clean and split into a list
             concepts = [c.strip() for c in response_text.split(",")]
-            # Filter out empty or noise
-            concepts = [c for c in concepts if len(c) > 2 and len(c) < 50]
-            return list(set(concepts))[:3]
+            
+            # Normalize all concepts
+            normalized = normalize_concepts(concepts)
+            
+            # If LLM extraction failed or returned nothing valid, use fallback
+            if not normalized:
+                logger.warning("LLM concept extraction failed, using fallback heuristics")
+                normalized = extract_concept_from_text(text, max_concepts=3)
+            
+            logger.info(f"Extracted concepts: {normalized}")
+            return normalized
         except Exception as e:
             logger.error(f"Error extracting concepts: {e}")
-            return []
+            # Fallback to heuristic extraction
+            return extract_concept_from_text(text, max_concepts=3)
 
     def get_summary_context_for_mastery(self, user_id: str, course_id: str) -> str:
         """Construct a context string for the LLM based on user's current mastery profile"""

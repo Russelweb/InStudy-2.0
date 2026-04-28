@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 import Dashboard from './pages/Dashboard'
@@ -12,6 +12,8 @@ import AITutor from './pages/AITutor'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Planner from './pages/Planner'
+import Summary from './pages/Summary'
+import Mastery from './pages/Mastery'
 import AdminDashboard from './pages/AdminDashboard'
 import Settings from './pages/Settings'
 import SavedAssets from './pages/SavedAssets'
@@ -21,14 +23,21 @@ const ProtectedRoute = () => {
   return token ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+};
+
 function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-background relative">
       {/* Sidebar - Desktop */}
-      <div className="hidden md:block w-64 shrink-0">
-        <Sidebar />
+      <div className={`hidden md:block shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+        <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)} />
       </div>
 
       {/* Sidebar - Mobile Drawer */}
@@ -51,13 +60,6 @@ function MainLayout() {
           <Outlet />
         </main>
       </div>
-      
-{/*        */}{/* Floating Action Button */}
-{/*       <div className="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8"> */}
-{/*         <button className="w-12 h-12 md:w-14 md:h-14 rounded-full signature-gradient shadow-lg flex items-center justify-center hover:scale-110 transition-transform active:scale-95 group"> */}
-{/*           <span className="material-symbols-outlined text-white text-xl md:text-2xl group-hover:rotate-12 transition-transform">terminal</span> */}
-{/*         </button> */}
-{/*       </div> */}
     </div>
   );
 }
@@ -65,6 +67,7 @@ function MainLayout() {
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <div className="min-h-screen bg-background text-on-surface">
         <Routes>
           {/* Public Routes */}
@@ -82,6 +85,8 @@ function App() {
               <Route path="quiz" element={<Quiz />} />
               <Route path="ai-tutor" element={<AITutor />} />
               <Route path="planner"  element={<Planner />} />
+              <Route path="summary" element={<Summary />} />
+              <Route path="mastery" element={<Mastery />} />
               <Route path="saved-assets" element={<SavedAssets />} />
               <Route path="admin"    element={<AdminDashboard />} />
               <Route path="settings" element={<Settings />} />

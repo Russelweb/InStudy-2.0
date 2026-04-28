@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import UploadZone from '../components/UploadZone';
 import CourseCard from '../components/CourseCard';
 import { documentService, statService } from '../services/api';
+import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const KnowledgeBase = () => {
   const [courses, setCourses] = useState([]);
@@ -241,6 +242,7 @@ const KnowledgeBase = () => {
           </div>
         )}
       </section>
+      <ScrollToTopButton />
     </div>
   );
 };

@@ -32,7 +32,7 @@ class AuthService:
             if not self.validate_password(password):
                 return AuthResult(
                     success=False,
-                    error_message="Password must be at least 8 characters long"
+                    error_message="Password must be at least 8 characters long and include letters, numbers, and special characters (!@#$%^&*)."
                 )
             
             if password != confirm_password:
@@ -180,8 +180,29 @@ class AuthService:
         return re.match(pattern, email) is not None
     
     def validate_password(self, password: str) -> bool:
-        """Validate password requirements"""
-        return len(password) >= 8
+        """
+        Validate password requirements:
+        - At least 8 characters
+        - At least one letter (a-z, A-Z)
+        - At least one number (0-9)
+        - At least one special character (!@#$%^&* etc.)
+        """
+        if len(password) < 8:
+            return False
+            
+        # Check for at least one letter
+        if not re.search(r'[a-zA-Z]', password):
+            return False
+            
+        # Check for at least one number
+        if not re.search(r'\d', password):
+            return False
+            
+        # Check for at least one special character
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+            return False
+            
+        return True
     
     def update_groq_key(self, user_id: int, key: str) -> bool:
         """Update user's Groq API key"""

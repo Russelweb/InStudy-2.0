@@ -21,12 +21,12 @@
 }
 
 body {
-  background-color: #040805;
+  background-color: #060d08;
   background-image: 
-    radial-gradient(circle at 0% 0%, rgba(189, 157, 255, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 100% 100%, rgba(105, 246, 184, 0.05) 0%, transparent 40%);
+    radial-gradient(circle at 0% 0%, rgba(189, 157, 255, 0.07) 0%, transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(105, 246, 184, 0.04) 0%, transparent 40%);
   min-height: 100vh;
-  color: #f8fef6;
+  color: #d8e8d6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -97,7 +97,31 @@ body {
   gap: 1.5rem;
 }
 
-/* KaTeX math rendering — dark theme overrides */
+/* Generated/AI text content - improved readability */
+.ai-content {
+  line-height: 1.85;
+  color: #c8dcc6;
+}
+
+.ai-content p {
+  margin-bottom: 0.85em;
+  line-height: 1.85;
+}
+
+.ai-content h1, .ai-content h2, .ai-content h3 {
+  line-height: 1.4;
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+}
+
+.ai-content li {
+  line-height: 1.8;
+  margin-bottom: 0.3em;
+}
+
+.ai-content code {
+  line-height: 1.6;
+}
 .katex {
   color: #f8fef6;
   font-size: 1em;

@@ -144,13 +144,23 @@ async def evaluate_quiz(
                 "correct_answers": results["correct_answers"]
             })
             
-            # Auto-infer mastery from quiz performance
+            # Incremental mastery updates from quiz performance
+            # Use smaller adjustments to avoid dramatic swings
             for q_res in results["question_results"]:
                 concept = q_res.get("concept")
                 is_correct = q_res.get("is_correct")
                 if concept:
-                    familiarity = 1 if is_correct else -1
-                    mastery_db.update_mastery(user_id, request_data.course_id, concept, familiarity)
+                    # Incremental scoring:
+                    # Correct: +0.3 (gradual improvement)
+                    # Incorrect: -0.4 (slightly more penalty to encourage review)
+                    familiarity_delta = 0.3 if is_correct else -0.4
+                    mastery_db.update_mastery(
+                        user_id, 
+                        request_data.course_id, 
+                        concept, 
+                        familiarity_delta,
+                        action='quiz_answer'
+                    )
                     
             print("Step 9: Activity and mastery logged successfully")
         except Exception as log_error:

@@ -39,9 +39,9 @@ class SummaryService:
         mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
         
         style_prompts = {
-            "short": "Provide a concise summary (2-3 paragraphs)",
-            "detailed": "Provide a comprehensive summary (4-6 paragraphs)",
-            "exam": "Create an exam revision summary focusing on testable concepts."
+            "short": "Provide a concise summary of the entire document (2-3 paragraphs)",
+            "detailed": "Provide a comprehensive summary of the entire document (4-6 paragraphs)",
+            "exam": "Create an exam revision summary of the entire document focusing on testable concepts."
         }
         
         prompt = f"""{mastery_context}Analyze the study material provided:

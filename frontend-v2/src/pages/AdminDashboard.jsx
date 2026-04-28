@@ -6,6 +6,8 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
+  const [interactions, setInteractions] = useState([]);
+  const [allCourses, setAllCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -21,8 +23,13 @@ const AdminDashboard = () => {
     try {
       const statsRes = await adminService.getStats();
       const usersRes = await adminService.getUsers();
+      const interactRes = await adminService.getInteractions();
+      const allCourseRes = await adminService.getAllCourses();
+      
       setStats(statsRes.data);
       setUsers(usersRes.data.users);
+      setInteractions(interactRes.data.interactions);
+      setAllCourses(allCourseRes.data.courses);
     } catch (err) {
       console.error(err);
       setError('Failed to load admin data');
@@ -48,6 +55,7 @@ const AdminDashboard = () => {
       if (type === 'revokeAdmin') await adminService.revokeAdmin(data);
       if (type === 'deleteUser') await adminService.deleteUser(data);
       if (type === 'deleteCourse') await adminService.deleteCourse(data.userId, data.courseId);
+      if (type === 'deleteDocument') await adminService.deleteDocument(data.userId, data.courseId, data.filename);
       
       // Refresh
       fetchInitialData();
@@ -84,7 +92,7 @@ const AdminDashboard = () => {
         </div>
         
         <div className="flex p-1 bg-[#202821]/50 rounded-xl border border-white/5 backdrop-blur-md self-stretch md:self-auto overflow-x-auto">
-          {['overview', 'users', 'courses'].map((tab) => (
+          {['overview', 'users', 'interactions', 'logs'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -94,7 +102,7 @@ const AdminDashboard = () => {
                   : 'text-on-surface/60 hover:text-white'
               }`}
             >
-              {tab}
+              {tab === 'logs' ? 'System Logs' : tab}
             </button>
           ))}
         </div>
@@ -135,14 +143,18 @@ const AdminDashboard = () => {
             <div className="col-span-1 md:col-span-2 mt-4">
               <div className="glass-morphism p-6 rounded-2xl border border-white/10 h-full">
                 <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#bd9dff]">history</span>
-                  Recent System logs
+                  <span className="material-symbols-outlined text-[#bd9dff]">bolt</span>
+                  Live Interaction Pulse
                 </h3>
-                <div className="space-y-4 text-xs font-mono text-on-surface-variant/80">
-                  <p><span className="text-[#bd9dff]">[10:42:01]</span> Admin session initialized for system@instudy.io</p>
-                  <p><span className="text-[#bd9dff]">[10:38:55]</span> Periodic vector store re-indexing completed (2,401 nodes)</p>
-                  <p><span className="text-[#bd9dff]">[10:15:22]</span> New user registration: sarah.j@edu.com</p>
-                  <p><span className="text-[#bd9dff]">[09:55:10]</span> Cache cleared for node range 0x44-0x5F</p>
+                <div className="space-y-4 text-[10px] font-mono text-on-surface-variant/80">
+                  {interactions.slice(0, 5).map((log, i) => (
+                    <p key={i} className="border-b border-white/5 pb-2">
+                      <span className="text-[#bd9dff]">[{new Date(log.timestamp).toLocaleTimeString()}]</span> 
+                      <span className="text-[#69f6b8]"> {log.user_email}</span> queried 
+                      <span className="text-white"> {log.course}</span>: 
+                      <span className="italic text-on-surface-variant/60"> "{log.content?.substring(0, 40)}..."</span>
+                    </p>
+                  ))}
                 </div>
               </div>
             </div>
@@ -263,11 +275,23 @@ const AdminDashboard = () => {
                                     <span className="material-symbols-outlined text-sm">delete</span>
                                   </button>
                                 </div>
-                                <div className="flex flex-wrap gap-1">
+                                <div className="space-y-1 mt-2">
                                   {course.documents.map((doc, idx) => (
-                                    <span key={idx} className="px-2 py-0.5 rounded bg-white/5 text-[10px] text-on-surface-variant/60 border border-white/5 truncate max-w-[150px]">
-                                      {doc}
-                                    </span>
+                                    <div key={idx} className="flex justify-between items-center px-3 py-2 bg-black/20 rounded-lg group/doc">
+                                      <span className="text-[10px] text-on-surface-variant/80 truncate max-w-[180px]">
+                                        {doc}
+                                      </span>
+                                      <button 
+                                        onClick={() => setConfirmModal({ 
+                                          show: true, 
+                                          type: 'deleteDocument', 
+                                          data: { userId: selectedUser.id, courseId: course.id, filename: doc } 
+                                        })}
+                                        className="text-red-500/0 group-hover/doc:text-red-500/60 hover:!text-red-400 transition-all"
+                                      >
+                                        <span className="material-symbols-outlined text-xs">close</span>
+                                      </button>
+                                    </div>
                                   ))}
                                 </div>
                               </div>
@@ -293,20 +317,74 @@ const AdminDashboard = () => {
           </motion.div>
         )}
 
-        {activeTab === 'courses' && (
+        {activeTab === 'interactions' && (
           <motion.div 
-            key="courses"
+            key="interactions"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
+            className="glass-morphism rounded-2xl border border-white/10 overflow-hidden"
           >
-            <div className="p-12 glass-morphism rounded-3xl border border-white/10 text-center">
-               <span className="material-symbols-outlined text-8xl text-[#bd9dff]/20 mb-6">database</span>
-               <h2 className="text-2xl font-black text-white mb-2">Knowledge Matrix Hub</h2>
-               <p className="text-on-surface-variant/60 max-w-md mx-auto">
-                 Global course management is currently accessible via the Users tab for granular control. 
-                 Advanced mass-indexing features coming in subsequent patch.
-               </p>
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white uppercase tracking-tighter">Live Neural Interactions</h2>
+              <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase">Live Link Active</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-white/5 text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                    <th className="px-6 py-4 font-black">Timestamp</th>
+                    <th className="px-6 py-4 font-black">Subject</th>
+                    <th className="px-6 py-4 font-black">Matrix Path</th>
+                    <th className="px-6 py-4 font-black">Query Content</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {interactions.map((q, i) => (
+                    <tr key={i} className="hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4 text-xs font-mono text-[#bd9dff]">{new Date(q.timestamp).toLocaleString()}</td>
+                      <td className="px-6 py-4 text-xs font-bold text-white">{q.user_email}</td>
+                      <td className="px-6 py-4 text-xs text-on-surface-variant/60">{q.course}</td>
+                      <td className="px-6 py-4 text-xs italic text-on-surface-variant/80">"{q.content}"</td>
+                    </tr>
+                  ))}
+                  {interactions.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-12 text-center text-on-surface-variant/30 italic">No interactions detected in current quadrant.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'logs' && (
+          <motion.div 
+            key="logs"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="glass-morphism p-8 rounded-3xl border border-white/10 bg-black/40"
+          >
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+              <h2 className="text-xl font-black text-white uppercase tracking-tighter">System Audit Logs</h2>
+            </div>
+            <div className="space-y-2 font-mono text-xs">
+              {interactions.map((log, i) => (
+                <div key={i} className="flex gap-4 p-2 hover:bg-white/5 rounded border-l-2 border-[#bd9dff]/30">
+                  <span className="text-[#bd9dff]/60">[{new Date(log.timestamp).toISOString()}]</span>
+                  <span className="text-secondary font-bold">INFO</span>
+                  <span className="text-white">USER_QUERY: {log.user_email} executed retrieval on '{log.course}'</span>
+                  <span className="text-on-surface-variant/40 truncate flex-1">payload: {JSON.stringify(log.content)}</span>
+                </div>
+              ))}
+              <div className="flex gap-4 p-2 hover:bg-white/5 rounded border-l-2 border-primary/30">
+                <span className="text-[#bd9dff]/60">[{new Date().toISOString()}]</span>
+                <span className="text-primary font-bold">SYS</span>
+                <span className="text-white">ADMIN_OVERRIDE: Central matrix re-synchronization heartbeat OK</span>
+              </div>
             </div>
           </motion.div>
         )}

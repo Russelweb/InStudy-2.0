@@ -35,41 +35,71 @@ class FlashcardService:
         if not vector_store:
             raise ValueError("NO_DOCUMENTS")
             
-        # Get mastery context
-        mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
+        # Get mastery data for intelligent concept selection
+        from database.mastery_db import mastery_db
+        mastery_data = mastery_db.get_user_mastery(user_id, course_id)
         
-        # Target search query towards weak areas if they exist
-        search_query = ""
-        if "WEAK IN" in mastery_context:
-            try:
-                search_chunk = mastery_context.split("WEAK IN (Expand these):")[1].split("\n")[0].strip()
-                search_query = search_chunk
-            except: pass
+        # Categorize concepts by mastery level
+        weak_concepts = []
+        medium_concepts = []
+        mastered_concepts = []
+        
+        for concept_data in mastery_data:
+            score = concept_data.get("familiarity_score", 0)
+            concept = concept_data.get("concept_id", "")
+            if score < 0.3:
+                weak_concepts.append(concept)
+            elif score < 0.7:
+                medium_concepts.append(concept)
+            else:
+                mastered_concepts.append(concept)
+        
+        logger.info(f"Mastery breakdown - Weak: {len(weak_concepts)}, Medium: {len(medium_concepts)}, Mastered: {len(mastered_concepts)}")
+        
+        # Build mastery context for LLM - increase limits to ensure LLM knows what to avoid
+        mastery_context = ""
+        if weak_concepts or mastered_concepts:
+            mastery_context = "USER MASTERY PROFILE:\n"
+            if weak_concepts:
+                mastery_context += f"WEAK CONCEPTS (PRIORITIZE): {', '.join(weak_concepts[:15])}\n"
+            if medium_concepts:
+                mastery_context += f"LEARNING CONCEPTS: {', '.join(medium_concepts[:10])}\n"
+            if mastered_concepts:
+                # Send up to 50 mastered concepts so the LLM really knows what to avoid
+                mastery_context += f"MASTERED CONCEPTS (STRICTLY AVOID): {', '.join(mastered_concepts[:50])}\n"
+        
+        # Target search query towards weak areas
+        search_query = " ".join(weak_concepts[:5]) if weak_concepts else ""
             
-        # Get content samples (prioritizing weak areas via search query)
-        k_fetch = min(50, num_cards * 5) if filename else min(20, num_cards * 3)
+        # Get content samples
+        # Increase k_fetch to get a wider variety of content
+        k_fetch = min(100, num_cards * 10) if filename else min(40, num_cards * 5)
         docs = vector_store.similarity_search(search_query, k=k_fetch)
         
         if filename:
-            # Filter docs by filename metadata
-            filtered_docs = []
-            for doc in docs:
-                source = doc.metadata.get('source', '')
-                # Ensure the path contains the specific filename requested
-                if filename in source:
-                    filtered_docs.append(doc)
-            if not filtered_docs:
-                logger.warning(f"No documents found exactly matching {filename}, falling back to all")
-            else:
+            filtered_docs = [d for d in docs if filename in d.metadata.get('source', '')]
+            if filtered_docs:
                 docs = filtered_docs
                 
+        # INTELLIGENT SELECTION: If user has mastered many things, shuffle or offset 
+        # to find "deeper" content they haven't seen as often.
+        if len(mastered_concepts) > 5 and len(docs) > 15:
+            import random
+            # Keep the top 5 most relevant, but shuffle the rest to find new topics
+            top_docs = docs[:5]
+            other_docs = docs[5:]
+            random.shuffle(other_docs)
+            docs = top_docs + other_docs
+            logger.info("Shuffled document results to encourage concept discovery.")
+
         # Limit the number of documents to send to context
-        context = "\n\n".join([doc.page_content for doc in docs[:10]])
+        context = "\n\n".join([doc.page_content for doc in docs[:12]])
         
-        # Customize prompt based on mastery context
+        # Build prompt prefix with mastery awareness
         prompt_prefix = ""
         if mastery_context:
-            prompt_prefix = f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize generating cards for the 'WEAK' concepts while keeping 'MASTERED' points brief.\n\n"
+            prompt_prefix = f"{mastery_context}\n"
+            prompt_prefix += "GUIDANCE: Focus on generating cards for the WEAK areas listed above. If the text contains concepts from the MASTERED list, skip them and find other valuable information, nuanced details, or related sub-topics instead.\n\n"
         
         # Customize prompt based on explanation level
         if explanation_level == "brief":
@@ -92,7 +122,9 @@ INSTRUCTIONS:
 - Back: Complete answer with explanation
 - Concept: Identify the 1-2 word main topic for this card
 - {explanation_instruction}
-- Focus on deep understanding
+- Focus on deep understanding and discovery of NEW information
+- CRITICAL: AVOID concepts from the 'MASTERED CONCEPTS' list above.
+- If you find no new concepts, focus on more advanced or detailed aspects of existing topics that haven't been covered in basic flashcards.
 
 EXAMPLE FORMAT:
 Front: "What is photosynthesis?"

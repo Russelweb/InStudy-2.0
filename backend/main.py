@@ -1,9 +1,22 @@
+import sys
+import os
+
+# --- Windows DLL Initialization Fix ---
+if sys.platform == 'win32':
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    # Try to import torch as early as possible to claim DLLs
+    try:
+        import torch
+        print(f"Torch pre-loaded: {torch.__version__}")
+    except Exception as e:
+        print(f"Early torch import failed: {e}")
+# --------------------------------------
+
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
-import os
 from dotenv import load_dotenv
 import logging
 from pathlib import Path
@@ -84,3 +97,7 @@ async def health():
         "embeddings": "local",
         "llm": "local"
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

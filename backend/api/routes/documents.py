@@ -1,5 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks
 from services.document_processor import DocumentProcessor
 from api.routes.auth import get_authenticated_user
 from api.routes.stats import log_activity
@@ -13,7 +12,7 @@ from datetime import datetime
 from config import settings
 import traceback
 from services.thumbnail_service import thumbnail_service
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 import docx2txt
 import fitz  # PyMuPDF
 from functools import lru_cache
@@ -244,11 +243,12 @@ def _build_annotated_docx(paragraphs: List[str], annotations: list, original_fil
 
 @router.post("/upload")
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     course_id: str = Form(...),
     current_user: User = Depends(get_authenticated_user)
 ):
-    """Upload and process document"""
+    """Upload and process document (fast response, heavy lifting in background)"""
     try:
         user_id = str(current_user.id)
         allowed_extensions = ['.pdf', '.txt', '.docx']
@@ -257,7 +257,6 @@ async def upload_document(
         if file_ext not in allowed_extensions:
             raise HTTPException(400, f"Unsupported file type: {file_ext}")
 
-        # Sanitize filename and use absolute paths for filesystem operations
         from utils.file_utils import sanitize_filename, get_absolute_path
         
         original_filename = file.filename
@@ -267,19 +266,27 @@ async def upload_document(
         os.makedirs(user_dir, exist_ok=True)
         file_path = os.path.join(user_dir, sanitized_filename)
 
+        # 1. Save file (very fast)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        num_chunks = doc_processor.process_document(file_path, user_id, course_id, sanitized_filename)
-
-        log_activity(user_id, "document_upload", {
+        # 2. Log basic activity
+        log_activity(user_id, "document_upload_start", {
             "filename": original_filename,
-            "sanitized_filename": sanitized_filename,
-            "course": course_id,
-            "chunks": num_chunks
+            "course": course_id
         })
 
-        return {"message": "Document uploaded successfully", "filename": sanitized_filename, "chunks": num_chunks}
+        # 3. Schedule heavy processing in background
+        # This prevents the request from timing out or being interrupted by navigation
+        background_tasks.add_task(
+            doc_processor.process_document, 
+            file_path, user_id, course_id, sanitized_filename
+        )
+
+        return {
+            "message": "Upload successful! We are processing your document in the background. It will be ready for chat and quizzes in a few moments.", 
+            "filename": sanitized_filename
+        }
 
     except HTTPException:
         raise

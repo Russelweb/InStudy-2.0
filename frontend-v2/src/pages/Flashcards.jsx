@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
 import { flashcardService, masteryService, documentService, assetService } from '../services/api';
+import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const Flashcards = () => {
   const [searchParams] = useSearchParams();
@@ -131,10 +132,8 @@ const Flashcards = () => {
 
   // ---------- Fetch Documents for active course ----------
   useEffect(() => {
-    // Always show settings when deck changes manually
-    // but only if it's a NEW deck, otherwise we might be restoring session
-    // Actually, let's keep it simple: if the user clicks a new deck, clear current session
-    if (currentDeckId !== localStorage.getItem('flashcards_deck_id')) {
+    // Only reset if the deck actually changed AND we're already initialized
+    if (isInitialized.current && currentDeckId !== localStorage.getItem('flashcards_deck_id')) {
         clearPersistence();
         setShowSettings(true);
         setCards([]);
@@ -170,6 +169,8 @@ const Flashcards = () => {
       const newCards = response.data.flashcards || [];
       setCards(newCards);
       setSessionStats({ learned: 0, remaining: newCards.length, correct: 0, total: newCards.length });
+      // Scroll to top so user sees the first card
+      setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
     } catch (error) {
       console.error('Failed to generate cards:', error);
       const msg = error.response?.data?.detail || '';
@@ -192,7 +193,18 @@ const Flashcards = () => {
     if (!card) return;
 
     try {
-      const conceptId = card.id || card.front || card.question || 'unknown_concept';
+      // Prioritize the concept field, fallback to extracting from front
+      let conceptId = card.concept;
+      
+      // If no concept field, try to extract a short concept from the question
+      if (!conceptId) {
+        // Extract first few meaningful words from the question
+        const question = card.front || card.question || '';
+        const words = question.replace(/[?.,!]/g, '').split(' ').filter(w => w.length > 3);
+        conceptId = words.slice(0, 3).join(' ') || 'unknown_concept';
+      }
+      
+      console.log(`Updating mastery for concept: "${conceptId}" with value: ${value}`);
       await masteryService.update(currentDeckId, conceptId, value);
     } catch (error) {
       console.error('Mastery update failed:', error);
@@ -521,8 +533,19 @@ const Flashcards = () => {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 w-full max-w-2xl grid grid-cols-4 gap-3 pb-8"
+            className="mt-4 w-full max-w-2xl grid grid-cols-5 gap-3 pb-8"
           >
+            <button
+              onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+              disabled={currentIndex === 0}
+              className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/10 hover:bg-surface-variant transition-all active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-all">
+                <span className="material-symbols-outlined font-bold text-sm">arrow_back</span>
+              </div>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">Prev</span>
+            </button>
+
             <button
               onClick={() => handleMasteryUpdate(-1)}
               className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-error-container/10 border border-error-dim/20 hover:bg-error-container/20 transition-all active:scale-90"
@@ -565,6 +588,7 @@ const Flashcards = () => {
           </motion.div>
         )}
       </div>
+      <ScrollToTopButton />
     </div>
   );
 };

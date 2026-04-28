@@ -140,8 +140,12 @@ def log_activity(user_id: str, activity_type: str, data: dict):
             "questions": 0,
             "quizzes": 0,
             "study_time": 0,
-            "documents_uploaded": 0
+            "documents_uploaded": 0,
+            "flashcards": 0
         }
+    
+    # Ensure flashcards key exists on older records
+    activity["daily_activity"][current_date].setdefault("flashcards", 0)
     
     # Update activity
     if activity_type == "question":

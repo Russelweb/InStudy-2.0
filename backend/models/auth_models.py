@@ -5,6 +5,7 @@ Authentication models for user management and session handling.
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
 from datetime import datetime
+import re
 
 class User(BaseModel):
     """User model for authenticated users"""
@@ -36,6 +37,12 @@ class RegisterRequest(BaseModel):
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters long')
+        if not re.search(r'[a-zA-Z]', v):
+            raise ValueError('Password must include at least one letter')
+        if not re.search(r'\d', v):
+            raise ValueError('Password must include at least one number')
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError('Password must include at least one special character (!@#$%^&*)')
         return v
     
     @validator('confirm_password')

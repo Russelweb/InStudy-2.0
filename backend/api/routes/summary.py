@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from models.schemas import SummaryRequest, SummaryResponse
 from services.summary_service import SummaryService
 from api.routes.auth import get_authenticated_user
+from api.routes.stats import log_activity
 from models.auth_models import User
 from pydantic import BaseModel
 from typing import Optional
@@ -36,9 +37,17 @@ async def generate_summary(
         
         # If it's the new dict format, return as is
         if isinstance(result, dict):
+            try:
+                log_activity(user_id, "study_session", {"hours": 10/60, "course_id": payload.course_id})
+            except:
+                pass
             return SummaryResponse(**result)
         
         # Fallback for old string format
+        try:
+            log_activity(user_id, "study_session", {"hours": 10/60, "course_id": payload.course_id})
+        except:
+            pass
         return SummaryResponse(summary=result)
     
     except Exception as e:

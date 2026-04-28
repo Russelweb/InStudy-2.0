@@ -318,6 +318,16 @@ export const masteryService = {
     API.post('/mastery/update', { course_id: courseId, concept_id: conceptId, familiarity }),
 
   getProfile: (courseId) => API.get(`/mastery/profile/${courseId}`),
+  
+  getHistory: (courseId, days = 30) => API.get(`/mastery/history/${courseId}`, { params: { days } }),
+  
+  getStats: (courseId) => API.get(`/mastery/stats/${courseId}`),
+  
+  getStale: (courseId, days = 14) => API.get(`/mastery/stale/${courseId}`, { params: { days } }),
+  
+  getReviewSchedule: (courseId) => API.get(`/mastery/review-schedule/${courseId}`),
+  
+  applyDecay: (courseId) => API.post(`/mastery/apply-decay/${courseId}`),
 };
 
 // ---------------------------------------------------------------------------
@@ -338,7 +348,12 @@ export const statService = {
 // Summary & Planner  (bonus endpoints wired for future use)
 // ---------------------------------------------------------------------------
 export const summaryService = {
-  generate: (courseId) => API.post('/summary/generate', { course_id: courseId }),
+  generate: (courseId, documentName = null, style = 'detailed') => 
+    API.post('/summary/generate', { 
+      course_id: courseId, 
+      document_name: documentName,
+      style: style 
+    }),
 };
 
 export const plannerService = {
@@ -359,6 +374,9 @@ export const adminService = {
   makeAdmin: (userId) => API.post(`/admin/users/${userId}/make-admin`),
   revokeAdmin: (userId) => API.post(`/admin/users/${userId}/revoke-admin`),
   deleteCourse: (userId, courseId) => API.delete(`/admin/courses/${userId}/${courseId}`),
+  getAllCourses: () => API.get('/admin/courses/all'),
+  getInteractions: (limit = 100) => API.get('/admin/interactions', { params: { limit } }),
+  deleteDocument: (userId, courseId, filename) => API.delete(`/admin/documents/${userId}/${courseId}/${encodeURIComponent(filename)}`),
 };
 
 // ---------------------------------------------------------------------------

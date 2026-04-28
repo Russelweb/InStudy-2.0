@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from models.schemas import FlashcardRequest, FlashcardResponse
 from services.flashcard_service import FlashcardService
 from api.routes.auth import get_authenticated_user
+from api.routes.stats import log_activity
 from models.auth_models import User
 from pydantic import BaseModel
 import traceback
@@ -38,6 +39,12 @@ async def generate_flashcards(
             payload.filename,
             api_key=api_key
         )
+        
+        # Log flashcard session (~3 min per session)
+        try:
+            log_activity(user_id, "flashcard", {"course_id": payload.course_id, "num_cards": payload.num_cards})
+        except:
+            pass
         
         return FlashcardResponse(flashcards=flashcards)
     

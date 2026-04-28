@@ -6,6 +6,7 @@ import { authService } from '../services/api';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -19,7 +20,12 @@ const Login = () => {
       await authService.login(email, password);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.detail || 'User authentication failed. Please check your credentials.');
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        setError(detail[0].msg);
+      } else {
+        setError(detail || 'User authentication failed. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -69,14 +75,25 @@ const Login = () => {
 
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">InStudent Password</label>
-              <input 
-                required
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-surface-container-high border-none rounded-xl py-4 px-4 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/30 visible"
-                placeholder="••••••••••••"
-              />
+              <div className="relative">
+                <input 
+                  required
+                  type={showPassword ? "text" : "password"} 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-surface-container-high border-none rounded-xl py-4 pl-4 pr-12 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/30"
+                  placeholder="••••••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 hover:text-secondary transition-colors"
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {showPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <button 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { plannerService, statService, assetService } from '../services/api';
+import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const Planner = () => {
   const [step, setStep] = useState('setup'); // 'setup' | 'loading' | 'timeline'
@@ -49,11 +50,18 @@ const Planner = () => {
     const savedStep = localStorage.getItem('planner_step');
     const savedCompletedTasks = localStorage.getItem('planner_completed_tasks');
 
+    // IMPORTANT: Don't restore 'loading' state - always go to setup or timeline
+    let restoredStep = savedStep;
+    if (restoredStep === 'loading') {
+      console.warn('Detected stuck loading state, resetting to setup');
+      restoredStep = 'setup';
+    }
+
     if (savedPlan) setPlan(JSON.parse(savedPlan));
     if (savedCourse) setSelectedCourse(savedCourse);
     if (savedDate) setExamDate(savedDate);
     if (savedTopics) setTopics(JSON.parse(savedTopics));
-    if (savedStep) setStep(savedStep);
+    if (restoredStep) setStep(restoredStep);
     if (savedCompletedTasks) setCompletedTasks(JSON.parse(savedCompletedTasks));
 
     console.log('Planner Initialized. Persisted state loaded.');
@@ -159,6 +167,15 @@ const Planner = () => {
     }
     setIsLoading(true);
     setStep('loading');
+    
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.error('Plan synthesis timed out after 60 seconds');
+      alert('⏱️ Plan generation is taking too long. This might be due to:\n\n• No AI API key configured\n• Large amount of course content\n• Network issues\n\nPlease check your settings and try again.');
+      setIsLoading(false);
+      setStep('setup');
+    }, 60000); // 60 second timeout
+    
     try {
       // Find course name if selectedCourse is an ID
       const courseObj = courses.find(c => c.id === selectedCourse || c.name === selectedCourse);
@@ -167,15 +184,29 @@ const Planner = () => {
       console.log('Synthesizing plan for:', { courseName, examDate, topics });
       const res = await plannerService.create(selectedCourse, courseName, examDate, topics);
       console.log('Plan received:', res.data);
+      
+      clearTimeout(timeoutId); // Clear timeout on success
+      
       if (res.data?.plan) {
         setPlan(res.data.plan);
         setStep('timeline');
+        // Scroll to top so user sees the timeline
+        setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
       } else {
         throw new Error('Invalid plan format received from server');
       }
     } catch (err) {
+      clearTimeout(timeoutId); // Clear timeout on error
       console.error('Failed to generate plan:', err);
-      alert('Neural synthesis failed. Please check your topics and try again.');
+      
+      const errorMsg = err.response?.data?.detail || err.message || 'Unknown error';
+      if (errorMsg.includes('API key') || err.response?.status === 401) {
+        alert('🔑 No AI key configured.\n\nGo to Settings and paste your Groq API key to enable AI features.');
+      } else if (errorMsg.includes('NO_DOCUMENTS')) {
+        alert('📂 No documents found in this course.\n\nGo to Knowledge Base → select this course → upload documents first.');
+      } else {
+        alert(`Neural synthesis failed: ${errorMsg}\n\nPlease check your topics and try again.`);
+      }
       setStep('setup');
     } finally {
       setIsLoading(false);
@@ -484,6 +515,7 @@ const Planner = () => {
           )}
         </AnimatePresence>
       </div>
+      <ScrollToTopButton />
     </div>
   );
 };

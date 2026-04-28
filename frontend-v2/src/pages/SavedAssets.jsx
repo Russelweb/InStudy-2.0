@@ -59,7 +59,7 @@ const SavedAssets = () => {
       flashcards: '/flashcards',
       quiz: '/quiz',
       study_plan: '/planner',
-      summary: '/workspace'
+      summary: '/summary'
     };
     
     navigate(routes[asset.asset_type] || '/');

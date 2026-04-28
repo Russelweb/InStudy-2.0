@@ -186,7 +186,7 @@ const AITutorChat = ({ courseId }) => {
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${isStreaming ? 'bg-yellow-400 animate-ping' : 'bg-secondary animate-pulse'} shadow-[0_0_8px_#69f6b8]`}></div>
           <span className="text-xs font-bold tracking-tighter text-secondary">
-            {isStreaming ? 'Aether Processing...' : 'InTeacher is LIVE'}
+            {isStreaming ? 'InStudy is Processing...' : 'InTeacher is LIVE'}
           </span>
           <button 
             onClick={() => {

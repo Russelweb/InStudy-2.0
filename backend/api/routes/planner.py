@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from models.schemas import StudyPlanRequest, StudyPlanResponse
 from services.planner_service import PlannerService
 from api.routes.auth import get_authenticated_user
+from api.routes.stats import log_activity
 from models.auth_models import User
 from pydantic import BaseModel
 from typing import List
@@ -41,6 +42,11 @@ async def create_study_plan(
             payload.topics,
             api_key=api_key
         )
+        
+        try:
+            log_activity(user_id, "study_session", {"hours": 15/60, "course_id": payload.course_id})
+        except:
+            pass
         
         return StudyPlanResponse(plan=plan)
     except Exception as e:
