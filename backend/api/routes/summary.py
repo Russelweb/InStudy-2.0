@@ -15,6 +15,7 @@ class AuthenticatedSummaryRequest(BaseModel):
     course_id: str
     document_name: Optional[str] = None
     style: str = "detailed"
+    topic: Optional[str] = None  # Specific topic focus (e.g., "k-nearest neighbors")
 
 @router.post("/generate", response_model=SummaryResponse)
 async def generate_summary(
@@ -32,6 +33,7 @@ async def generate_summary(
             payload.course_id,
             payload.document_name,
             payload.style,
+            payload.topic,
             api_key=api_key
         )
         

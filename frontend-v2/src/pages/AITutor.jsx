@@ -21,24 +21,24 @@ const AITutor = () => {
   }, []);
 
   return (
-    <div className="flex-1 min-h-screen p-8 relative bg-background flex flex-col items-center justify-center">
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-secondary/5 rounded-full blur-[120px] pointer-events-none"></div>
+    <div className="flex-1 min-h-screen p-4 sm:p-8 relative bg-background flex flex-col items-center justify-center">
+      <div className="absolute top-0 right-0 w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-secondary/5 rounded-full blur-[120px] pointer-events-none"></div>
       
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-12 text-center"
+        className="mb-8 sm:mb-12 text-center"
       >
-        <div className="w-20 h-20 mx-auto rounded-3xl signature-gradient flex items-center justify-center shadow-[0_0_40px_rgba(105,246,184,0.3)] mb-6">
-          <span className="material-symbols-outlined text-4xl text-on-white">computer</span>
+        <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-3xl signature-gradient flex items-center justify-center shadow-[0_0_40px_rgba(105,246,184,0.3)] mb-4 sm:mb-6">
+          <span className="material-symbols-outlined text-2xl sm:text-4xl text-on-white">computer</span>
         </div>
-        <h1 className="text-4xl font-black tracking-tighter text-on-surface mb-4">AI Tutor Interface</h1>
-        <p className="text-sm font-medium text-on-surface-variant max-w-lg mx-auto leading-relaxed">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-on-surface mb-3 sm:mb-4">AI Tutor Interface</h1>
+        <p className="text-xs sm:text-sm font-medium text-on-surface-variant max-w-lg mx-auto leading-relaxed px-4">
           Select an active course to launch the complete dual-pane Workspace. You will have full access to your original documents while conversing with the AI.
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-4xl z-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full max-w-4xl z-10">
         {courses.map(course => (
           <button
             key={course.id}

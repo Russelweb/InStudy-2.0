@@ -22,9 +22,9 @@ class PlannerService:
         # Doc processor is global/stateless enough
         self.doc_processor = DocumentProcessor()
     
-    def create_study_plan(self, user_id: str, course_id: str, course_name: str, exam_date: str, topics: list, api_key: Optional[str] = None):
+    def create_study_plan(self, user_id: str, course_id: str, course_name: str, exam_date: str, topics: list, focus_topic: Optional[str] = None, api_key: Optional[str] = None):
         """Generate personalized study plan using local LLM with mastery adaptation"""
-        logger.info(f"Creating mastery-adaptive study plan for {course_name} ({course_id})")
+        logger.info(f"Creating mastery-adaptive study plan for {course_name} ({course_id}){f' focused on topic: {focus_topic}' if focus_topic else ''}")
         
         # Get appropriate LLM
         llm = get_llm(api_key)
@@ -48,8 +48,12 @@ class PlannerService:
         # Get mastery context — use course_id for DB lookup
         mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
         
-        # Build prompt prefix with mastery awareness
-        prompt_prefix = f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize allocating more study days/hours to 'WEAK' concepts.\n\n" if mastery_context else ""
+        # Build prompt prefix with mastery awareness and topic focus
+        prompt_prefix = ""
+        if focus_topic:
+            prompt_prefix = f"TOPIC FOCUS: Create a study plan that PRIORITIZES '{focus_topic}'. Allocate more time and tasks to this specific topic.\n\n"
+        if mastery_context:
+            prompt_prefix += f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize allocating more study days/hours to 'WEAK' concepts.\n\n"
         
         prompt = f"""{prompt_prefix}Create a comprehensive study plan for a student.
         

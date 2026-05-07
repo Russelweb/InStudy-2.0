@@ -20,19 +20,19 @@ const NeuralControlDeck = ({ annotations = [] }) => {
   }));
 
   return (
-    <footer className="hidden md:flex fixed bottom-0 left-0 w-full h-[120px] z-50 bg-[#050505] border-t border-outline-variant/10 px-12 justify-between items-center shadow-[0px_-10px_30px_rgba(0,0,0,0.5)]">
+    <footer className="hidden md:flex fixed bottom-0 left-0 w-full h-[120px] z-50 bg-[#050505] border-t border-outline-variant/10 px-4 md:px-12 justify-between items-center shadow-[0px_-10px_30px_rgba(0,0,0,0.5)]">
       {/* Left: Annotations Zone */}
-      <div className="flex-grow flex items-center gap-4">
-        <div className="flex flex-col gap-1 pr-6 border-r border-white/10">
+      <div className="flex-grow flex items-center gap-2 md:gap-4">
+        <div className="flex flex-col gap-1 pr-4 md:pr-6 border-r border-white/10">
           <span className="text-[10px] font-black tracking-widest uppercase text-secondary/80">Active Annotations</span>
           <span className="text-[9px] text-white/40">{annotations.length} Insights Captured</span>
         </div>
-        <div className="flex gap-3 overflow-x-auto no-scrollbar max-w-2xl px-2 py-2">
+        <div className="flex gap-2 md:gap-3 overflow-x-auto no-scrollbar max-w-2xl px-2 py-2">
           {mappedAnnotations.map((note, idx) => (
             <motion.div 
               key={note.id}
               whileHover={{ rotate: 0, scale: 1.05 }}
-              className={`min-w-[180px] max-w-[220px] bg-surface-container-high/95 backdrop-blur-md p-3 rounded-lg border border-outline-variant/10 cursor-pointer transform ${idx % 2 === 0 ? '-rotate-1' : 'rotate-2'} shadow-lg`}
+              className={`min-w-[140px] md:min-w-[180px] max-w-[220px] bg-surface-container-high/95 backdrop-blur-md p-3 rounded-lg border border-outline-variant/10 cursor-pointer transform ${idx % 2 === 0 ? '-rotate-1' : 'rotate-2'} shadow-lg`}
             >
               <div className="flex items-center justify-between mb-1 gap-2">
                 <div className={`w-2 h-2 rounded-full ${note.colorClass}`}></div>

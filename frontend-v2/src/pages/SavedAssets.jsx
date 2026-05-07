@@ -94,13 +94,13 @@ const SavedAssets = () => {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-black tracking-tighter text-on-surface mb-2">My Saved Assets</h1>
-          <p className="text-on-surface-variant text-sm">Access your saved flashcards, quizzes, summaries, and study plans</p>
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-on-surface mb-2">My Saved Assets</h1>
+          <p className="text-on-surface-variant text-xs sm:text-sm">Access your saved flashcards, quizzes, summaries, and study plans</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           {[
             { type: 'flashcards', label: 'Flashcard Decks', icon: 'style', color: 'primary' },
             { type: 'quiz', label: 'Quizzes', icon: 'quiz', color: 'secondary' },
@@ -111,24 +111,24 @@ const SavedAssets = () => {
               key={type}
               whileHover={{ y: -4 }}
               onClick={() => setFilter(type)}
-              className={`glass-panel p-6 rounded-xl cursor-pointer transition-all ${
+              className={`glass-panel p-4 md:p-6 rounded-xl cursor-pointer transition-all ${
                 filter === type ? 'border-' + color + ' bg-' + color + '/5' : 'border-outline-variant/10'
               }`}
             >
-              <span className={`material-symbols-outlined text-3xl text-${color} mb-2 block`}>{icon}</span>
-              <div className="text-3xl font-black text-on-surface">{stats[type] || 0}</div>
-              <div className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mt-1">{label}</div>
+              <span className={`material-symbols-outlined text-2xl md:text-3xl text-${color} mb-2 block`}>{icon}</span>
+              <div className="text-2xl md:text-3xl font-black text-on-surface">{stats[type] || 0}</div>
+              <div className="text-[9px] md:text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mt-1">{label}</div>
             </motion.div>
           ))}
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto pb-2">
           {['all', 'flashcards', 'quiz', 'study_plan', 'summary'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
+              className={`px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
                 filter === f
                   ? 'bg-primary text-on-primary'
                   : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'

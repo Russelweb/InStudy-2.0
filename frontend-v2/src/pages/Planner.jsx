@@ -14,6 +14,7 @@ const Planner = () => {
   });
   const [topics, setTopics] = useState([]);
   const [newTopic, setNewTopic] = useState('');
+  const [focusTopic, setFocusTopic] = useState(''); // New: specific topic to prioritize
   const [plan, setPlan] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDiscovering, setIsDiscovering] = useState(false);
@@ -181,8 +182,8 @@ const Planner = () => {
       const courseObj = courses.find(c => c.id === selectedCourse || c.name === selectedCourse);
       const courseName = courseObj?.name || selectedCourse;
 
-      console.log('Synthesizing plan for:', { courseName, examDate, topics });
-      const res = await plannerService.create(selectedCourse, courseName, examDate, topics);
+      console.log('Synthesizing plan for:', { courseName, examDate, topics, focusTopic });
+      const res = await plannerService.create(selectedCourse, courseName, examDate, topics, focusTopic || null);
       console.log('Plan received:', res.data);
       
       clearTimeout(timeoutId); // Clear timeout on success
@@ -300,6 +301,19 @@ const Planner = () => {
                   </div>
                 </div>
 
+                {/* Focus Topic */}
+                <div className="relative mt-6 space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Focus Topic (Optional)</label>
+                  <input
+                    type="text"
+                    value={focusTopic}
+                    onChange={(e) => setFocusTopic(e.target.value)}
+                    placeholder="e.g., k-nearest neighbors - will be prioritized in the plan"
+                    className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl py-3 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all"
+                  />
+                  <p className="text-[9px] text-on-surface-variant/60 italic">Leave blank to cover all topics equally</p>
+                </div>
+
                 <button 
                   onClick={synthesizePlan}
                   disabled={!selectedCourse || !examDate}
@@ -365,30 +379,30 @@ const Planner = () => {
                 const doneCount = allTasks.filter(k => completedTasks[k]).length;
                 const pct = allTasks.length > 0 ? Math.round((doneCount / allTasks.length) * 100) : 0;
                 return (
-                  <div className="flex justify-between items-end border-b border-outline-variant/10 pb-8">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 border-b border-outline-variant/10 pb-6 sm:pb-8">
                     <div>
-                      <h2 className="text-4xl font-black tracking-tighter">Optimized Pathway</h2>
-                      <div className="flex items-center gap-3 mt-2">
+                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter">Optimized Pathway</h2>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
                         <span className="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-secondary border border-secondary/20 flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
                           Active Strategy
                         </span>
-                        <p className="text-on-surface-variant text-sm font-medium">Study Plan targeted for {examDate}</p>
+                        <p className="text-on-surface-variant text-xs sm:text-sm font-medium">Targeted for {examDate}</p>
                       </div>
                       {allTasks.length > 0 && (
-                        <div className="mt-4 flex items-center gap-3">
-                          <div className="w-48 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div className="mt-3 flex items-center gap-3">
+                          <div className="w-32 sm:w-48 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${pct}%` }}
                               className="h-full bg-secondary rounded-full"
                             />
                           </div>
-                          <span className="text-[10px] font-bold text-secondary">{doneCount}/{allTasks.length} tasks · {pct}%</span>
+                          <span className="text-[10px] font-bold text-secondary">{doneCount}/{allTasks.length} · {pct}%</span>
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 flex-wrap">
                       <button
                         onClick={handleSavePlan}
                         disabled={isSaving}
@@ -481,8 +495,8 @@ const Planner = () => {
               </div>
 
               {/* Tips Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8">
-                <div className="bg-surface-container-low/30 border border-outline-variant/10 rounded-3xl p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 pt-8">
+                <div className="bg-surface-container-low/30 border border-outline-variant/10 rounded-2xl md:rounded-3xl p-5 sm:p-8 space-y-4 sm:space-y-6">
                   <div className="flex items-center gap-3">
                     <span className="material-symbols-outlined text-primary text-3xl">psychology_alt</span>
                     <h3 className="text-xl font-bold">Revision Strategy</h3>

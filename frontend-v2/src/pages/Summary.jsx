@@ -19,6 +19,7 @@ const Summary = () => {
   const [documents, setDocuments] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [style, setStyle] = useState('detailed');
+  const [topic, setTopic] = useState(''); // New: specific topic focus
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -146,7 +147,8 @@ const Summary = () => {
       const response = await summaryService.generate(
         selectedCourse,
         selectedDocument,
-        style
+        style,
+        topic || null
       );
       
       setProgress(100);
@@ -252,7 +254,7 @@ const Summary = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-on-surface mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter text-on-surface mb-2">
             Summary Generation
           </h1>
           <p className="text-on-surface-variant max-w-2xl leading-relaxed">
@@ -282,7 +284,7 @@ const Summary = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setSelectedCourse(course.id)}
-                  className={`min-w-[200px] glass-card p-6 rounded-2xl border cursor-pointer group transition-all duration-300 ${
+                  className={`w-full sm:min-w-[200px] glass-card p-4 sm:p-6 rounded-2xl border cursor-pointer group transition-all duration-300 ${
                     selectedCourse === course.id
                       ? 'border-secondary/40 ring-2 ring-secondary/20 shadow-[0px_0px_30px_rgba(105,246,184,0.05)]'
                       : 'border-outline-variant/15 hover:border-primary/40'
@@ -312,7 +314,7 @@ const Summary = () => {
               ))}
               
               {courses.length === 0 && (
-                <div className="min-w-[200px] glass-card p-6 rounded-2xl border border-outline-variant/15 text-center">
+                <div className="w-full sm:min-w-[200px] glass-card p-4 sm:p-6 rounded-2xl border border-outline-variant/15 text-center">
                   <p className="text-on-surface-variant text-sm">No courses found. Upload documents first.</p>
                 </div>
               )}
@@ -324,7 +326,7 @@ const Summary = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+            className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8"
           >
             {/* Left: Configuration */}
             <div className="lg:col-span-2 space-y-6">
@@ -407,6 +409,21 @@ const Summary = () => {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Topic Focus */}
+                <div className="pt-4">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-3 block">
+                    Specific Topic (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="e.g., k-nearest neighbors, photosynthesis, etc."
+                    className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl py-3 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all"
+                  />
+                  <p className="text-[9px] text-on-surface-variant/60 italic mt-2">Leave blank to summarize all course content</p>
                 </div>
               </div>
 
@@ -552,7 +569,7 @@ const Summary = () => {
                 exit={{ opacity: 0, y: 40 }}
                 className="mt-20"
               >
-                <div className="glass-card rounded-[2rem] p-10 border border-primary/15 relative overflow-hidden shadow-[0px_40px_80px_rgba(0,0,0,0.5)]">
+                <div className="glass-card rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 md:p-10 border border-primary/15 relative overflow-hidden shadow-[0px_40px_80px_rgba(0,0,0,0.5)]">
                   {/* Accent light */}
                   <div className="absolute -top-24 -right-24 h-64 w-64 bg-secondary/10 blur-[80px] rounded-full"></div>
 
@@ -562,7 +579,7 @@ const Summary = () => {
                         <span className="material-symbols-outlined text-sm">verified</span>
                         Verified Analysis
                       </div>
-                      <h2 className="text-3xl font-black tracking-tight text-on-surface">
+                      <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-on-surface">
                         {summaryData.courseName} - Course
                       </h2>
                     </div>
@@ -603,7 +620,7 @@ const Summary = () => {
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-3 gap-12">
+                  <div className="grid md:grid-cols-3 gap-6 md:gap-12">
                     <div className="md:col-span-2 space-y-8">
                       <div>
                         <h5 className="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-4 border-b border-outline-variant/10 pb-2">

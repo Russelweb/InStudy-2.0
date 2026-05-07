@@ -96,7 +96,7 @@ const Settings = () => {
 
       {/* Header */}
       <div>
-        <h1 className="text-4xl font-black tracking-tighter text-on-surface">Settings</h1>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-on-surface">Settings</h1>
         <p className="text-on-surface-variant mt-1">Manage your personal AI configuration.</p>
       </div>
 

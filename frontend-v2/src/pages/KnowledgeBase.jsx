@@ -153,16 +153,16 @@ const KnowledgeBase = () => {
       </AnimatePresence>
 
       {/* Page Header */}
-      <section className="px-4 md:px-12 mt-8 md:mt-12 mb-8 max-w-screen-2xl mx-auto flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+      <section className="px-4 md:px-12 mt-8 md:mt-12 mb-8 max-w-screen-2xl mx-auto flex flex-col md:flex-row items-start md:items-end justify-between gap-4 md:gap-6">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter text-on-surface mb-2">Knowledge Base</h2>
-          <p className="text-sm md:text-lg text-on-surface-variant font-light tracking-wide">Manage and access your courses and study materials.</p>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter text-on-surface mb-2">Knowledge Base</h2>
+          <p className="text-xs sm:text-sm md:text-base text-on-surface-variant font-light tracking-wide">Manage and access your courses and study materials.</p>
         </motion.div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="w-full md:w-auto px-8 py-4 bg-[#551a8b]/90 rounded-full font-bold text-on-surface aura-glow flex items-center justify-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
+          className="w-full md:w-auto px-6 md:px-8 py-3 md:py-4 bg-[#551a8b]/90 rounded-full font-bold text-sm md:text-base text-on-surface aura-glow flex items-center justify-center gap-2 md:gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
         >
-          <span className="material-symbols-outlined">add</span>
+          <span className="material-symbols-outlined text-lg md:text-xl">add</span>
           Create New Course
         </button>
       </section>
@@ -196,7 +196,7 @@ const KnowledgeBase = () => {
       {/* Content Area */}
       <section className="px-4 md:px-12 max-w-screen-2xl mx-auto">
         {/* Filter Tabs */}
-        <div className="flex items-center gap-3 mb-10 overflow-x-auto pb-4 custom-scrollbar">
+        <div className="flex items-center gap-2 md:gap-3 mb-6 md:mb-10 overflow-x-auto pb-4 custom-scrollbar">
           {[
             { label: 'All Circuits', value: 'all' },
             { label: 'In Progress', value: 'in-progress' },
@@ -205,7 +205,7 @@ const KnowledgeBase = () => {
             <button
               key={tab.value}
               onClick={() => setFilter(tab.value)}
-              className={`px-6 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-colors ${
+              className={`px-4 md:px-6 py-2 rounded-full font-medium text-xs md:text-sm whitespace-nowrap transition-colors ${
                 filter === tab.value
                   ? 'bg-secondary text-on-secondary font-bold shadow-lg shadow-secondary/10'
                   : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant border border-outline-variant/10'

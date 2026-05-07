@@ -18,6 +18,7 @@ class AuthenticatedFlashcardRequest(BaseModel):
     include_images: bool = True  # New option for images
     explanation_level: str = "detailed"  # New option for explanation detail level
     filename: Optional[str] = None  # Specific document focus
+    topic: Optional[str] = None  # Specific topic focus (e.g., "k-nearest neighbors")
 
 @router.post("/generate", response_model=FlashcardResponse)
 async def generate_flashcards(
@@ -37,6 +38,7 @@ async def generate_flashcards(
             payload.include_images,
             payload.explanation_level,
             payload.filename,
+            payload.topic,
             api_key=api_key
         )
         

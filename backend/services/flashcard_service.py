@@ -24,9 +24,9 @@ class FlashcardService:
         self.image_service = ImageService()
         self.executor = ThreadPoolExecutor(max_workers=4)  # For parallel image processing
     
-    def generate_flashcards(self, user_id: str, course_id: str, num_cards: int, include_images: bool = True, explanation_level: str = "detailed", filename: Optional[str] = None, api_key: Optional[str] = None):
+    def generate_flashcards(self, user_id: str, course_id: str, num_cards: int, include_images: bool = True, explanation_level: str = "detailed", filename: Optional[str] = None, topic: Optional[str] = None, api_key: Optional[str] = None):
         """Generate flashcards with optional images from study materials"""
-        logger.info(f"Generating {num_cards} flashcards with mastery awareness.")
+        logger.info(f"Generating {num_cards} flashcards with mastery awareness{f' for topic: {topic}' if topic else ''}.")
         
         # Get appropriate LLM
         llm = get_llm(api_key)
@@ -68,8 +68,12 @@ class FlashcardService:
                 # Send up to 50 mastered concepts so the LLM really knows what to avoid
                 mastery_context += f"MASTERED CONCEPTS (STRICTLY AVOID): {', '.join(mastered_concepts[:50])}\n"
         
-        # Target search query towards weak areas
-        search_query = " ".join(weak_concepts[:5]) if weak_concepts else ""
+        # Target search query - prioritize topic if specified
+        if topic:
+            search_query = topic
+            logger.info(f"Focusing flashcards on specific topic: {topic}")
+        else:
+            search_query = " ".join(weak_concepts[:5]) if weak_concepts else ""
             
         # Get content samples
         # Increase k_fetch to get a wider variety of content
@@ -83,7 +87,7 @@ class FlashcardService:
                 
         # INTELLIGENT SELECTION: If user has mastered many things, shuffle or offset 
         # to find "deeper" content they haven't seen as often.
-        if len(mastered_concepts) > 5 and len(docs) > 15:
+        if len(mastered_concepts) > 5 and len(docs) > 15 and not topic:
             import random
             # Keep the top 5 most relevant, but shuffle the rest to find new topics
             top_docs = docs[:5]
@@ -95,11 +99,14 @@ class FlashcardService:
         # Limit the number of documents to send to context
         context = "\n\n".join([doc.page_content for doc in docs[:12]])
         
-        # Build prompt prefix with mastery awareness
+        # Build prompt prefix with mastery awareness and topic focus
         prompt_prefix = ""
+        if topic:
+            prompt_prefix = f"TOPIC FOCUS: Generate flashcards EXCLUSIVELY about '{topic}'. All questions must be directly related to this specific topic.\n\n"
         if mastery_context:
-            prompt_prefix = f"{mastery_context}\n"
-            prompt_prefix += "GUIDANCE: Focus on generating cards for the WEAK areas listed above. If the text contains concepts from the MASTERED list, skip them and find other valuable information, nuanced details, or related sub-topics instead.\n\n"
+            prompt_prefix += f"{mastery_context}\n"
+            if not topic:
+                prompt_prefix += "GUIDANCE: Focus on generating cards for the WEAK areas listed above. If the text contains concepts from the MASTERED list, skip them and find other valuable information, nuanced details, or related sub-topics instead.\n\n"
         
         # Customize prompt based on explanation level
         if explanation_level == "brief":

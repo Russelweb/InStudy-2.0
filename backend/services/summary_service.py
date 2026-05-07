@@ -20,9 +20,9 @@ class SummaryService:
         # Doc processor is global/stateless enough
         self.doc_processor = DocumentProcessor()
     
-    def generate_summary(self, user_id: str, course_id: str, document_name: str = None, style: str = "short", api_key: Optional[str] = None):
+    def generate_summary(self, user_id: str, course_id: str, document_name: str = None, style: str = "short", topic: Optional[str] = None, api_key: Optional[str] = None):
         """Generate high-quality summary with mastery adaptation."""
-        logger.info(f"Generating summary with mastery adaptation for user {user_id}")
+        logger.info(f"Generating summary with mastery adaptation for user {user_id}{f' focused on topic: {topic}' if topic else ''}")
         
         # Get appropriate LLM
         llm = get_llm(api_key)
@@ -31,8 +31,9 @@ class SummaryService:
         if not vector_store:
             raise ValueError("No documents found for this course. Please upload study materials first.")
             
-        # Get documents (optimized retrieval)
-        docs = vector_store.similarity_search("", k=20, filter={"document_name": document_name} if document_name else None)
+        # Get documents (optimized retrieval) - use topic for search if specified
+        search_query = topic if topic else ""
+        docs = vector_store.similarity_search(search_query, k=20, filter={"document_name": document_name} if document_name else None)
         content = "\n\n".join([doc.page_content for doc in docs[:12]])
         
         # Get mastery context
@@ -44,8 +45,11 @@ class SummaryService:
             "exam": "Create an exam revision summary of the entire document focusing on testable concepts."
         }
         
+        # Add topic focus to prompt if specified
+        topic_instruction = f"\n\nTOPIC FOCUS: Focus your summary EXCLUSIVELY on '{topic}'. All content must be directly related to this specific topic." if topic else ""
+        
         prompt = f"""{mastery_context}Analyze the study material provided:
-{content}
+{content}{topic_instruction}
 
 Task:
 1. Create a {style_prompts.get(style, style_prompts['short'])}. Use rich markdown (bold, bullets).

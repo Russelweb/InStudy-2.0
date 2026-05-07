@@ -183,7 +183,7 @@ const Mastery = () => {
           className="flex flex-col md:flex-row justify-between items-end gap-6"
         >
           <div>
-            <h2 className="text-4xl md:text-6xl font-black tracking-[-0.04em] text-on-surface">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-black tracking-[-0.04em] text-on-surface">
               Learning Mastery
             </h2>
             <p className="text-on-surface-variant mt-2 max-w-md leading-relaxed">
@@ -201,7 +201,7 @@ const Mastery = () => {
               <span className="text-xs uppercase tracking-widest text-secondary font-bold">
                 Overall Mastery
               </span>
-              <span className="text-3xl font-black text-secondary">{overallMastery}%</span>
+              <span className="text-2xl sm:text-3xl font-black text-secondary">{overallMastery}%</span>
             </div>
             <div className="h-10 w-10 bg-secondary rounded-full flex items-center justify-center">
               <span className="material-symbols-outlined text-background font-bold">bolt</span>
@@ -214,7 +214,7 @@ const Mastery = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8"
         >
           {courses.map((course, index) => {
             const isSelected = course.id === selectedCourse;
@@ -357,7 +357,7 @@ const Mastery = () => {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
                   {/* Unfamiliar */}
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
@@ -655,7 +655,7 @@ const Mastery = () => {
                 transition={{ delay: 0.8 }}
                 className="bg-surface-container-low p-8 rounded-xl overflow-hidden relative border border-outline-variant/15"
               >
-                <div className="flex justify-between items-center mb-10">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-10">
                   <div>
                     <h3 className="text-xl font-extrabold tracking-tight">
                       Mastery Growth: <span className="text-primary">{currentCourse.name}</span>

@@ -5,7 +5,7 @@ from api.routes.auth import get_authenticated_user
 from api.routes.stats import log_activity
 from models.auth_models import User
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 import logging
 import traceback
@@ -21,6 +21,7 @@ class AuthenticatedStudyPlanRequest(BaseModel):
     course_name: str
     exam_date: str
     topics: List[str]
+    focus_topic: Optional[str] = None  # Specific topic to focus the plan on
 
 @router.post("/create", response_model=StudyPlanResponse)
 async def create_study_plan(
@@ -40,6 +41,7 @@ async def create_study_plan(
             payload.course_name,
             payload.exam_date,
             payload.topics,
+            payload.focus_topic,
             api_key=api_key
         )
         

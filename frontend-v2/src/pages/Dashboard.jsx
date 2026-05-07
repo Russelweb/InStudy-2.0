@@ -241,14 +241,14 @@ const StudyVelocityChart = ({ rows, period, onPeriod }) => {
 const StatCard = ({ icon, title, value, change, accentColor }) => (
   <motion.div
     whileHover={{ y: -5 }}
-    className="glass p-6 rounded-xl group hover:bg-surface-variant/40 transition-all duration-300"
+    className="glass p-4 sm:p-6 rounded-xl group hover:bg-surface-variant/40 transition-all duration-300"
   >
-    <div className="flex justify-between items-start mb-4">
-      <span className={`material-symbols-outlined text-${accentColor} text-3xl`}>{icon}</span>
-      <span className={`text-[10px] font-bold text-${accentColor} tracking-widest`}>{change}</span>
+    <div className="flex justify-between items-start mb-3 sm:mb-4">
+      <span className={`material-symbols-outlined text-${accentColor} text-2xl sm:text-3xl`}>{icon}</span>
+      <span className={`text-[9px] sm:text-[10px] font-bold text-${accentColor} tracking-widest`}>{change}</span>
     </div>
-    <h3 className="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-1">{title}</h3>
-    <p className="text-2xl font-black text-on-surface">{value}</p>
+    <h3 className="text-on-surface-variant text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-1">{title}</h3>
+    <p className="text-xl sm:text-2xl font-black text-on-surface">{value}</p>
   </motion.div>
 );
 
@@ -312,13 +312,13 @@ const Dashboard = () => {
       </motion.div>
 
       {/* Stat Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8 sm:mb-12">
         {statsCards.map((card, i) => (
           <StatCard key={i} icon={card.icon} title={card.label} value={loading ? '—' : card.value} change={i % 2 === 0 ? 'OPTIMAL' : 'ACTIVE'} accentColor={card.color} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-4 sm:gap-8">
         {/* Left (70%) */}
         <div className="lg:col-span-7 space-y-8">
           {/* Aura Momentum Heatmap */}

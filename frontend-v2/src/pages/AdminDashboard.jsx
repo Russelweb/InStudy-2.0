@@ -79,16 +79,16 @@ const AdminDashboard = () => {
   return (
     <div className="p-4 md:p-8 pb-32">
       {/* Header */}
-      <div className="mb-10 flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
+      <div className="mb-6 md:mb-10 flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 md:gap-6">
         <div>
           <motion.h1 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-3xl md:text-4xl font-black text-white tracking-tight"
+            className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight"
           >
             ADMIN <span className="text-[#bd9dff]">OVERRIDE</span>
           </motion.h1>
-          <p className="text-on-surface-variant/60 font-medium mt-1 text-sm">System Administration & Master Control</p>
+          <p className="text-on-surface-variant/60 font-medium mt-1 text-xs sm:text-sm">System Administration & Master Control</p>
         </div>
         
         <div className="flex p-1 bg-[#202821]/50 rounded-xl border border-white/5 backdrop-blur-md self-stretch md:self-auto overflow-x-auto">
@@ -118,10 +118,18 @@ const AdminDashboard = () => {
             className="grid grid-cols-1 md:grid-cols-4 gap-6"
           >
             {/* Stats Cards */}
-            <StatCard label="Total Users" value={stats?.total_users} icon="groups" color="accent" />
-            <StatCard label="Administrators" value={stats?.total_admins} icon="security" color="primary" />
-            <StatCard label="Active Courses" value={stats?.total_courses} icon="menu_book" color="secondary" />
-            <StatCard label="Documents Processed" value={stats?.total_documents} icon="description" color="tertiary" />
+            <div className="col-span-1">
+              <StatCard label="Total Users" value={stats?.total_users} icon="groups" color="accent" />
+            </div>
+            <div className="col-span-1">
+              <StatCard label="Administrators" value={stats?.total_admins} icon="security" color="primary" />
+            </div>
+            <div className="col-span-1">
+              <StatCard label="Active Courses" value={stats?.total_courses} icon="menu_book" color="secondary" />
+            </div>
+            <div className="col-span-1">
+              <StatCard label="Documents Processed" value={stats?.total_documents} icon="description" color="tertiary" />
+            </div>
 
             {/* System Health */}
             <div className="col-span-1 md:col-span-2 mt-4">
@@ -450,14 +458,14 @@ const StatCard = ({ label, value, icon, color }) => {
   return (
     <motion.div 
       whileHover={{ y: -5 }}
-      className={`glass-morphism p-6 rounded-2xl border ${colors[color]} backdrop-blur-xl relative overflow-hidden group`}
+      className={`glass-morphism p-4 md:p-6 rounded-2xl border ${colors[color]} backdrop-blur-xl relative overflow-hidden group`}
     >
       <div className="relative z-10">
-        <div className="flex justify-between items-start mb-4">
-          <span className="material-symbols-outlined text-2xl opacity-80 group-hover:scale-110 transition-transform">{icon}</span>
+        <div className="flex justify-between items-start mb-3 md:mb-4">
+          <span className="material-symbols-outlined text-xl md:text-2xl opacity-80 group-hover:scale-110 transition-transform">{icon}</span>
         </div>
-        <h4 className="text-4xl font-black text-white mb-1">{value || 0}</h4>
-        <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-60">{label}</p>
+        <h4 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-1">{value || 0}</h4>
+        <p className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold opacity-60">{label}</p>
       </div>
       
       {/* Decorative background pulse */}

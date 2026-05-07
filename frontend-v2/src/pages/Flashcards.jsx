@@ -24,7 +24,8 @@ const Flashcards = () => {
   const [settings, setSettings] = useState({
     numCards: 10,
     explanationLevel: 'detailed',
-    targetDocument: 'all'
+    targetDocument: 'all',
+    topic: '' // New: specific topic focus
   });
   const isInitialized = useRef(false);
 
@@ -164,7 +165,8 @@ const Flashcards = () => {
         currentDeckId, 
         settings.numCards, 
         settings.explanationLevel, 
-        filenameStr
+        filenameStr,
+        settings.topic || null
       );
       const newCards = response.data.flashcards || [];
       setCards(newCards);
@@ -274,8 +276,8 @@ const Flashcards = () => {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-1"
           >
-            <h1 className="text-2xl font-black tracking-tight text-on-surface uppercase italic">Flashcard <span className="text-primary">Lab</span></h1>
-            <div className="flex items-center gap-3 text-on-surface-variant text-[10px] uppercase tracking-wider font-bold">
+            <h1 className="text-lg sm:text-2xl font-black tracking-tight text-on-surface uppercase italic">Flashcard <span className="text-primary">Lab</span></h1>
+            <div className="flex items-center gap-2 text-on-surface-variant text-[9px] sm:text-[10px] uppercase tracking-wider font-bold">
                <span className="text-secondary">Repetitive learning Engine</span>
                {cards.length > 0 && (
                 <>
@@ -287,14 +289,14 @@ const Flashcards = () => {
           </motion.div>
 
           {!showSettings && (
-            <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
               <button
                 onClick={handleSave}
                 disabled={cards.length === 0 || isSaving}
-                className="px-4 py-2 rounded-xl bg-secondary/10 text-secondary border border-secondary/20 font-bold text-xs uppercase tracking-widest hover:bg-secondary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-3 sm:px-4 py-2 rounded-xl bg-secondary/10 text-secondary border border-secondary/20 font-bold text-[10px] sm:text-xs uppercase tracking-widest hover:bg-secondary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
                 <span className="material-symbols-outlined text-sm">save</span>
-                {isSaving ? 'Saving...' : 'Save Deck'}
+                <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save Deck'}</span>
               </button>
               {hudStats.map((stat, i) => (
                 <motion.div
@@ -302,10 +304,10 @@ const Flashcards = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
-                  className="bg-surface-container-low px-4 py-2 rounded-xl border border-outline-variant/10 text-center min-w-[90px]"
+                  className="bg-surface-container-low px-3 sm:px-4 py-2 rounded-xl border border-outline-variant/10 text-center min-w-[70px] sm:min-w-[90px]"
                 >
-                  <p className="text-[8px] uppercase tracking-widest text-on-surface-variant mb-0.5 font-bold">{stat.label}</p>
-                  <p className={`text-lg font-black ${stat.color}`}>{stat.value}</p>
+                  <p className="text-[7px] sm:text-[8px] uppercase tracking-widest text-on-surface-variant mb-0.5 font-bold">{stat.label}</p>
+                  <p className={`text-base sm:text-lg font-black ${stat.color}`}>{stat.value}</p>
                 </motion.div>
               ))}
             </div>
@@ -424,6 +426,19 @@ const Flashcards = () => {
                         </div>
                       </div>
 
+                      {/* Topic Focus */}
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Specific Topic (Optional)</label>
+                        <input
+                          type="text"
+                          value={settings.topic || ''}
+                          onChange={(e) => setSettings({...settings, topic: e.target.value})}
+                          placeholder="e.g., k-nearest neighbors, photosynthesis, etc."
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl py-3 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all"
+                        />
+                        <p className="text-[9px] text-on-surface-variant/60 italic">Leave blank to cover all course topics</p>
+                      </div>
+
                       <button 
                         onClick={generateCards}
                         disabled={!currentDeckId}
@@ -533,7 +548,7 @@ const Flashcards = () => {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 w-full max-w-2xl grid grid-cols-5 gap-3 pb-8"
+            className="mt-4 w-full max-w-2xl grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 pb-8"
           >
             <button
               onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}

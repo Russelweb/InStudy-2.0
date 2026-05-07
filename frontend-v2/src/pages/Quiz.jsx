@@ -8,6 +8,7 @@ const QuizSetup = ({ onStart, availableCourses }) => {
   const [difficulty, setDifficulty] = useState('Elite');
   const [count, setCount] = useState(10);
   const [quizType, setQuizType] = useState('multiple_choice');
+  const [topic, setTopic] = useState(''); // New: specific topic focus
 
   // Sync course selection if data loads later
   useEffect(() => {
@@ -83,6 +84,18 @@ const QuizSetup = ({ onStart, availableCourses }) => {
           </div>
           
           <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Specific Topic (Optional)</label>
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="e.g., k-nearest neighbors, photosynthesis, etc."
+              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl py-3 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all"
+            />
+            <p className="text-[9px] text-on-surface-variant/60 italic">Leave blank to cover all course topics</p>
+          </div>
+          
+          <div className="space-y-3">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Question Format</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
@@ -103,7 +116,7 @@ const QuizSetup = ({ onStart, availableCourses }) => {
           </div>
 
           <button 
-            onClick={() => onStart(selectedCourse, difficulty, count, quizType)}
+            onClick={() => onStart(selectedCourse, difficulty, count, quizType, topic)}
             disabled={!selectedCourse}
             className="w-full mt-4 py-5 rounded-2xl bg-[#551a8b] text-on-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50"
           >
@@ -184,7 +197,7 @@ const QuizAssessment = ({ questions, onComplete, onAbort }) => {
       <div className="flex justify-between items-end px-4">
         <div className="space-y-1">
           <span className="text-xs text-secondary font-bold uppercase tracking-[0.3em]">Smart Assessment</span>
-          <h2 className="text-3xl font-black text-on-surface">Question {String(currentIndex + 1).padStart(2, '0')}<span className="text-on-surface-variant/40 ml-2 text-xl font-normal">/ {questions.length}</span></h2>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-on-surface">Question {String(currentIndex + 1).padStart(2, '0')}<span className="text-on-surface-variant/40 ml-2 text-base sm:text-xl font-normal">/ {questions.length}</span></h2>
         </div>
         <div className="flex items-center gap-6">
           <div className="text-right">
@@ -291,7 +304,7 @@ const QuizEvaluation = ({ results, onRestart, onSave, isSaving }) => (
           <div className="absolute inset-0 rounded-full border-8 border-surface-container-highest"></div>
           <div className="absolute inset-0 rounded-full border-8 border-primary border-t-transparent shadow-[0_0_30px_rgba(189,157,255,0.3)]" style={{ transform: `rotate(${Math.min(results?.score_percentage || 0, 100) * 3.6 - 90}deg)` }}></div>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-5xl font-black text-on-surface tracking-tighter">{Math.round(results?.score_percentage || 0)}<span className="text-2xl text-primary">%</span></span>
+            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-on-surface tracking-tighter">{Math.round(results?.score_percentage || 0)}<span className="text-xl sm:text-2xl text-primary">%</span></span>
             <span className="text-[10px] text-on-surface-variant font-bold uppercase">Mastery percentage</span>
           </div>
         </div>
@@ -422,11 +435,11 @@ const Quiz = () => {
     localStorage.removeItem('quiz_results');
   };
 
-  const handleStartQuiz = async (courseId, difficulty, count, quizType) => {
+  const handleStartQuiz = async (courseId, difficulty, count, quizType, topic) => {
     setSelectedCourse(courseId);
     setIsGenerating(true);
     try {
-      const response = await quizService.generate(courseId, count, difficulty.toLowerCase(), quizType);
+      const response = await quizService.generate(courseId, count, difficulty.toLowerCase(), quizType, topic);
       setCurrentQuestions(response.data.questions || response.data.quiz?.questions || []);
       setPhase('assessment');
     } catch (error) {

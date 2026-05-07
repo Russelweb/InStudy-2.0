@@ -23,9 +23,9 @@ class QuizService:
         self.doc_processor = DocumentProcessor()
     
     def generate_quiz(self, user_id: str, course_id: str, num_questions: int, 
-                     difficulty: str, quiz_type: str, api_key: Optional[str] = None):
+                     difficulty: str, quiz_type: str, topic: Optional[str] = None, api_key: Optional[str] = None):
         """Generate quiz from study materials using local LLM"""
-        logger.info(f"Generating {num_questions} {difficulty} {quiz_type} questions with mastery awareness")
+        logger.info(f"Generating {num_questions} {difficulty} {quiz_type} questions with mastery awareness{f' for topic: {topic}' if topic else ''}")
         
         # Get appropriate LLM
         llm = get_llm(api_key)
@@ -38,12 +38,16 @@ class QuizService:
         # Get mastery context
         mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
         
-        # Target search query towards weak areas
-        search_query = ""
-        if "WEAK IN" in mastery_context:
-            try:
-                search_query = mastery_context.split("WEAK IN (Expand these):")[1].split("\n")[0].strip()
-            except: pass
+        # Target search query - prioritize topic if specified
+        if topic:
+            search_query = topic
+            logger.info(f"Focusing quiz on specific topic: {topic}")
+        else:
+            search_query = ""
+            if "WEAK IN" in mastery_context:
+                try:
+                    search_query = mastery_context.split("WEAK IN (Expand these):")[1].split("\n")[0].strip()
+                except: pass
         
         # Get diverse content samples emphasizing weak areas (optimized for speed)
         docs = vector_store.similarity_search(search_query, k=min(5, max(3, num_questions // 2)))
@@ -56,7 +60,12 @@ class QuizService:
             "mixed": "a mix of multiple choice, true/false, and short answer questions"
         }
         
-        prompt_prefix = f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize generating questions that test the user's 'WEAK' concepts.\n\n" if mastery_context else ""
+        # Build prompt prefix with topic focus and mastery awareness
+        prompt_prefix = ""
+        if topic:
+            prompt_prefix = f"TOPIC FOCUS: Generate quiz questions EXCLUSIVELY about '{topic}'. All questions must be directly related to this specific topic.\n\n"
+        if mastery_context and not topic:
+            prompt_prefix += f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize generating questions that test the user's 'WEAK' concepts.\n\n"
         
         prompt = f"""{prompt_prefix}You are creating a quiz for a student. Generate exactly {num_questions} questions.
 

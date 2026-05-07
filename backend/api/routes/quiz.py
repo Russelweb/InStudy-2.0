@@ -18,6 +18,7 @@ class AuthenticatedQuizRequest(BaseModel):
     num_questions: int = 5
     difficulty: str = "medium"
     quiz_type: str = "multiple_choice"
+    topic: Optional[str] = None  # Specific topic focus (e.g., "k-nearest neighbors")
 
 class QuizEvaluationRequest(BaseModel):
     """Quiz evaluation request"""
@@ -78,6 +79,7 @@ async def generate_quiz(
             payload.num_questions,
             payload.difficulty,
             payload.quiz_type,
+            payload.topic,
             api_key=api_key
         )
         

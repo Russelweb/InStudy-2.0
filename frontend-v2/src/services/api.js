@@ -282,12 +282,13 @@ export const chatService = {
 // Quiz
 // ---------------------------------------------------------------------------
 export const quizService = {
-  generate: (courseId, numQuestions = 5, difficulty = 'easy', quizType = 'mixed') =>
+  generate: (courseId, numQuestions = 5, difficulty = 'easy', quizType = 'mixed', topic = null) =>
     API.post('/quiz/generate', {
       course_id: courseId,
       num_questions: numQuestions,
       difficulty: difficulty.toLowerCase(),
       quiz_type: quizType,
+      topic: topic || null,
     }),
 
   submit: (quizData) => API.post('/quiz/evaluate', quizData),
@@ -297,13 +298,14 @@ export const quizService = {
 // Flashcards
 // ---------------------------------------------------------------------------
 export const flashcardService = {
-  generate: (courseId, numCards = 10, explanationLevel = 'detailed', filename = null) =>
+  generate: (courseId, numCards = 10, explanationLevel = 'detailed', filename = null, topic = null) =>
     API.post('/flashcards/generate', {
       course_id: courseId,
       num_cards: numCards,
       include_images: true,
       explanation_level: explanationLevel,
       filename: filename || null,
+      topic: topic || null,
     }),
 
   // Use the /stats/courses endpoint which returns all user courses
@@ -348,17 +350,24 @@ export const statService = {
 // Summary & Planner  (bonus endpoints wired for future use)
 // ---------------------------------------------------------------------------
 export const summaryService = {
-  generate: (courseId, documentName = null, style = 'detailed') => 
+  generate: (courseId, documentName = null, style = 'detailed', topic = null) => 
     API.post('/summary/generate', { 
       course_id: courseId, 
       document_name: documentName,
-      style: style 
+      style: style,
+      topic: topic || null,
     }),
 };
 
 export const plannerService = {
-  create: (courseId, courseName, examDate, topics) => 
-    API.post('/planner/create', { course_id: courseId, course_name: courseName, exam_date: examDate, topics }),
+  create: (courseId, courseName, examDate, topics, focusTopic = null) => 
+    API.post('/planner/create', { 
+      course_id: courseId, 
+      course_name: courseName, 
+      exam_date: examDate, 
+      topics,
+      focus_topic: focusTopic || null,
+    }),
   discoverTopics: (courseId) =>
     API.get(`/planner/discover/${courseId}`),
 };

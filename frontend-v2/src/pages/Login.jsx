@@ -32,7 +32,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#040805] relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#0d1410] relative overflow-hidden p-4">
       {/* Dynamic Background Auras */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
@@ -46,7 +46,7 @@ const Login = () => {
           <div className="absolute top-0 left-0 w-full h-1 bg-[#551a8b] opacity-50 rounded-t-2xl"></div>
           
           <div className="text-center mb-10">
-            <h1 className="text-4xl font-black tracking-tighter text-on-surface mb-2">InStudy 2.0</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-on-surface mb-2">InStudy 2.0</h1>
             <p className="text-xs text-on-surface-variant uppercase tracking-[0.4em] font-bold">InStudent Login</p>
           </div>
 
