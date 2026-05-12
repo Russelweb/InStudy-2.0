@@ -229,3 +229,28 @@ async def get_user_courses(current_user: User = Depends(get_authenticated_user))
         return {"courses": stats["courses"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+def clear_course_activity(user_id: str, course_id: str):
+    """Remove all activity records related to a specific course"""
+    user_upload_dir = Path(settings.UPLOAD_DIR) / user_id
+    activity_file = user_upload_dir / "activity.json"
+    
+    if not activity_file.exists():
+        return
+        
+    try:
+        with open(activity_file, 'r') as f:
+            activity = json.load(f)
+            
+        # Clear quiz results for this course
+        if "quiz_results" in activity:
+            activity["quiz_results"] = [q for q in activity["quiz_results"] if q.get("course_id") != course_id]
+            
+        # Clear questions for this course
+        if "questions" in activity:
+            activity["questions"] = [q for q in activity["questions"] if q.get("course") != course_id]
+            
+        with open(activity_file, 'w') as f:
+            json.dump(activity, f, indent=2)
+            
+    except Exception as e:
+        print(f"Error clearing course activity: {e}")

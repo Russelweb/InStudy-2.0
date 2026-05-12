@@ -20,14 +20,14 @@ const UploadZone = ({ onFileSelected, isUploading, progress }) => {
           id="fileInput" 
           className="hidden" 
           onChange={handleFileChange}
-          accept=".pdf,.txt,.docx"
+          accept=".pdf,.txt,.docx,.xlsx,.xls,.csv,.xml,.jpg,.jpeg,.png"
         />
         <div className="h-64 border-2 border-dashed border-secondary/20 rounded-2xl bg-surface-container-low flex flex-col items-center justify-center transition-all group-hover:border-secondary/50 group-hover:bg-surface-container-high/50 cursor-pointer overflow-hidden">
           <div className="bg-[#551a8b] w-16 h-16 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <span className="material-symbols-outlined text-3xl">upload_file</span>
           </div>
           <h3 className="text-xl font-bold text-on-surface">Upload Your Study Material</h3>
-          <p className="text-on-surface-variant mt-1">Drag and Drop PDF, TXT, or DOCX files</p>
+          <p className="text-on-surface-variant mt-1">PDF, Word, Excel, CSV, XML, or Images</p>
           <div className="mt-6 flex gap-4">
             <span className="text-[10px] px-3 py-1 rounded-full bg-surface-variant text-on-surface-variant font-bold tracking-widest uppercase">Max 200MB</span>
             <span className="text-[10px] px-3 py-1 rounded-full bg-surface-variant text-on-surface-variant font-bold tracking-widest uppercase">OCR Enabled</span>

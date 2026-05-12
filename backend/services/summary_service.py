@@ -1,7 +1,8 @@
 from config import settings
 from services.document_processor import DocumentProcessor
 from models.global_models import get_llm
-from typing import Optional
+from typing import Optional, Any
+from database.auth_db import auth_db
 import logging
 import json
 
@@ -38,12 +39,17 @@ class SummaryService:
         
         # Get mastery context
         mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
-        
+        # Style mapping
         style_prompts = {
-            "short": "Provide a concise summary of the entire document (2-3 paragraphs)",
-            "detailed": "Provide a comprehensive summary of the entire document (4-6 paragraphs)",
-            "exam": "Create an exam revision summary of the entire document focusing on testable concepts."
+            "short": "concise bulleted summary focusing on core definitions",
+            "detailed": "comprehensive structured summary with in-depth explanations and examples",
+            "exam": "highly focused summary targeting likely exam topics and key terminology"
         }
+        
+        # Get preferred language
+        preferred_language = "English"
+        if user_id.isdigit():
+            preferred_language = auth_db.get_preferred_language(int(user_id))
         
         # Add topic focus to prompt if specified
         topic_instruction = f"\n\nTOPIC FOCUS: Focus your summary EXCLUSIVELY on '{topic}'. All content must be directly related to this specific topic." if topic else ""
@@ -54,6 +60,12 @@ class SummaryService:
 Task:
 1. Create a {style_prompts.get(style, style_prompts['short'])}. Use rich markdown (bold, bullets).
 2. At the end, provide a conceptual mind map in Graphviz DOT format (digraph {{ ... }}).
+
+LANGUAGE INSTRUCTION:
+The user's preferred language is: {preferred_language}.
+1. Generate the summary and all explanations ENTIRELY in {preferred_language}.
+2. Ensure the mind map labels are also in {preferred_language}.
+3. If the source material is in a different language, act as a professional translator.
 
 CRITICAL DOT SYNTAX:
 - Use -> for edges.
@@ -113,6 +125,8 @@ digraph {{
                 summary = summary.replace(noise, "")
             
             summary = summary.strip()
+            # Add disclaimer
+            summary += "\n\n---\n*InStudy AI can make mistakes. Please verify important information with your original study materials.*"
             return {"summary": summary, "mind_map": mind_map}
         except Exception as e:
             logger.error(f"Failed to parse conceptual summary: {e}")

@@ -37,6 +37,8 @@ class AuthDatabase:
                     password_hash TEXT NOT NULL,
                     is_admin INTEGER DEFAULT 0,
                     groq_api_key TEXT,
+                    preferred_language TEXT DEFAULT 'en',
+                    policy_accepted INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_login TIMESTAMP
                 )
@@ -48,6 +50,10 @@ class AuthDatabase:
             if 'groq_api_key' not in columns:
                 conn.execute("ALTER TABLE users ADD COLUMN groq_api_key TEXT")
                 logger.info("Added groq_api_key column to users table")
+            
+            if 'preferred_language' not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN preferred_language TEXT DEFAULT 'en'")
+                logger.info("Added preferred_language column to users table")
             
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS sessions (
@@ -250,7 +256,7 @@ class AuthDatabase:
             with sqlite3.connect(self.db_path, timeout=10.0, check_same_thread=False) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
-                    "SELECT id, email, is_admin, (groq_api_key IS NOT NULL) as has_groq_key, created_at, last_login FROM users WHERE id = ?",
+                    "SELECT id, email, is_admin, (groq_api_key IS NOT NULL) as has_groq_key, policy_accepted, created_at, last_login FROM users WHERE id = ?",
                     (user_id,)
                 )
                 user = cursor.fetchone()
@@ -400,6 +406,60 @@ class AuthDatabase:
         except Exception as e:
             logger.error(f"Error fetching/decrypting Groq key: {e}")
             return None
+
+    def update_preferred_language(self, user_id: int, language: str) -> bool:
+        """Update user's preferred language"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute(
+                    "UPDATE users SET preferred_language = ? WHERE id = ?",
+                    (language, user_id)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error updating preferred language: {e}")
+            return False
+
+    def get_preferred_language(self, user_id: int) -> str:
+        """Get user's preferred language, defaults to 'en'"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute("SELECT preferred_language FROM users WHERE id = ?", (user_id,))
+                row = cursor.fetchone()
+                if row and row[0]:
+                    return row[0]
+                return 'en'
+        except Exception as e:
+            logger.error(f"Error fetching preferred language: {e}")
+            return 'en'
+
+    def accept_policy(self, user_id: int):
+        """Mark that a user has accepted the AI usage policy"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE users SET policy_accepted = 1 WHERE id = ?",
+                    (user_id,)
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error accepting policy: {e}")
+            return False
+
+    def has_accepted_policy(self, user_id: int):
+        """Check if a user has accepted the policy"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT policy_accepted FROM users WHERE id = ?", (user_id,))
+                result = cursor.fetchone()
+                return bool(result[0]) if result else False
+        except Exception as e:
+            logger.error(f"Error checking policy status: {e}")
+            return False
 
 # Global instance
 auth_db = AuthDatabase()

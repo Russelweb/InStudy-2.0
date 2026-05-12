@@ -312,6 +312,26 @@ const Mastery = () => {
               <span className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></span>
             </div>
 
+            {/* Reset Progress Row */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  if (window.confirm(`Are you absolutely sure you want to reset all mastery progress for "${currentCourse.name}"? This will delete all your learning history and cannot be undone.`)) {
+                    masteryService.reset(selectedCourse)
+                      .then(() => {
+                        // Refresh data
+                        window.location.reload();
+                      })
+                      .catch(err => alert('Failed to reset progress: ' + err.message));
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-error hover:bg-error/10 border border-error/20 rounded-lg transition-all"
+              >
+                <span className="material-symbols-outlined text-sm">restart_alt</span>
+                Reset Course Progress
+              </button>
+            </div>
+
             {/* Neural Concept Status Section */}
             <motion.section
               ref={statsRef}

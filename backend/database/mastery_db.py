@@ -509,5 +509,31 @@ class MasteryDatabase:
             logger.error(f"Error applying decay: {e}")
             return 0
 
+    def clear_mastery(self, user_id: str, course_id: str) -> bool:
+        """
+        Completely reset all mastery data for a user in a specific course.
+        Deletes records from both user_concept_mastery and mastery_logs.
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                # Delete mastery records
+                conn.execute("""
+                    DELETE FROM user_concept_mastery 
+                    WHERE user_id = ? AND course_id = ?
+                """, (user_id, course_id))
+                
+                # Delete interaction logs
+                conn.execute("""
+                    DELETE FROM mastery_logs 
+                    WHERE user_id = ? AND course_id = ?
+                """, (user_id, course_id))
+                
+                conn.commit()
+                logger.info(f"Mastery data reset for user {user_id}, course {course_id}")
+                return True
+        except Exception as e:
+            logger.error(f"Error resetting mastery data: {e}")
+            return False
+
 # Global instance
 mastery_db = MasteryDatabase()

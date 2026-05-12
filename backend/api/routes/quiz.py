@@ -147,15 +147,19 @@ async def evaluate_quiz(
             })
             
             # Incremental mastery updates from quiz performance
-            # Use smaller adjustments to avoid dramatic swings
             for q_res in results["question_results"]:
                 concept = q_res.get("concept")
                 is_correct = q_res.get("is_correct")
+                q_type = q_res.get("type", "multiple_choice")
+                
                 if concept:
-                    # Incremental scoring:
-                    # Correct: +0.3 (gradual improvement)
-                    # Incorrect: -0.4 (slightly more penalty to encourage review)
-                    familiarity_delta = 0.3 if is_correct else -0.4
+                    # HEAVIER WEIGHTS:
+                    # Structural answers prove deeper knowledge than MCQ
+                    if q_type in ["short_answer", "structural"]:
+                        familiarity_delta = 0.5 if is_correct else -0.7
+                    else:
+                        familiarity_delta = 0.4 if is_correct else -0.6
+                        
                     mastery_db.update_mastery(
                         user_id, 
                         request_data.course_id, 

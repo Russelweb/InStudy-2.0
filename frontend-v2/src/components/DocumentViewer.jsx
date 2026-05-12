@@ -57,8 +57,31 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
       return;
     }
     const ext = selectedDoc.split('.').pop().toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png'].includes(ext);
 
-    if (ext === 'pdf') {
+    if (isImage) {
+      setPdfPages([]);
+      setPdfPageCount(0);
+      setPdfAnnotations([]);
+      setDocContent(null);
+      // For images, we just use the raw serving URL
+      const imageUrl = documentService.getRawUrl(courseId, selectedDoc);
+      setDocContent({ isImage: true, url: imageUrl });
+      
+      // Load annotations
+      const loadAnns = async () => {
+        try {
+          const annRes = await documentService.getAnnotations(courseId, selectedDoc);
+          const anns = annRes.data.annotations || [];
+          setDocContent(prev => ({ ...prev, annotations: anns }));
+          if (onAnnotationsLoaded) onAnnotationsLoaded(anns);
+        } catch (err) {
+          console.error('Failed to load image annotations:', err);
+        }
+      };
+      loadAnns();
+
+    } else if (ext === 'pdf') {
       setDocContent(null);
       setPdfPages([]);
       setPdfPageCount(0);
@@ -214,7 +237,7 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
   );
 
   return (
-    <section className="w-full md:w-[55%] h-[50vh] md:h-full p-3 md:p-6 flex flex-col gap-4 relative border-b md:border-b-0 md:border-r border-outline-variant/10 min-w-0 shrink-0">
+    <section className="w-full h-full p-3 md:p-6 flex flex-col gap-4 relative border-b md:border-b-0 md:border-r border-outline-variant/10 min-w-0 shrink-0">
 
       {/* Toolbar */}
       <div className="glass-panel rounded-xl p-3 flex justify-between items-center border border-primary/10 shrink-0">
@@ -223,7 +246,7 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
             <select
               value={selectedDoc || ''}
               onChange={e => { setSelectedDoc(e.target.value); localStorage.setItem(`last_doc_${courseId}`, e.target.value); }}
-              className="text-xs font-bold tracking-widest text-on-surface-variant uppercase bg-transparent border-none focus:ring-0 cursor-pointer max-w-[180px] truncate"
+              className="text-xs font-bold tracking-widest text-on-surface-variant uppercase bg-transparent border-none focus:ring-0 cursor-pointer max-w-[120px] md:max-w-[180px] truncate"
             >
               {documents.map(doc => <option key={doc} value={doc}>{doc}</option>)}
             </select>
@@ -305,6 +328,38 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
                 )}
               </div>
             ))}
+          </div>
+
+        ) : docContent?.isImage ? (
+          /* ── IMAGE: direct preview ── */
+          <div className="space-y-4 pb-8 flex flex-col items-center">
+             {activeParaIndex === -1 && <AnnotationForm paraIndex={-1} />}
+             
+             {/* Image Annotations */}
+             {docContent.annotations?.length > 0 && (
+              <div className="w-full space-y-2 mb-4">
+                {docContent.annotations.map(ann => {
+                  const t = ANNOTATION_TYPES.find(x => x.id === ann.type) || ANNOTATION_TYPES[0];
+                  return (
+                    <div key={ann.id} className={`p-3 rounded-xl border-l-2 bg-surface-container/50 relative group/ann ${t.line}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-[10px] uppercase font-bold tracking-widest ${t.line.replace('border-', 'text-')}`}>{t.label}</span>
+                        <button onClick={() => handleDeleteAnnotation(ann.id)} className="opacity-0 group-hover/ann:opacity-100 text-error/60 hover:text-error transition-opacity">
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      </div>
+                      <p className="text-sm text-on-surface/90 whitespace-pre-wrap">{ann.content}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+             <img 
+               src={docContent.url} 
+               alt={selectedDoc} 
+               className="max-w-full rounded-2xl shadow-2xl border border-primary/10" 
+             />
           </div>
 
         ) : docContent?.paragraphs ? (

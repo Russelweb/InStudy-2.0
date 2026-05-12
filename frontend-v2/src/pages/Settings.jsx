@@ -279,6 +279,62 @@ const Settings = () => {
           </p>
         </div>
       </div>
+
+      {/* ── AI Usage Policy Card ─────────────────────────────────────────── */}
+      <div className="bg-surface-container rounded-2xl border border-outline-variant/10 overflow-hidden">
+        <div className="p-6 border-b border-outline-variant/10 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-secondary">verified_user</span>
+          </div>
+          <div>
+            <h2 className="font-bold text-on-surface">AI Usage & Privacy Policy</h2>
+            <p className="text-xs text-on-surface-variant">Terms established for responsible neural interaction.</p>
+          </div>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          <div className="space-y-4">
+            <section>
+              <h3 className="text-sm font-bold text-on-surface flex items-center gap-2 mb-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                Accuracy Disclaimer
+              </h3>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                InStudy 2.0 uses Large Language Models to assist your studies. AI can make mistakes (hallucinations). Always verify critical information with your official study materials. This platform is an assistive tool, not a replacement for primary source materials.
+              </p>
+            </section>
+
+            <section>
+              <h3 className="text-sm font-bold text-on-surface flex items-center gap-2 mb-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                Data & Privacy
+              </h3>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                Your documents are indexed locally for your account. If you use personal API keys, your queries are processed by the respective provider (e.g., Groq). We do not sell your study data or use private documents for global model training.
+              </p>
+            </section>
+
+            <section>
+              <h3 className="text-sm font-bold text-on-surface flex items-center gap-2 mb-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                Academic Integrity
+              </h3>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                Use InStudy 2.0 to deepen your understanding. You are responsible for ensuring your use of this platform complies with your school or university's academic honesty policies.
+              </p>
+            </section>
+          </div>
+
+          <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/10 flex items-center gap-3">
+            <span className="material-symbols-outlined text-secondary">check_circle</span>
+            <div className="flex-1">
+              <p className="text-[11px] font-bold text-on-surface">Policy Accepted</p>
+              <p className="text-[10px] text-on-surface-variant">You have officially agreed to these terms.</p>
+            </div>
+            <span className="text-[10px] text-on-surface-variant italic">Active Session</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

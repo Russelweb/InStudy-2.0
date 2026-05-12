@@ -54,7 +54,7 @@ const Flashcard = ({ question, answer, category, front, back, concept }) => {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-2 h-2 rounded-full bg-secondary animate-pulse shadow-[0_0_8px_#69f6b8]"></div>
-            <span className="text-[9px] sm:text-[10px] text-secondary font-medium tracking-widest uppercase">Verified by InStudy 2.0</span>
+            <span className="text-[9px] sm:text-[10px] text-secondary font-medium tracking-widest uppercase">InStudy 2.0 Can make mistakes please verify</span>
           </div>
         </div>
       </motion.div>

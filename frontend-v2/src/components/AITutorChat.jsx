@@ -180,7 +180,7 @@ const AITutorChat = ({ courseId }) => {
   };
 
   return (
-    <div className="glass-panel rounded-xl w-full md:w-[45%] h-[50vh] md:h-full flex flex-col border border-secondary/10 overflow-hidden min-w-0 shrink-0">
+    <div className="glass-panel rounded-xl w-full h-full flex flex-col border border-secondary/10 overflow-hidden min-w-0 shrink-0">
       {/* Chat Header */}
       <div className="px-6 py-4 flex justify-between items-center bg-surface-container-low shrink-0">
         <div className="flex items-center gap-3">
@@ -289,7 +289,7 @@ const AITutorChat = ({ courseId }) => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-surface-container-lowest border-t border-outline-variant/10 shrink-0 space-y-2 mb-[120px] md:mb-0">
+      <div className="p-4 bg-surface-container-lowest border-t border-outline-variant/10 shrink-0 space-y-2">
         {isStreaming && (
           <button
             onClick={handleStop}

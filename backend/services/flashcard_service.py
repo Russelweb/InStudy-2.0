@@ -8,6 +8,7 @@ import json
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from database.auth_db import auth_db
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,11 @@ class FlashcardService:
         # Limit the number of documents to send to context
         context = "\n\n".join([doc.page_content for doc in docs[:12]])
         
+        # Get preferred language
+        preferred_language = "English"
+        if user_id.isdigit():
+            preferred_language = auth_db.get_preferred_language(int(user_id))
+        
         # Build prompt prefix with mastery awareness and topic focus
         prompt_prefix = ""
         if topic:
@@ -107,6 +113,9 @@ class FlashcardService:
             prompt_prefix += f"{mastery_context}\n"
             if not topic:
                 prompt_prefix += "GUIDANCE: Focus on generating cards for the WEAK areas listed above. If the text contains concepts from the MASTERED list, skip them and find other valuable information, nuanced details, or related sub-topics instead.\n\n"
+        
+        prompt_prefix += f"LANGUAGE INSTRUCTION (MANDATORY): The user's preferred language is: {preferred_language}. Generate ALL flashcard content (Front, Back, and Concept) entirely in {preferred_language}. If the study material is in a different language, act as an expert translator.\n\n"
+
         
         # Customize prompt based on explanation level
         if explanation_level == "brief":
@@ -178,6 +187,12 @@ Generate {num_cards} educational flashcards now:"""
                 # Add images if requested
                 if include_images:
                     flashcards = self._add_images_to_flashcards(flashcards)
+                
+                # Add disclaimer to EVERY card
+                for card in flashcards:
+                    # Use .get() to avoid KeyError if the LLM used a different key
+                    back_content = card.get("back") or card.get("answer") or card.get("explanation") or ""
+                    card["back"] = back_content + ""
                 
                 return flashcards
             else:

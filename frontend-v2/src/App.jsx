@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
+import PolicyOverlay from './components/PolicyOverlay'
 import Dashboard from './pages/Dashboard'
 import KnowledgeBase from './pages/KnowledgeBase'
 import Workspace from './pages/Workspace'
@@ -32,9 +33,15 @@ const ScrollToTop = () => {
 function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [user, setUser] = useState(() => {
+    const raw = localStorage.getItem('user_info');
+    try { return raw ? JSON.parse(raw) : null; } catch { return null; }
+  });
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-background relative">
+      <PolicyOverlay user={user} onAccepted={setUser} />
+      
       {/* Sidebar - Desktop */}
       <div className={`hidden md:block shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
         <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)} />
@@ -59,6 +66,11 @@ function MainLayout() {
         <main className="flex-1 w-full max-w-[1600px] mx-auto px-4 md:px-8 pt-20 pb-20">
           <Outlet />
         </main>
+      </div>
+
+      {/* Persistent AI Disclaimer */}
+      <div className="fixed bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-surface-variant/50 pointer-events-none z-[100] whitespace-nowrap hidden md:block">
+        InStudy AI can make mistakes. Please verify important information.
       </div>
     </div>
   );

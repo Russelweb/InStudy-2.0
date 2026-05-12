@@ -212,12 +212,13 @@ class AuthService:
         """Get user's Groq API key"""
         return self.auth_db.get_groq_key(user_id)
     
-    def cleanup_expired_sessions(self):
-        """Clean up expired sessions"""
-        try:
-            self.auth_db.cleanup_expired_sessions()
-        except Exception as e:
-            logger.error(f"Session cleanup error: {e}")
+    def accept_policy(self, user_id: int) -> bool:
+        """Mark that a user has accepted the AI usage policy"""
+        return self.auth_db.accept_policy(user_id)
+
+    def has_accepted_policy(self, user_id: int) -> bool:
+        """Check if a user has accepted the policy"""
+        return self.auth_db.has_accepted_policy(user_id)
 
 # Global instance
 auth_service = AuthService()

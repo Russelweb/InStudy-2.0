@@ -5,6 +5,7 @@ Identifies key topics/concepts from study materials to enable adaptive learning.
 
 from models.global_models import get_llm
 from database.mastery_db import mastery_db
+from database.auth_db import auth_db
 from utils.concept_utils import normalize_concepts, extract_concept_from_text
 import json
 import logging
@@ -20,9 +21,16 @@ class ConceptService:
         """Ask the LLM to identify the main concepts in a block of text"""
         # Get appropriate LLM
         llm = get_llm(api_key)
+        
         prompt = f"""
         Identify the 1-3 most important core concepts discussed in this text.
         Text: {text[:2000]}
+        
+        LANGUAGE INSTRUCTION:
+        1. Identify the language of the text.
+        2. Extract concepts in that same language.
+        3. If the text is primarily in English, but contains significant non-English terms, or if you are instructed otherwise, respond in the student's likely language.
+        4. For InStudy 2.0, we prioritize responding in the language the user is currently using for study.
         
         Respond with ONLY a comma-separated list of short concept names (e.g., 'Backpropagation, Calculus, Neural Networks').
         Do not include any other explanations.

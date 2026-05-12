@@ -13,6 +13,7 @@ class User(BaseModel):
     email: str
     is_admin: bool = False
     has_groq_key: bool = False
+    policy_accepted: bool = False
     created_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
 

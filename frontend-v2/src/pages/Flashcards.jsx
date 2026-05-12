@@ -548,57 +548,57 @@ const Flashcards = () => {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 w-full max-w-2xl grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 pb-8"
+            className="mt-4 w-full max-w-2xl grid grid-cols-5 gap-1.5 sm:gap-3 pb-8"
           >
             <button
               onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
               disabled={currentIndex === 0}
-              className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/10 hover:bg-surface-variant transition-all active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="group flex flex-col items-center gap-1 sm:gap-2 p-1.5 sm:p-3 rounded-xl bg-surface-container-low border border-outline-variant/10 hover:bg-surface-variant transition-all active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-all">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-all">
                 <span className="material-symbols-outlined font-bold text-sm">arrow_back</span>
               </div>
-              <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">Prev</span>
+              <span className="text-[7px] sm:text-[9px] font-bold uppercase tracking-tighter sm:tracking-widest text-on-surface-variant">Prev</span>
             </button>
 
             <button
               onClick={() => handleMasteryUpdate(-1)}
-              className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-error-container/10 border border-error-dim/20 hover:bg-error-container/20 transition-all active:scale-90"
+              className="group flex flex-col items-center gap-1 sm:gap-2 p-1.5 sm:p-3 rounded-xl bg-error-container/10 border border-error-dim/20 hover:bg-error-container/20 transition-all active:scale-90"
             >
-              <div className="w-10 h-10 rounded-full bg-error-container flex items-center justify-center text-on-error shadow-lg transition-all">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-error-container flex items-center justify-center text-on-error shadow-lg transition-all">
                 <span className="material-symbols-outlined font-bold text-sm">close</span>
               </div>
-              <span className="text-[9px] font-bold uppercase tracking-widest text-error-dim">Unfamiliar</span>
+              <span className="text-[7px] sm:text-[9px] font-bold uppercase tracking-tighter sm:tracking-widest text-error-dim">Unfamiliar</span>
             </button>
 
             <button
               onClick={() => handleMasteryUpdate(0)}
-              className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-surface-container-highest border border-outline-variant/20 hover:bg-surface-variant transition-all shadow-xl active:scale-95"
+              className="group flex flex-col items-center gap-1 sm:gap-2 p-1.5 sm:p-3 rounded-xl bg-surface-container-highest border border-outline-variant/20 hover:bg-surface-variant transition-all shadow-xl active:scale-95"
             >
-              <div className="w-10 h-10 rounded-full bg-[#b8f9de] flex items-center justify-center text-[#074e3b] shadow-lg transition-all">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#b8f9de] flex items-center justify-center text-[#074e3b] shadow-lg transition-all">
                 <span className="material-symbols-outlined font-bold text-sm">check</span>
               </div>
-              <span className="text-[9px] font-bold uppercase tracking-widest text-tertiary-fixed">Familiar</span>
+              <span className="text-[7px] sm:text-[9px] font-bold uppercase tracking-tighter sm:tracking-widest text-tertiary-fixed">Familiar</span>
             </button>
 
             <button
               onClick={() => handleMasteryUpdate(1)}
-              className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-secondary-container/10 border border-secondary/20 hover:bg-secondary-container/20 transition-all active:scale-90"
+              className="group flex flex-col items-center gap-1 sm:gap-2 p-1.5 sm:p-3 rounded-xl bg-secondary-container/10 border border-secondary/20 hover:bg-secondary-container/20 transition-all active:scale-90"
             >
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-on-secondary shadow-lg transition-all">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-secondary flex items-center justify-center text-on-secondary shadow-lg transition-all">
                 <span className="material-symbols-outlined font-bold text-sm">auto_awesome</span>
               </div>
-              <span className="text-[9px] font-bold uppercase tracking-widest text-secondary">Mastered</span>
+              <span className="text-[7px] sm:text-[9px] font-bold uppercase tracking-tighter sm:tracking-widest text-secondary">Mastered</span>
             </button>
 
             <button
                onClick={handleSkip}
-               className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/10 hover:bg-surface-variant transition-all active:scale-90"
+               className="group flex flex-col items-center gap-1 sm:gap-2 p-1.5 sm:p-3 rounded-xl bg-surface-container-low border border-outline-variant/10 hover:bg-surface-variant transition-all active:scale-90"
              >
-               <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-all">
+               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-all">
                  <span className="material-symbols-outlined font-bold text-sm">double_arrow</span>
                </div>
-               <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">Skip</span>
+               <span className="text-[7px] sm:text-[9px] font-bold uppercase tracking-tighter sm:tracking-widest text-on-surface-variant">Skip</span>
              </button>
           </motion.div>
         )}

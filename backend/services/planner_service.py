@@ -6,8 +6,9 @@ from datetime import datetime
 from services.document_processor import DocumentProcessor
 from services.concept_service import concept_service
 import json
-import logging
 from utils.file_utils import get_absolute_path
+from database.auth_db import auth_db
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +49,20 @@ class PlannerService:
         # Get mastery context — use course_id for DB lookup
         mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
         
+        # Get preferred language
+        preferred_language = "en"
+        if user_id.isdigit():
+            preferred_language = auth_db.get_preferred_language(int(user_id))
+            
         # Build prompt prefix with mastery awareness and topic focus
         prompt_prefix = ""
         if focus_topic:
             prompt_prefix = f"TOPIC FOCUS: Create a study plan that PRIORITIZES '{focus_topic}'. Allocate more time and tasks to this specific topic.\n\n"
         if mastery_context:
             prompt_prefix += f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize allocating more study days/hours to 'WEAK' concepts.\n\n"
+        
+        prompt_prefix += f"LANGUAGE INSTRUCTION: The user's preferred language is: {preferred_language}. Generate ALL study plan content (Focus, Tasks, Revision Plan, and Exam Tips) entirely in {preferred_language}. If the course material or topics are in a different language, act as a professional translator.\n\n"
+
         
         prompt = f"""{prompt_prefix}Create a comprehensive study plan for a student.
         

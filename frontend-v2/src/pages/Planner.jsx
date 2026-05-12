@@ -308,7 +308,7 @@ const Planner = () => {
                     type="text"
                     value={focusTopic}
                     onChange={(e) => setFocusTopic(e.target.value)}
-                    placeholder="e.g., k-nearest neighbors - will be prioritized in the plan"
+                    placeholder="e.g. Photosynthesis- will be prioritized in the plan"
                     className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl py-3 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all"
                   />
                   <p className="text-[9px] text-on-surface-variant/60 italic">Leave blank to cover all topics equally</p>

@@ -18,7 +18,8 @@ const Workspace = () => {
   const [uploadError, setUploadError]       = useState('');
   const [docRefreshTick, setDocRefreshTick] = useState(0);
   const [activeAnnotations, setActiveAnnotations] = useState([]);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 768);
+  const [activeMobileTab, setActiveMobileTab]   = useState('reader'); // 'reader' or 'chat'
 
   // Resolve human-readable course name
   useEffect(() => {
@@ -184,15 +185,42 @@ const Workspace = () => {
             )}
           </AnimatePresence>
 
-          {/* Split Pane — stacked on mobile, side-by-side on desktop */}
-          <main className="flex flex-1 flex-col md:flex-row overflow-hidden pb-[120px]">
-            <DocumentViewer courseId={courseId} refreshTick={docRefreshTick} onAnnotationsLoaded={setActiveAnnotations}/>
-            <AITutorChat courseId={courseId} />
+          {/* Mobile Tab Switcher */}
+          <div className="flex md:hidden bg-[#0c1410]/50 backdrop-blur-3xl p-1.5 rounded-2xl mx-4 my-2 border border-outline-variant/10 shadow-2xl shrink-0">
+            <button 
+              onClick={() => setActiveMobileTab('reader')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${activeMobileTab === 'reader' ? 'bg-primary/20 text-primary border border-primary/20 shadow-[0_0_20px_rgba(189,157,255,0.1)]' : 'text-on-surface-variant hover:text-white border border-transparent'}`}
+            >
+              <span className="material-symbols-outlined text-lg">menu_book</span>
+              Reader
+            </button>
+            <button 
+              onClick={() => setActiveMobileTab('chat')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${activeMobileTab === 'chat' ? 'bg-secondary/20 text-secondary border border-secondary/20 shadow-[0_0_20px_rgba(105,246,184,0.1)]' : 'text-on-surface-variant hover:text-white border border-transparent'}`}
+            >
+              <span className="material-symbols-outlined text-lg">psychology</span>
+              AI Tutor
+            </button>
+          </div>
+
+          {/* Split Pane — stacked on mobile (now tabbed), side-by-side on desktop */}
+          <main className="flex flex-1 flex-col md:flex-row overflow-hidden md:pb-[120px]">
+            <div className={`${activeMobileTab === 'reader' ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-[55%] h-full min-w-0`}>
+              <DocumentViewer courseId={courseId} refreshTick={docRefreshTick} onAnnotationsLoaded={setActiveAnnotations}/>
+            </div>
+            <div className={`${activeMobileTab === 'chat' ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-[45%] h-full min-w-0`}>
+              <AITutorChat courseId={courseId} />
+            </div>
           </main>
         </div>
       </div>
 
       <NeuralControlDeck annotations={activeAnnotations} />
+      
+      {/* Persistent AI Disclaimer */}
+      <div className="fixed bottom-1 left-1/2 -translate-x-1/2 text-[9px] text-on-surface-variant/30 pointer-events-none z-[60] whitespace-nowrap hidden lg:block">
+        InStudy AI can make mistakes. Please verify important information.
+      </div>
     </div>
   );
 };

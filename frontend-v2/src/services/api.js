@@ -197,6 +197,7 @@ export const authService = {
   saveGroqKey: (key) => API.post('/auth/groq-key', { groq_api_key: key }),
   getGroqKey:  ()    => API.get('/auth/groq-key'),
   deleteGroqKey: ()  => API.post('/auth/groq-key', { groq_api_key: '' }),
+  acceptPolicy: ()   => API.post('/auth/accept-policy'),
 };
 
 // ---------------------------------------------------------------------------
@@ -330,6 +331,8 @@ export const masteryService = {
   getReviewSchedule: (courseId) => API.get(`/mastery/review-schedule/${courseId}`),
   
   applyDecay: (courseId) => API.post(`/mastery/apply-decay/${courseId}`),
+  
+  reset: (courseId) => API.post(`/mastery/reset/${courseId}`),
 };
 
 // ---------------------------------------------------------------------------

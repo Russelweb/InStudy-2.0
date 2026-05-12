@@ -162,3 +162,12 @@ async def get_groq_key(
     if not key:
         raise HTTPException(status_code=404, detail="Groq API key not found")
     return {"groq_api_key": key}
+@router.post("/accept-policy")
+async def accept_policy(
+    current_user: User = Depends(get_authenticated_user)
+):
+    """Mark that the current user has accepted the AI usage policy"""
+    success = auth_service.accept_policy(current_user.id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to record policy acceptance")
+    return {"message": "Policy accepted successfully", "policy_accepted": True}

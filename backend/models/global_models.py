@@ -97,36 +97,47 @@ class HybridLLM:
     def _llm_type(self):
         return "hybrid"
 
-def get_llm(api_key: Optional[str] = None):
+def get_llm(api_key: Optional[str] = None, model_name: Optional[str] = None):
     """
     Get or create an LLM instance.
     If api_key is provided, creates/returns a user-specific Groq instance.
+    If model_name is provided, uses that specific model.
     Otherwise, fallbacks to global Groq (from settings) or local Ollama.
     """
     global _llm, _user_llms
     
-    # CASE 1: User-provided API Key
-    if api_key:
-        if api_key not in _user_llms:
+    target_model = model_name or settings.GROQ_MODEL
+    cache_key = f"{api_key}_{target_model}" if api_key else f"default_{target_model}"
+    
+    # CASE 1: User-provided API Key or Specific Model
+    if api_key or model_name:
+        if cache_key not in _user_llms:
             try:
                 from langchain_groq import ChatGroq
-                logger.info("Creating user-specific Groq LLM instance")
-                _user_llms[api_key] = ChatGroq(
-                    groq_api_key=api_key,
-                    model_name=settings.GROQ_MODEL,
+                logger.info(f"Creating specific Groq LLM instance: {target_model}")
+                
+                # Use provided key or fallback to default
+                active_key = api_key or settings.GROQ_API_KEY
+                if not active_key:
+                    return get_local_llm()
+
+                instance = ChatGroq(
+                    groq_api_key=active_key,
+                    model_name=target_model,
                     temperature=settings.LLM_TEMPERATURE
                 )
-                logger.info("User-specific Groq LLM created successfully")
+                
+                # Wrap with local fallback
+                _user_llms[cache_key] = HybridLLM(
+                    cloud_llm=instance,
+                    local_llm=get_local_llm()
+                )
+                logger.info(f"Specific Groq LLM ({target_model}) created successfully")
             except Exception as e:
-                logger.error(f"Error creating user Groq LLM: {e}")
-                return get_llm(None) # Fallback to default
-            
-            # Wrap user LLM with local fallback
-            _user_llms[api_key] = HybridLLM(
-                cloud_llm=_user_llms[api_key],
-                local_llm=get_local_llm()
-            )
-        return _user_llms[api_key]
+                logger.error(f"Error creating specific Groq LLM: {e}")
+                return get_local_llm()
+                
+        return _user_llms[cache_key]
 
     # CASE 2: Global Singleton (if not already created)
     if _llm is None:

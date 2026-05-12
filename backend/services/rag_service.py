@@ -5,6 +5,7 @@ import logging
 import json
 import re
 from typing import List, Dict, Any, Optional
+from database.auth_db import auth_db
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,28 @@ class RAGService:
         self.doc_processor = DocumentProcessor()
         # Store conversation history per user/course
         self.conversation_memory: Dict[str, List[Dict[str, str]]] = {}
+    
+    def _detect_and_update_language(self, user_id: str, question: str, llm):
+        """Detect language of question and update user preference if it's consistent"""
+        if not user_id.isdigit() or len(question) < 10:
+            return
+            
+        try:
+            # Quick check: if it's already the preferred language, skip
+            current_lang = auth_db.get_preferred_language(int(user_id))
+            
+            # Ask LLM to detect language (very short prompt)
+            detection_prompt = f"Identify the language of this text. Return ONLY the language name (e.g., 'English', 'Spanish', 'French'). Text: '{question[:100]}'"
+            detected = llm.invoke(detection_prompt)
+            detected_text = (detected if isinstance(detected, str) else getattr(detected, 'content', str(detected))).strip().lower()
+            
+            # Simple mapping to codes if needed, but we can store names too. 
+            # Storing names is more flexible for the LLM prompts.
+            if detected_text and detected_text not in current_lang.lower():
+                logger.info(f"Detected new language for user {user_id}: {detected_text}")
+                auth_db.update_preferred_language(int(user_id), detected_text.capitalize())
+        except Exception as e:
+            logger.error(f"Error detecting language: {e}")
     
     def _get_memory_key(self, user_id: str, course_id: str) -> str:
         """Generate unique key for conversation memory"""
@@ -203,11 +226,44 @@ class RAGService:
         page_info = []
         prompt = ""
         
+        # Cross-lingual retrieval support
+        search_query = question
+        
         if vector_store:
             logger.info("Retrieving relevant documents...")
             
+            # Identify language and generate English search query if needed
+            # (We do this only if the question is long enough and likely not English)
+            try:
+                # Get current preference
+                current_lang = auth_db.get_preferred_language(int(user_id))
+                
+                # Detect current language for the prompt
+                detection_prompt = f"Identify the language of this text. Respond ONLY with the single word for the language name. Text: '{question[:100]}'"
+                detected = llm.invoke(detection_prompt)
+                detected_lang_raw = (detected if isinstance(detected, str) else getattr(detected, 'content', str(detected))).strip()
+                
+                # Extract language name
+                import re
+                match = re.search(r'(English|Spanish|French|German|Italian|Portuguese|Chinese|Japanese|Russian|Arabic|Hindi)', detected_lang_raw, re.IGNORECASE)
+                detected_lang = match.group(1).capitalize() if match else "English"
+                
+                logger.info(f"Language detection: '{detected_lang_raw}' -> '{detected_lang}'")
+                
+                # Optimize the question for semantic search
+                if len(question) > 5:
+                    optimization_prompt = f"Convert this user question into a concise, keyword-rich search query for a vector database. Return ONLY the optimized query text. Question: '{question}'"
+                    search_query_raw = llm.invoke(optimization_prompt)
+                    search_query = (search_query_raw if isinstance(search_query_raw, str) else getattr(search_query_raw, 'content', str(search_query_raw))).strip()
+                    logger.info(f"Optimized search query: {search_query[:50]}...")
+            except Exception as e:
+                logger.warning(f"Failed to optimize search query: {e}")
+                search_query = question
+                detected_lang = "English"
+            
             # Page-specific retrieval
             if page_ref:
+
                 logger.info(f"Page-specific query detected: page {page_ref}")
                 docs = self._retrieve_page_specific_content(vector_store, page_ref, k=5)
                 if docs:
@@ -230,17 +286,32 @@ class RAGService:
             
             # General semantic search
             else:
-                docs_with_scores = vector_store.similarity_search_with_score(question, k=settings.TOP_K_RETRIEVAL)
+                logger.info(f"Performing correlated retrieval for: {search_query}")
+                primary_docs_with_scores = vector_store.similarity_search_with_score(search_query, k=settings.TOP_K_RETRIEVAL)
+                foundational_docs = []
+                try:
+                    concept_extraction_prompt = f"Identify the 1-2 most important technical concepts in this query: '{search_query}'. Return ONLY the terms separated by a comma."
+                    concepts_text = llm.invoke(concept_extraction_prompt)
+                    concepts_text = concepts_text if isinstance(concepts_text, str) else getattr(concepts_text, 'content', str(concepts_text))
+                    concepts = [c.strip() for c in concepts_text.split(",") if len(c.strip()) > 3]
+                    for concept in concepts:
+                        foundational_docs.extend(vector_store.similarity_search(f"Definition of {concept}", k=1))
+                except Exception as e:
+                    logger.warning(f"Foundational search failed: {e}")
                 
-                if docs_with_scores and docs_with_scores[0][1] < settings.SIMILARITY_THRESHOLD:
-                    has_context = True
-                    docs = [doc[0] for doc in docs_with_scores]
-                    # Extract page information
-                    pages = set([doc.metadata.get('page') for doc in docs if doc.metadata.get('page')])
-                    if pages:
-                        page_info = [f"page {p}" for p in sorted(pages)]
-                else:
-                    docs = []
+                docs = []
+                seen_contents = set()
+                for doc, score in primary_docs_with_scores:
+                    if score < settings.SIMILARITY_THRESHOLD:
+                        if doc.page_content not in seen_contents:
+                            docs.append(doc); seen_contents.add(doc.page_content); has_context = True
+                for doc in foundational_docs[:2]:
+                    if doc.page_content not in seen_contents:
+                        docs.append(doc); seen_contents.add(doc.page_content)
+                
+                pages = set([doc.metadata.get('page') for doc in docs if doc.metadata.get('page')])
+                if pages:
+                    page_info = [f"page {p}" for p in sorted(pages)]
             
             if has_context and docs:
                 # Build unified sources with page numbers: "filename#page=X"
@@ -265,8 +336,29 @@ class RAGService:
                 
                 # Get conversation history
                 conversation_context = self._get_conversation_context(user_id, course_id)
+                has_image_context = any(doc.metadata.get('is_image', False) for doc in docs)
                 
-                if use_eli12:
+                if has_image_context:
+                    # Special "Free Talk" prompt for images
+                    prompt = f"""You are a visual analysis expert. You are helping the user explore and understand an image they uploaded (e.g., a house plan, diagram, or chart).
+{conversation_context}
+
+Visual Content Description:
+{context_text}
+
+Current Question: {question}
+
+INSTRUCTIONS:
+1. Speak in a natural, conversational, and helpful tone. 
+2. Do NOT use a formal academic structure (no "Exam Questions" or "Step-by-Step Definitions" unless explicitly asked).
+3. Focus on describing details, spatial relationships, or trends seen in the image.
+4. If it's a house plan, help the user visualize the layout.
+5. Keep the conversation flowing like a collaborative exploration.
+
+LANGUAGE INSTRUCTION (MANDATORY):
+You MUST respond entirely in {detected_lang}.
+"""
+                elif use_eli12:
                     prompt = f"""You are a friendly tutor explaining to a 12-year-old student.
 {conversation_context}
 
@@ -284,7 +376,18 @@ Structure:
 1. Simple Definition
 2. Fun Example or Analogy
 3. Why It Matters
-4. Quick Summary"""
+4. Quick Summary
+
+LANGUAGE INSTRUCTION (MANDATORY):
+You MUST respond entirely in {detected_lang}. 
+- Even if the history or material is in another language, your answer MUST be in {detected_lang}.
+- If the material is not in {detected_lang}, act as an expert translator.
+
+COURSE-WIDE INSTRUCTION:
+- You have access to all documents in this course. 
+- If the current topic builds on concepts from earlier documents (e.g. Chapter 2 concepts used in Chapter 6), explicitly mention the connection.
+- Use the foundational background provided to give a more holistic explanation.
+"""
                 else:
                     prompt = f"""You are an expert AI tutor helping a university student.
 {conversation_context}
@@ -305,7 +408,18 @@ Provide a structured explanation:
 4. Possible Exam Question
 5. Quick Summary
 
-If the question asks about a specific page or exercise, focus on that content."""
+If the question asks about a specific page or exercise, focus on that content.
+
+LANGUAGE INSTRUCTION (MANDATORY):
+You MUST respond entirely in {detected_lang}. 
+- Even if the history or material is in another language, your answer MUST be in {detected_lang}.
+- If the material is not in {detected_lang}, act as an expert translator.
+
+COURSE-WIDE INSTRUCTION:
+- You have access to all documents in this course. 
+- If the current topic builds on concepts from earlier documents, explicitly mention the connection.
+- Use the foundational background provided to give a more holistic explanation.
+"""
 
         if not has_context:
             logger.warning(f"No relevant documents found for question: '{question[:50]}...'")
@@ -325,7 +439,7 @@ If the question asks about a specific page or exercise, focus on that content.""
             conversation_context = self._get_conversation_context(user_id, course_id)
             
             if use_eli12:
-                prompt = f"""You are a friendly tutor explaining to a 12-year-old student.
+                    prompt = f"""You are a friendly tutor explaining to a 12-year-old student.
 {conversation_context}
 
 Current Question: {question}
@@ -333,9 +447,15 @@ Current Question: {question}
 Explain this concept using simple everyday language, fun analogies, short sentences, and no complex jargon.
 IMPORTANT: For ANY mathematical expression, equation, or formula — always use LaTeX notation:
 - Inline math: $expression$ (e.g. $x^2$, $\\sin(x)$, $\\frac{{a}}{{b}}$)
-- Block/display math: $$expression$$ on its own line"""
+- Block/display math: $$expression$$ on its own line
+
+LANGUAGE INSTRUCTION (CRITICAL):
+Identify the language of the 'Current Question'. 
+- Respond ENTIRELY in that same language.
+- Even if the 'Previous Conversation' is in a different language, you MUST switch to the language of the 'Current Question' now.
+"""
             else:
-                prompt = f"""You are a knowledgeable AI tutor.
+                    prompt = f"""You are a knowledgeable AI tutor.
 {conversation_context}
 
 Current Question: {question}
@@ -346,9 +466,14 @@ IMPORTANT: For ANY mathematical expression, equation, symbol, or formula — alw
 
 Provide a clear explanation as if teaching a university student. Include:
 1. Clear definition
-2. Step-by-step explanation
+2. Step-by-Step explanation
 3. Practical example
-4. Quick summary"""
+4. Quick summary
+
+LANGUAGE INSTRUCTION (MANDATORY):
+You MUST respond entirely in {detected_lang}. 
+- Even if the history or material is in another language, your answer MUST be in {detected_lang}.
+"""
         
         # Send metadata first
         yield f"data: {json.dumps({'type': 'metadata', 'sources': sources, 'has_context': has_context})}\n\n"
@@ -372,8 +497,14 @@ Provide a clear explanation as if teaching a university student. Include:
         # Add to conversation memory
         if full_response:
             self._add_to_memory(user_id, course_id, question, full_response)
+            
+            # Detect language and update preference
+            self._detect_and_update_language(user_id, question, llm)
+
         
-        # Send completion signal
+        # Send completion signal with disclaimer
+        disclaimer = "\n\n---\n*InStudy AI can make mistakes. Please verify important information with your original study materials.*"
+        yield f"data: {json.dumps({'type': 'content', 'text': disclaimer})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
     
     def get_memory_status(self, user_id: str, course_id: str) -> Dict[str, Any]:
@@ -407,11 +538,33 @@ Provide a clear explanation as if teaching a university student. Include:
         sources = []
         page_info = []
         
+        # Cross-lingual retrieval support
+        search_query = question
+        
         if vector_store:
             logger.info("Retrieving relevant documents...")
             
+            # Identify language and generate search query if needed
+            try:
+                # Detect current language for the prompt
+                detection_prompt = f"Identify the language of this text. Return ONLY the language name (e.g., 'English', 'Spanish', 'French'). Text: '{question[:100]}'"
+                detected = llm.invoke(detection_prompt)
+                detected_lang = (detected if isinstance(detected, str) else getattr(detected, 'content', str(detected))).strip().capitalize()
+                if not detected_lang: detected_lang = "English"
+
+                if len(question) > 5:
+                    optimization_prompt = f"Convert this user question into a concise, keyword-rich search query for a vector database. Maintain the original meaning. Return ONLY the optimized query text. Question: '{question}'"
+                    search_query = llm.invoke(optimization_prompt)
+                    search_query = search_query if isinstance(search_query, str) else getattr(search_query, 'content', str(search_query))
+                    search_query = search_query.strip()
+            except Exception as e:
+                logger.warning(f"Failed to optimize search query: {e}")
+                search_query = question
+                detected_lang = "English"
+            
             # Page-specific retrieval
             if page_ref:
+
                 logger.info(f"Page-specific query detected: page {page_ref}")
                 docs = self._retrieve_page_specific_content(vector_store, page_ref, k=5)
                 if docs:
@@ -427,17 +580,30 @@ Provide a clear explanation as if teaching a university student. Include:
             
             # General semantic search
             else:
-                docs_with_scores = vector_store.similarity_search_with_score(question, k=settings.TOP_K_RETRIEVAL)
-                
-                if docs_with_scores and docs_with_scores[0][1] < settings.SIMILARITY_THRESHOLD:
-                    has_context = True
-                    docs = [doc[0] for doc in docs_with_scores]
-                    # Extract page information
-                    pages = set([doc.metadata.get('page') for doc in docs if doc.metadata.get('page')])
-                    if pages:
-                        page_info = [f"page {p}" for p in sorted(pages)]
-                else:
-                    docs = []
+                logger.info(f"Performing correlated retrieval for: {search_query}")
+                primary_docs_with_scores = vector_store.similarity_search_with_score(search_query, k=settings.TOP_K_RETRIEVAL)
+                foundational_docs = []
+                try:
+                    concept_extraction_prompt = f"Identify the 1-2 most important technical concepts in this query: '{search_query}'. Return ONLY the terms separated by a comma."
+                    concepts_text = llm.invoke(concept_extraction_prompt)
+                    concepts_text = concepts_text if isinstance(concepts_text, str) else getattr(concepts_text, 'content', str(concepts_text))
+                    concepts = [c.strip() for c in concepts_text.split(",") if len(c.strip()) > 3]
+                    for concept in concepts:
+                        foundational_docs.extend(vector_store.similarity_search(f"Definition of {concept}", k=1))
+                except Exception as e:
+                    logger.warning(f"Foundational search failed: {e}")
+                docs = []
+                seen_contents = set()
+                for doc, score in primary_docs_with_scores:
+                    if score < settings.SIMILARITY_THRESHOLD:
+                        if doc.page_content not in seen_contents:
+                            docs.append(doc); seen_contents.add(doc.page_content); has_context = True
+                for doc in foundational_docs[:2]:
+                    if doc.page_content not in seen_contents:
+                        docs.append(doc); seen_contents.add(doc.page_content)
+                pages = set([doc.metadata.get('page') for doc in docs if doc.metadata.get('page')])
+                if pages:
+                    page_info = [f"page {p}" for p in sorted(pages)]
             
             if has_context and docs:
                 # Build unified sources with page numbers: "filename#page=X"
@@ -481,7 +647,13 @@ Structure:
 1. Simple Definition
 2. Fun Example or Analogy
 3. Why It Matters
-4. Quick Summary"""
+4. Quick Summary
+
+LANGUAGE INSTRUCTION (MANDATORY):
+You MUST respond entirely in {detected_lang}. 
+- Even if the history or material is in another language, your answer MUST be in {detected_lang}.
+- If the material is not in {detected_lang}, act as an expert translator.
+"""
                 else:
                     prompt = f"""You are an expert AI tutor helping a university student.
 {conversation_context}
@@ -502,12 +674,27 @@ Provide a structured explanation:
 4. Possible Exam Question
 5. Quick Summary
 
-If the question asks about a specific page or exercise, focus on that content."""
+If the question asks about a specific page or exercise, focus on that content.
+
+LANGUAGE INSTRUCTION (MANDATORY):
+You MUST respond entirely in {detected_lang}. 
+- Even if the history or material is in another language, your answer MUST be in {detected_lang}.
+- If the material is not in {detected_lang}, act as an expert translator.
+
+COURSE-WIDE INSTRUCTION:
+- You have access to all documents in this course. 
+- If the current topic builds on concepts from earlier documents (e.g. Chapter 2 concepts used in Chapter 6), explicitly mention the connection.
+- Use the foundational background provided to give a more holistic explanation.
+"""
                 
                 logger.info("Generating answer with context...")
                 response = llm.invoke(prompt)
                 # Extract text content
                 response = response if isinstance(response, str) else getattr(response, 'content', str(response))
+                
+                # Add disclaimer
+                disclaimer = "\n\n---\n*InStudy AI can make mistakes. Please verify important information with your original study materials.*"
+                response += disclaimer
                 
                 # Add to conversation memory
                 self._add_to_memory(user_id, course_id, question, response)
@@ -535,7 +722,10 @@ Current Question: {question}
 Explain this concept using simple everyday language, fun analogies, short sentences, and no complex jargon.
 IMPORTANT: For ANY mathematical expression, equation, or formula — always use LaTeX notation:
 - Inline math: $expression$ (e.g. $x^2$, $\\sin(x)$, $\\frac{{a}}{{b}}$)
-- Block/display math: $$expression$$ on its own line"""
+- Block/display math: $$expression$$ on its own line
+
+LANGUAGE INSTRUCTION:
+Identify the language of the 'Current Question'. Respond ENTIRELY in that same language."""
         else:
             prompt = f"""You are a knowledgeable AI tutor.
 {conversation_context}
@@ -545,6 +735,9 @@ Current Question: {question}
 IMPORTANT: For ANY mathematical expression, equation, symbol, or formula — always use LaTeX notation:
 - Inline math: $expression$ (e.g. $f'(x)$, $\\cos(x^2)$, $\\frac{{d}}{{dx}}$)
 - Block/display math: $$expression$$ on its own line for standalone equations
+
+LANGUAGE INSTRUCTION:
+Identify the language of the 'Current Question'. Respond ENTIRELY in that same language.
 
 Provide a clear explanation as if teaching a university student. Include:
 1. Clear definition
@@ -556,8 +749,16 @@ Provide a clear explanation as if teaching a university student. Include:
         # Extract text content (handles both strings from Ollama and objects from Groq)
         response = response if isinstance(response, str) else getattr(response, 'content', str(response))
         
+        # Add disclaimer
+        disclaimer = "\n\n---\n*InStudy AI can make mistakes. Please verify important information with your original study materials.*"
+        response += disclaimer
+        
         # Add to conversation memory
         self._add_to_memory(user_id, course_id, question, response)
+        
+        # Detect language and update preference
+        self._detect_and_update_language(user_id, question, llm)
+
         
         return {
             "answer": response,

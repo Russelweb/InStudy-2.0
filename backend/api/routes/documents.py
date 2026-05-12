@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks, Request
 from services.document_processor import DocumentProcessor
 from api.routes.auth import get_authenticated_user
 from api.routes.stats import log_activity
@@ -119,6 +119,14 @@ def _extract_paragraphs(file_path: str) -> List[dict]:
                     if chunk:
                         blocks.append({"text": chunk, "style": "body"})
             return blocks
+    elif ext in [".xlsx", ".xls", ".csv", ".xml", ".jpg", ".jpeg", ".png"]:
+        # For these types, we rely on the full text extracted during processing
+        # and stored in the vector store, but for the 'paragraphs' view, 
+        # we can just return the raw extraction or a placeholder.
+        try:
+            return [{"text": doc_processor.extract_text(file_path), "style": "body"}]
+        except:
+            return [{"text": f"[Content of {os.path.basename(file_path)}]", "style": "body"}]
     else:
         raise ValueError(f"Unsupported file type: {ext}")
 
@@ -243,6 +251,7 @@ def _build_annotated_docx(paragraphs: List[str], annotations: list, original_fil
 
 @router.post("/upload")
 async def upload_document(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     course_id: str = Form(...),
@@ -251,7 +260,7 @@ async def upload_document(
     """Upload and process document (fast response, heavy lifting in background)"""
     try:
         user_id = str(current_user.id)
-        allowed_extensions = ['.pdf', '.txt', '.docx']
+        allowed_extensions = ['.pdf', '.txt', '.docx', '.xlsx', '.xls', '.csv', '.xml', '.jpg', '.jpeg', '.png']
         file_ext = os.path.splitext(file.filename)[1].lower()
 
         if file_ext not in allowed_extensions:
@@ -277,10 +286,19 @@ async def upload_document(
         })
 
         # 3. Schedule heavy processing in background
-        # This prevents the request from timing out or being interrupted by navigation
+        # Pass the API key with multiple fallbacks: Header > State > Database
+        api_key = request.headers.get("X-Groq-API-Key") or getattr(request.state, "groq_api_key", None)
+        
+        if not api_key:
+            from services.auth_service import auth_service
+            api_key = auth_service.get_groq_key(user_id)
+            if api_key:
+                logger.info(f"Retrieved Groq key from database for user {user_id}")
+        
         background_tasks.add_task(
             doc_processor.process_document, 
-            file_path, user_id, course_id, sanitized_filename
+            file_path, user_id, course_id, sanitized_filename,
+            api_key=api_key
         )
 
         return {
@@ -430,6 +448,12 @@ async def serve_raw_file(
     mime_map = {
         ".pdf":  "application/pdf",
         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".csv":  "text/csv",
+        ".xml":  "application/xml",
+        ".jpg":  "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png":  "image/png",
         ".txt":  "text/plain; charset=utf-8",
     }
     media_type = mime_map.get(ext, "application/octet-stream")

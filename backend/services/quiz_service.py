@@ -7,6 +7,7 @@ import json
 import logging
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+from database.auth_db import auth_db
 
 logger = logging.getLogger(__name__)
 
@@ -60,12 +61,20 @@ class QuizService:
             "mixed": "a mix of multiple choice, true/false, and short answer questions"
         }
         
+        # Get preferred language
+        preferred_language = "English"
+        if user_id.isdigit():
+            preferred_language = auth_db.get_preferred_language(int(user_id))
+            
         # Build prompt prefix with topic focus and mastery awareness
         prompt_prefix = ""
         if topic:
             prompt_prefix = f"TOPIC FOCUS: Generate quiz questions EXCLUSIVELY about '{topic}'. All questions must be directly related to this specific topic.\n\n"
         if mastery_context and not topic:
             prompt_prefix += f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize generating questions that test the user's 'WEAK' concepts.\n\n"
+        
+        prompt_prefix += f"LANGUAGE INSTRUCTION (MANDATORY): The user's preferred language is: {preferred_language}. Generate ALL quiz content (Questions, Options, Correct Answers, Explanations, and Concepts) entirely in {preferred_language}. If the study material is in a different language, act as an expert translator.\n\n"
+
         
         prompt = f"""{prompt_prefix}You are creating a quiz for a student. Generate exactly {num_questions} questions.
 
@@ -135,6 +144,10 @@ Generate {num_questions} questions now:"""
             if "questions" in result and isinstance(result["questions"], list):
                 # Validate and fix questions
                 fixed_questions = self._validate_and_fix_questions(result["questions"])
+                # Add disclaimer
+                for q in fixed_questions:
+                    q["explanation"] = q.get("explanation", "") + "\n\n*(Note: InStudy AI can make mistakes. Please verify.)*"
+                
                 logger.info(f"Successfully generated {len(fixed_questions)} questions")
                 return fixed_questions
             else:

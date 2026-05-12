@@ -134,3 +134,27 @@ async def apply_decay(
     except Exception as e:
         logger.error(f"Error applying decay: {e}")
         raise HTTPException(500, str(e))
+from api.routes.stats import clear_course_activity
+
+@router.post("/reset/{course_id}")
+async def reset_mastery(
+    course_id: str,
+    current_user: User = Depends(get_authenticated_user)
+):
+    """Completely reset user's mastery progress for a course"""
+    try:
+        user_id = str(current_user.id)
+        
+        # 1. Clear Neural Mastery Database
+        success = mastery_db.clear_mastery(user_id, course_id)
+        
+        # 2. Clear Activity Logs (Quiz results, etc.)
+        clear_course_activity(user_id, course_id)
+        
+        if success:
+            return {"status": "success", "message": "Mastery progress has been reset."}
+        else:
+            raise HTTPException(500, "Failed to reset mastery data.")
+    except Exception as e:
+        logger.error(f"Error resetting mastery: {e}")
+        raise HTTPException(500, str(e))

@@ -20,7 +20,7 @@ const STEPS = [
     accent: 'text-primary',
     bg: 'from-primary/10 to-transparent',
     title: "Your personal AI tutor — always on call",
-    body: "Upload any PDF, textbook, or notes and ask it anything. \"Explain page 12 like I'm 12.\" \"What's the difference between supervised and unsupervised learning?\" It answers in seconds, with examples, exam tips, and summaries. No judgment. No waiting.",
+    body: "Upload any PDF, textbook, or notes and ask it anything. \"Explain page 12 like I'm 12.\" \"What's the difference between autotrophic and heterotrophic nutrition?\" It answers in seconds, with examples, exam tips, and summaries. No judgment. No waiting.",
     cta: "That sounds amazing →",
   },
   {
@@ -28,8 +28,8 @@ const STEPS = [
     emoji: '🃏',
     accent: 'text-secondary',
     bg: 'from-secondary/10 to-transparent',
-    title: "Flashcards & Quizzes — auto-generated",
-    body: "Stop spending hours making study cards. InStudy reads your documents and generates flashcards and practice quizzes for you — in seconds. You just study. We do the prep work.",
+    title: "Flashcards & Quizzes  auto-generated",
+    body: "Stop spending hours making study cards. InStudy reads your documents and generates flashcards and practice quizzes for you in seconds. You just study. We do the prep work.",
     cta: "Wait, seriously? →",
   },
   {
@@ -37,7 +37,7 @@ const STEPS = [
     emoji: '📝',
     accent: 'text-orange-400',
     bg: 'from-orange-400/10 to-transparent',
-    title: "Instant Summaries — Cut through the noise",
+    title: "Instant Summaries Cut through the noise",
     body: "Tired of reading 50-page chapters? InStudy generates high-level summaries and key takeaway points from any document. Get the core concepts in seconds, then dive deeper whenever you're ready.",
     cta: "Summarize it all! →",
   },
@@ -47,7 +47,7 @@ const STEPS = [
     accent: 'text-purple-400',
     bg: 'from-purple-400/10 to-transparent',
     title: "A study plan that actually fits your life",
-    body: "Tell InStudy your exam date and the topics you need to cover. It builds you a day-by-day study schedule — balanced, realistic, and smart. No more cramming the night before.",
+    body: "Tell InStudy your exam date and the topics you need to cover. It builds you a day-by-day study schedule balanced, realistic, and smart. No more cramming the night before.",
     cta: "I need this in my life →",
   },
   {
@@ -66,7 +66,7 @@ const STEPS = [
     accent: 'text-primary',
     bg: 'from-primary/10 to-transparent',
     title: "One last thing — power up your AI",
-    body: "All those features run on Groq's lightning-fast AI. To use it, you need a free personal API key. It takes about 2 minutes to get one, it's completely free, and it means your AI is private, fast, and all yours.",
+    body: "All those features run on Groq's lightning-fast AI. To use it, you need a personal API key. It takes about 2 minutes to get one, and it means your AI is private, fast, and all yours.",
     cta: "Let's get my key →",
     skip: true,
   },
@@ -88,7 +88,7 @@ const STEPS = [
     accent: 'text-yellow-400',
     bg: 'from-yellow-400/10 to-transparent',
     title: "Step 2 — Generate your API key",
-    body: 'In the Groq console, click your profile icon → "API Keys" → "Create API Key". Name it "InStudy". Your key starts with "gsk_" — copy it the moment it appears. It\'s only shown once!',
+    body: 'In the Groq console, click your profile icon → "API Keys" → "Create API Key". Name it "InStudy". Your key starts with "gsk_"  copy it the moment it appears. It\'s only shown once!',
     cta: "Got my key! →",
     skip: true,
   },
@@ -98,7 +98,7 @@ const STEPS = [
     accent: 'text-secondary',
     bg: 'from-secondary/10 to-transparent',
     title: "Step 3 — Paste it here & you're done",
-    body: "Paste your key below. It's encrypted with AES-256 before being saved — completely private. You can always update or remove it later in Settings.",
+    body: "Paste your key below. It's encrypted with AES-256 before being saved completely private. You can always update or remove it later in Settings.",
     cta: "Save & Start Exploring 🚀",
     skip: true,
   },
@@ -124,7 +124,7 @@ const WelcomeModal = ({ onClose }) => {
     if (isLast) {
       if (key.trim()) {
         if (!key.trim().startsWith('gsk_')) {
-          setError('That doesn\'t look right — Groq keys start with "gsk_". Check and try again.');
+          setError('That doesn\'t look right  Groq keys start with "gsk_". Check and try again.');
           return;
         }
         setSaving(true);

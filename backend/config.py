@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     # Encryption key for storing user API keys (32+ chars)
     ENCRYPTION_KEY: str = "instudy-default-encryption-key-32chars!"
 
-    # Embedding Model
-    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    # Embedding Model (Multilingual support for cross-lingual RAG)
+    EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
     # Optional Firebase (not required for core functionality)
     FIREBASE_PROJECT_ID: Optional[str] = None
