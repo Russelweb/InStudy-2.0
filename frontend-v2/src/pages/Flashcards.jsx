@@ -1,12 +1,80 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
+import EmptyState from '../components/EmptyState';
+import { InputModal } from '../components/Modal';
+import { showToast } from '../components/Toast';
+import { useAura, useAuraHelp } from '../context/AuraContext';
 import { flashcardService, masteryService, documentService, assetService } from '../services/api';
 import ScrollToTopButton from '../components/ScrollToTopButton';
 
+const TUTORIAL_KEY = 'instudy_flashcard_tutorial_seen';
+
+// One-time tutorial overlay explaining the 5 control buttons
+const FlashcardTutorial = ({ onDismiss }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+    onClick={onDismiss}
+  >
+    <motion.div
+      initial={{ y: 40, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 40, opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="bg-surface-container border border-outline-variant/20 rounded-2xl p-6 w-full max-w-lg shadow-2xl"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-black text-on-surface">How the controls work</h3>
+        <button onClick={onDismiss} className="text-on-surface-variant hover:text-on-surface transition-colors">
+          <span className="material-symbols-outlined text-lg">close</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-5 gap-2 mb-5">
+        {[
+          { icon: 'arrow_back',    label: 'Prev',       color: 'text-on-surface-variant', desc: 'Go back one card' },
+          { icon: 'close',         label: 'Unfamiliar', color: 'text-error',              desc: "Don't know it yet" },
+          { icon: 'check',         label: 'Familiar',   color: 'text-tertiary-fixed',     desc: 'Getting there' },
+          { icon: 'auto_awesome',  label: 'Mastered',   color: 'text-secondary',          desc: 'Fully know it' },
+          { icon: 'double_arrow',  label: 'Skip',       color: 'text-on-surface-variant', desc: 'Skip for now' },
+        ].map((btn, i) => (
+          <div key={i} className="flex flex-col items-center gap-1.5 text-center">
+            <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center">
+              <span className={`material-symbols-outlined text-sm ${btn.color}`}>{btn.icon}</span>
+            </div>
+            <span className={`text-[9px] font-black uppercase tracking-wider ${btn.color}`}>{btn.label}</span>
+            <span className="text-[9px] text-on-surface-variant leading-tight">{btn.desc}</span>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
+        Your ratings update your <span className="text-primary font-bold">Mastery score</span> automatically — so the more you rate, the smarter your study plan gets.
+      </p>
+
+      <button
+        onClick={onDismiss}
+        className="w-full py-3 bg-[#551a8b] text-white font-black text-xs uppercase tracking-widest rounded-xl hover:scale-[1.01] active:scale-95 transition-all"
+      >
+        Got it — let's study
+      </button>
+    </motion.div>
+  </motion.div>
+);
+
 const Flashcards = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { triggerAura } = useAura();
+  useAuraHelp(
+    'Rate each card using the buttons below — Unfamiliar, Familiar, or Mastered. Your ratings update your Mastery score automatically.',
+    { label: 'View Mastery', onClick: () => navigate('/mastery') }
+  );
   const urlCourseId = searchParams.get('id');
 
   const [decks, setDecks] = useState([]);
@@ -18,6 +86,8 @@ const Flashcards = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [sessionStats, setSessionStats] = useState({ learned: 0, remaining: 0, correct: 0, total: 0 });
   const [isSaving, setIsSaving] = useState(false);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Settings State
   const [showSettings, setShowSettings] = useState(true);
@@ -109,10 +179,11 @@ const Flashcards = () => {
 
   const handleSave = async () => {
     if (cards.length === 0) return;
-    
-    const title = prompt('Name this flashcard deck:');
-    if (!title) return;
-    
+    setSaveModalOpen(true);
+  };
+
+  const handleSaveConfirm = async (title) => {
+    setSaveModalOpen(false);
     setIsSaving(true);
     try {
       await assetService.save(
@@ -122,10 +193,10 @@ const Flashcards = () => {
         { cards, settings },
         { card_count: cards.length }
       );
-      alert('✅ Flashcard deck saved successfully!');
+      showToast('Flashcard deck saved successfully!', 'success');
     } catch (error) {
       console.error('Save failed:', error);
-      alert('Failed to save deck. Please try again.');
+      showToast('Failed to save deck. Please try again.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -171,17 +242,22 @@ const Flashcards = () => {
       const newCards = response.data.flashcards || [];
       setCards(newCards);
       setSessionStats({ learned: 0, remaining: newCards.length, correct: 0, total: newCards.length });
-      // Scroll to top so user sees the first card
+      // Show tutorial on first ever session
+      if (newCards.length > 0 && localStorage.getItem(TUTORIAL_KEY) !== 'true') {
+        setShowTutorial(true);
+      }
       setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
     } catch (error) {
       console.error('Failed to generate cards:', error);
       const msg = error.response?.data?.detail || '';
       if (msg.includes('No documents')) {
-        alert('📂 No documents found in this course.\n\nGo to Knowledge Base → select this course → upload a PDF or document first, then come back to generate flashcards.');
+        triggerAura('concerned', 'This course has no documents yet. Upload one in Knowledge Base first.',
+          { label: 'Go to Knowledge Base', onClick: () => navigate('/knowledge') });
       } else if (msg.includes('API key') || error.response?.status === 401) {
-        alert('🔑 No AI key configured.\n\nGo to Settings and paste your Groq API key to enable AI features.');
+        triggerAura('concerned', 'No API key configured. Add your Groq key in Settings to enable AI features.',
+          { label: 'Open Settings', onClick: () => navigate('/settings') });
       } else {
-        alert('Something went wrong generating flashcards. Please try again.');
+        showToast('Something went wrong generating flashcards. Please try again.', 'error');
       }
       setShowSettings(true);
     } finally {
@@ -226,6 +302,7 @@ const Flashcards = () => {
     } else {
       // Deck complete — show completion card
       setCurrentIndex(cards.length);
+      triggerAura('celebrating', `Session complete — ${accuracy}% accuracy across ${sessionStats.total + 1} cards.`);
     }
   };
 
@@ -339,115 +416,143 @@ const Flashcards = () => {
         <div className="flex-1 w-full flex items-center justify-center overflow-hidden py-2 px-2">
           <AnimatePresence mode="wait">
           {showSettings ? (
-            <motion.div 
-               key="settings"
-               initial={{ opacity: 0, y: 20 }}
-               animate={{ opacity: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.95 }}
-               className="relative w-full max-w-2xl"
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-4xl space-y-0"
             >
-               <div className="absolute -top-24 -left-24 w-64 h-64 bg-primary/10 blur-[100px] rounded-full pointer-events-none"></div>
-               <div className="relative bg-surface-container/40 backdrop-blur-xl border border-outline-variant/15 rounded-2xl md:rounded-3xl p-5 sm:p-8 md:p-10 shadow-2xl overflow-hidden group">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 group-hover:opacity-100 transition-opacity opacity-0 pointer-events-none"></div>
-                  
-                  <div className="relative text-center mb-6 md:mb-10">
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-[#551a8b] bg-clip-text text-transparent italic uppercase">Deck Configuration</h2>
-                    <p className="text-on-surface-variant text-xs sm:text-sm font-medium">Customize Your Flashcard Deck.</p>
+              {/* Page title */}
+              <div className="mb-10 text-center">
+                <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-on-surface uppercase italic">
+                  Flashcard <span className="text-primary">Lab</span>
+                </h2>
+                <p className="text-on-surface-variant text-sm mt-2">Configure your deck and generate cards from your course material.</p>
+              </div>
+
+              {/* ── Step 1: Course ── */}
+              <div className="mb-10">
+                <div className="flex items-center gap-3 mb-5">
+                  <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">01</span>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Choose Your Course</h3>
+                  <span className="flex-1 h-px bg-outline-variant/20"></span>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                  {decks.length === 0 ? (
+                    <EmptyState
+                      icon="style"
+                      title="No courses yet"
+                      description="Create a course and upload a document before generating flashcards."
+                      action={{ label: 'Go to Knowledge Base', onClick: () => navigate('/knowledge') }}
+                    />
+                  ) : decks.map(deck => (
+                    <button
+                      key={deck.id}
+                      onClick={() => setCurrentDeckId(deck.id)}
+                      className={`shrink-0 min-w-[160px] p-5 rounded-2xl border text-left transition-all duration-200 group ${
+                        currentDeckId === deck.id
+                          ? 'bg-primary/10 border-primary shadow-[0_0_20px_rgba(189,157,255,0.15)]'
+                          : 'bg-surface-container-low border-outline-variant/15 hover:border-primary/40'
+                      }`}
+                    >
+                      <span className={`material-symbols-outlined text-2xl mb-3 block ${currentDeckId === deck.id ? 'text-primary' : 'text-on-surface-variant'}`}>folder</span>
+                      <p className={`font-bold text-sm truncate ${currentDeckId === deck.id ? 'text-on-surface' : 'text-on-surface-variant'}`}>{deck.name}</p>
+                      <p className="text-[10px] text-on-surface-variant mt-1">{deck.document_count} docs</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Step 2: Configure ── */}
+              <div className="mb-10">
+                <div className="flex items-center gap-3 mb-5">
+                  <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">02</span>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Configure Your Deck</h3>
+                  <span className="flex-1 h-px bg-outline-variant/20"></span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Deck Size */}
+                  <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Deck Size</p>
+                    <div className="flex gap-2">
+                      {[5, 10, 20].map(num => (
+                        <button
+                          key={num}
+                          onClick={() => setSettings({...settings, numCards: num})}
+                          className={`flex-1 py-3 rounded-xl border text-sm font-black transition-all ${
+                            settings.numCards === num
+                              ? 'bg-primary/20 border-primary text-primary'
+                              : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/40 hover:text-on-surface'
+                          }`}
+                        >{num}</button>
+                      ))}
+                    </div>
                   </div>
-                  
-                  <div className="relative space-y-8">
-                      {/* Course Selector */}
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Course/Module Source</label>
-                        <div className="relative">
-                          <select
-                            value={currentDeckId || ''}
-                            onChange={(e) => setCurrentDeckId(e.target.value)}
-                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-4 text-on-surface focus:border-primary transition-all appearance-none text-sm font-bold"
-                          >
-                            <option value="" disabled>SELECT COURSE</option>
-                            {decks.map(deck => (
-                              <option key={deck.id} value={deck.id}>{deck.name} ({deck.document_count} docs)</option>
-                            ))}
-                          </select>
-                          <span className="material-symbols-outlined absolute right-4 top-4 text-on-surface-variant pointer-events-none">expand_more</span>
-                        </div>
-                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Number of Cards */}
-                        <div className="space-y-3">
-                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Deck Size</label>
-                          <div className="flex gap-2">
-                            {[5, 10, 20].map(num => (
-                              <button 
-                                key={num}
-                                onClick={() => setSettings({...settings, numCards: num})}
-                                className={`flex-1 py-3 rounded-xl border text-xs font-bold transition-all ${settings.numCards === num ? 'bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(189,157,255,0.2)]' : 'border-outline-variant/20 text-on-surface/60 hover:bg-white/5'}`}
-                              >
-                                  {num}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                  {/* Detail Level */}
+                  <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Detail Level</p>
+                    <div className="flex gap-2">
+                      {['brief', 'detailed'].map(lvl => (
+                        <button
+                          key={lvl}
+                          onClick={() => setSettings({...settings, explanationLevel: lvl})}
+                          className={`flex-1 py-3 rounded-xl border text-xs font-black capitalize transition-all ${
+                            settings.explanationLevel === lvl
+                              ? 'bg-secondary/20 border-secondary text-secondary'
+                              : 'border-outline-variant/20 text-on-surface-variant hover:border-secondary/40 hover:text-on-surface'
+                          }`}
+                        >{lvl}</button>
+                      ))}
+                    </div>
+                  </div>
 
-                        {/* Explanation Level */}
-                        <div className="space-y-3">
-                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Detail Intensity</label>
-                          <div className="flex gap-2">
-                            {['brief', 'detailed'].map(lvl => (
-                              <button 
-                                key={lvl}
-                                onClick={() => setSettings({...settings, explanationLevel: lvl})}
-                                className={`flex-1 py-3 rounded-xl border text-xs font-bold capitalize transition-all ${settings.explanationLevel === lvl ? 'bg-secondary/20 border-secondary text-secondary shadow-[0_0_15px_rgba(105,246,184,0.2)]' : 'border-outline-variant/20 text-on-surface/60 hover:bg-white/5'}`}
-                              >
-                                  {lvl}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Document Target */}
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Specific Document Focus</label>
-                        <div className="relative">
-                          <select 
-                            value={settings.targetDocument}
-                            onChange={(e) => setSettings({...settings, targetDocument: e.target.value})}
-                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-4 text-sm text-on-surface focus:border-primary transition-all appearance-none font-bold"
-                          >
-                            <option value="all">Total Material Usage (All docs)</option>
-                            {courseDocuments.map(doc => (
-                              <option key={doc} value={doc}>{doc}</option>
-                            ))}
-                          </select>
-                          <span className="material-symbols-outlined absolute right-4 top-4 text-on-surface-variant pointer-events-none">expand_more</span>
-                        </div>
-                      </div>
-
-                      {/* Topic Focus */}
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Specific Topic (Optional)</label>
-                        <input
-                          type="text"
-                          value={settings.topic || ''}
-                          onChange={(e) => setSettings({...settings, topic: e.target.value})}
-                          placeholder="e.g., k-nearest neighbors, photosynthesis, etc."
-                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl py-3 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all"
-                        />
-                        <p className="text-[9px] text-on-surface-variant/60 italic">Leave blank to cover all course topics</p>
-                      </div>
-
-                      <button 
-                        onClick={generateCards}
-                        disabled={!currentDeckId}
-                        className="relative z-10 w-full mt-4 py-5 rounded-2xl bg-[#551a8b] text-on-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50"
+                  {/* Document Focus */}
+                  <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Document Focus</p>
+                    <div className="relative">
+                      <select
+                        value={settings.targetDocument}
+                        onChange={(e) => setSettings({...settings, targetDocument: e.target.value})}
+                        className="w-full bg-surface-container-highest border border-outline-variant/20 rounded-xl px-3 py-3 text-sm text-on-surface focus:border-primary transition-all appearance-none font-bold"
                       >
-                        Synthesize Deck
-                      </button>
+                        <option value="all">All Documents</option>
+                        {courseDocuments.map(doc => (
+                          <option key={doc} value={doc}>{doc}</option>
+                        ))}
+                      </select>
+                      <span className="material-symbols-outlined absolute right-3 top-3 text-on-surface-variant pointer-events-none text-sm">expand_more</span>
+                    </div>
                   </div>
-               </div>
+                </div>
+              </div>
+
+              {/* ── Step 3: Topic (optional) ── */}
+              <div className="mb-10">
+                <div className="flex items-center gap-3 mb-5">
+                  <span className="h-6 w-6 rounded-full bg-outline-variant/30 text-on-surface-variant text-xs flex items-center justify-center font-black shrink-0">03</span>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Focus Topic <span className="text-on-surface-variant/40 font-normal normal-case tracking-normal">— optional</span></h3>
+                  <span className="flex-1 h-px bg-outline-variant/20"></span>
+                </div>
+                <input
+                  type="text"
+                  value={settings.topic || ''}
+                  onChange={(e) => setSettings({...settings, topic: e.target.value})}
+                  placeholder="e.g. photosynthesis, k-nearest neighbors — leave blank to cover all topics"
+                  className="w-full bg-surface-container-low border border-outline-variant/15 rounded-2xl py-4 px-5 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:ring-1 focus:ring-primary/50 transition-all"
+                />
+              </div>
+
+              {/* ── Generate ── */}
+              <button
+                onClick={generateCards}
+                disabled={!currentDeckId}
+                className="w-full py-5 rounded-2xl bg-[#551a8b] text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+              >
+                <span className="material-symbols-outlined">auto_awesome</span>
+                Generate Flashcards
+              </button>
             </motion.div>
 
           ) : isGenerating ? (
@@ -511,7 +616,7 @@ const Flashcards = () => {
                 <span className="material-symbols-outlined text-white text-4xl">celebration</span>
               </div>
               <div className="space-y-2">
-                <h2 className="text-4xl font-black text-on-surface tracking-tighter uppercase italic">Flashcard assimilation <span className="text-secondary">Complete</span></h2>
+                <h2 className="text-4xl font-black text-on-surface tracking-tighter uppercase italic">Session <span className="text-secondary">Complete</span></h2>
                 <p className="text-on-surface-variant font-medium">
                   You achieved <span className="text-secondary font-bold">{accuracy}%</span> accuracy across <span className="text-primary font-bold">{sessionStats.total}</span> cards.
                 </p>
@@ -521,7 +626,7 @@ const Flashcards = () => {
                   onClick={() => setShowSettings(true)}
                   className="px-8 py-4 bg-surface-container-highest border border-outline-variant/20 rounded-xl font-bold text-on-surface hover:bg-surface-variant transition-all text-xs uppercase tracking-widest"
                 >
-                  Configure New deck
+                  New Deck
                 </button>
                 <button
                   onClick={generateCards}
@@ -536,8 +641,8 @@ const Flashcards = () => {
           ) : (
             <div key="empty" className="text-center text-on-surface-variant space-y-4">
               <span className="material-symbols-outlined text-6xl opacity-20">style</span>
-              <p className="font-bold uppercase tracking-widest text-xs">Initialization required</p>
-              <button onClick={() => setShowSettings(true)} className="text-primary font-black text-xs uppercase tracking-[0.3em] hover:text-secondary transition-colors">Start Training →</button>
+              <p className="font-bold uppercase tracking-widest text-xs">Configure your deck to get started</p>
+              <button onClick={() => setShowSettings(true)} className="text-primary font-black text-xs uppercase tracking-[0.3em] hover:text-secondary transition-colors">Start →</button>
             </div>
           )}
           </AnimatePresence>
@@ -604,6 +709,27 @@ const Flashcards = () => {
         )}
       </div>
       <ScrollToTopButton />
+
+      {/* First-use tutorial overlay */}
+      <AnimatePresence>
+        {showTutorial && (
+          <FlashcardTutorial onDismiss={() => {
+            localStorage.setItem(TUTORIAL_KEY, 'true');
+            setShowTutorial(false);
+          }} />
+        )}
+      </AnimatePresence>
+
+      {/* Save deck modal */}
+      <InputModal
+        open={saveModalOpen}
+        title="Save Flashcard Deck"
+        description="Give this deck a name so you can find it later in Saved Assets."
+        placeholder="e.g. Chapter 3 — Cell Biology"
+        confirmLabel="Save Deck"
+        onConfirm={handleSaveConfirm}
+        onCancel={() => setSaveModalOpen(false)}
+      />
     </div>
   );
 };

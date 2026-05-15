@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminService } from '../services/api';
+import { showToast } from '../components/Toast';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -63,7 +64,7 @@ const AdminDashboard = () => {
       setConfirmModal({ show: false, type: '', data: null });
     } catch (err) {
       console.error(err);
-      alert('Action failed');
+      showToast('Action failed. Please try again.', 'error');
     }
   };
 
@@ -407,7 +408,7 @@ const AdminDashboard = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setConfirmModal({ show: false, type: '', data: null })}
-              className="absolute inset-0 bg-[#0a0f0b]/80 backdrop-blur-md"
+              className="absolute inset-0 bg-[#141f16]/80 backdrop-blur-md"
             />
             <motion.div 
                initial={{ scale: 0.9, opacity: 0, y: 20 }}

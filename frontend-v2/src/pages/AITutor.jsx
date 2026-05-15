@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { flashcardService } from '../services/api';
+import EmptyState from '../components/EmptyState';
 
 const AITutor = () => {
   const [courses, setCourses] = useState([]);
@@ -56,11 +57,12 @@ const AITutor = () => {
       </div>
       
       {courses.length === 0 && (
-         <div className="text-center p-8 bg-surface-container-low rounded-2xl border border-outline-variant/10 border-dashed max-w-md w-full">
-            <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-4 opacity-50">inventory_2</span>
-            <p className="text-sm font-bold text-on-surface">No Courses available.</p>
-            <p className="text-xs text-on-surface-variant mt-2">Go to Knowledge Base to create a course and upload documents first.</p>
-         </div>
+        <EmptyState
+          icon="smart_toy"
+          title="No courses yet"
+          description="The AI Tutor needs a course with at least one document to work with. Create a course and upload your study material first."
+          action={{ label: 'Go to Knowledge Base', onClick: () => navigate('/knowledge') }}
+        />
       )}
     </div>
   );

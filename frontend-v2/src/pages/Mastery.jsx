@@ -3,11 +3,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { masteryService, statService } from '../services/api';
+import { ConfirmModal } from '../components/Modal';
+import { showToast } from '../components/Toast';
+import { useAuraHelp } from '../context/AuraContext';
 import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const Mastery = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  useAuraHelp(
+    'Your mastery scores update automatically when you rate flashcards or complete quizzes. Concepts decay over time — review them before they drop.',
+    { label: 'Go to Flashcards', onClick: () => navigate('/flashcards') }
+  );
   const urlCourseId = searchParams.get('id');
 
   const [courses, setCourses] = useState([]);
@@ -20,6 +27,7 @@ const Mastery = () => {
   const [staleConcepts, setStaleConcepts] = useState([]);
   const [reviewSchedule, setReviewSchedule] = useState(null);
   const [stats, setStats] = useState(null);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
   // Fetch courses
   useEffect(() => {
     const fetchCourses = async () => {
@@ -247,9 +255,6 @@ const Mastery = () => {
                 
                 <div className="flex justify-between items-start mb-6">
                   <div className="space-y-1">
-                    <span className="text-xs text-secondary font-mono tracking-widest uppercase">
-                      Research {String.fromCharCode(65 + index)}
-                    </span>
                     <h3 className="text-2xl font-bold text-on-surface">{course.name}</h3>
                   </div>
                   
@@ -315,22 +320,30 @@ const Mastery = () => {
             {/* Reset Progress Row */}
             <div className="flex justify-end">
               <button
-                onClick={() => {
-                  if (window.confirm(`Are you absolutely sure you want to reset all mastery progress for "${currentCourse.name}"? This will delete all your learning history and cannot be undone.`)) {
-                    masteryService.reset(selectedCourse)
-                      .then(() => {
-                        // Refresh data
-                        window.location.reload();
-                      })
-                      .catch(err => alert('Failed to reset progress: ' + err.message));
-                  }
-                }}
+                onClick={() => setResetModalOpen(true)}
                 className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-error hover:bg-error/10 border border-error/20 rounded-lg transition-all"
               >
                 <span className="material-symbols-outlined text-sm">restart_alt</span>
                 Reset Course Progress
               </button>
             </div>
+
+            {/* Reset confirm modal */}
+            <ConfirmModal
+              open={resetModalOpen}
+              title="Reset Course Progress?"
+              description={`This will permanently delete all mastery data and learning history for "${currentCourse?.name}". This cannot be undone.`}
+              confirmLabel="Yes, Reset"
+              cancelLabel="Keep Progress"
+              danger
+              onConfirm={() => {
+                setResetModalOpen(false);
+                masteryService.reset(selectedCourse)
+                  .then(() => window.location.reload())
+                  .catch(() => showToast('Failed to reset progress. Please try again.', 'error'));
+              }}
+              onCancel={() => setResetModalOpen(false)}
+            />
 
             {/* Neural Concept Status Section */}
             <motion.section

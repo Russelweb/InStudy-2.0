@@ -7,11 +7,17 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { summaryService, documentService, statService, assetService } from '../services/api';
+import { InputModal } from '../components/Modal';
+import { showToast } from '../components/Toast';
+import { useAura, useAuraHelp } from '../context/AuraContext';
+import EmptyState from '../components/EmptyState';
 import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const Summary = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { triggerAura } = useAura();
+  useAuraHelp('Select a course, pick a style (Short, Detailed, or Exam Ready), then click Generate Summary. You can also focus on a specific topic.');
   const urlCourseId = searchParams.get('id');
 
   const [courses, setCourses] = useState([]);
@@ -27,6 +33,7 @@ const Summary = () => {
   const [previousSummary, setPreviousSummary] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showMindMap, setShowMindMap] = useState(false);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
   const summaryRef = useRef(null);
 
   // Fetch courses and restore state
@@ -152,23 +159,26 @@ const Summary = () => {
       );
       
       setProgress(100);
-      setSummaryData({
+      const result = {
         ...response.data,
         style,
         document: selectedDocument,
         courseName: courses.find(c => c.id === selectedCourse)?.name || 'Unknown Course'
-      });
-      // Scroll to summary result
+      };
+      setSummaryData(result);
+      triggerAura('celebrating', `Summary ready — ${result.courseName} distilled into ${style} format.`);
       setTimeout(() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (error) {
       console.error('Failed to generate summary:', error);
       const msg = error.response?.data?.detail || '';
       if (msg.includes('No documents')) {
-        alert('📂 No documents found in this course.\n\nGo to Knowledge Base → select this course → upload a PDF or document first.');
+        triggerAura('concerned', 'This course has no documents yet. Upload one in Knowledge Base first.',
+          { label: 'Go to Knowledge Base', onClick: () => navigate('/knowledge') });
       } else if (msg.includes('API key') || error.response?.status === 401) {
-        alert('🔑 No AI key configured.\n\nGo to Settings and paste your Groq API key to enable AI features.');
+        triggerAura('concerned', 'No API key configured. Add your Groq key in Settings.',
+          { label: 'Open Settings', onClick: () => navigate('/settings') });
       } else {
-        alert('Something went wrong generating the summary. Please try again.');
+        showToast('Something went wrong generating the summary. Please try again.', 'error');
       }
     } finally {
       clearInterval(progressInterval);
@@ -178,10 +188,11 @@ const Summary = () => {
 
   const handleSave = async () => {
     if (!summaryData) return;
-    
-    const title = prompt('Name this summary:');
-    if (!title) return;
-    
+    setSaveModalOpen(true);
+  };
+
+  const handleSaveConfirm = async (title) => {
+    setSaveModalOpen(false);
     setIsSaving(true);
     try {
       await assetService.save(
@@ -191,10 +202,10 @@ const Summary = () => {
         summaryData,
         { style, document: selectedDocument }
       );
-      alert('✅ Summary saved successfully!');
+      showToast('Summary saved successfully!', 'success');
     } catch (error) {
       console.error('Save failed:', error);
-      alert('Failed to save summary. Please try again.');
+      showToast('Failed to save summary. Please try again.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -215,28 +226,20 @@ const Summary = () => {
 
   const handleShare = () => {
     if (!summaryData) return;
-    
     const text = `${summaryData.courseName} - Summary\n\n${summaryData.summary.substring(0, 200)}...`;
-    
     if (navigator.share) {
-      navigator.share({
-        title: `${summaryData.courseName} - Summary`,
-        text: text,
-      }).catch(() => {});
+      navigator.share({ title: `${summaryData.courseName} - Summary`, text }).catch(() => {});
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(text).then(() => {
-        alert('Summary copied to clipboard!');
+        showToast('Summary copied to clipboard!', 'success');
       });
     }
   };
 
   const handleClear = () => {
-    if (confirm('Clear the current summary? This cannot be undone.')) {
-      setSummaryData(null);
-      setPreviousSummary(null);
-      sessionStorage.removeItem('summary_data');
-    }
+    setSummaryData(null);
+    setPreviousSummary(null);
+    sessionStorage.removeItem('summary_data');
   };
 
   const currentCourse = courses.find(c => c.id === selectedCourse);
@@ -263,300 +266,188 @@ const Summary = () => {
         </motion.header>
 
         {/* Selection Flow */}
-        <section className="space-y-12">
-          {/* Step 1: Select Neural Circuit */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-bold">
-                01
-              </span>
-              <h3 className="text-lg font-bold tracking-tight">Select Course</h3>
+        <section className="space-y-10">
+          {/* Step 1: Course */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">01</span>
+              <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Choose Your Course</h3>
+              <span className="flex-1 h-px bg-outline-variant/20"></span>
             </div>
-            
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-              {courses.map((course) => (
-                <motion.div
+            <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+              {courses.length === 0 ? (
+                <EmptyState
+                  icon="auto_awesome"
+                  title="No courses yet"
+                  description="Create a course and upload a document before generating a summary."
+                  action={{ label: 'Go to Knowledge Base', onClick: () => navigate('/knowledge') }}
+                />
+              ) : courses.map((course) => (
+                <motion.button
                   key={course.id}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setSelectedCourse(course.id)}
-                  className={`w-full sm:min-w-[200px] glass-card p-4 sm:p-6 rounded-2xl border cursor-pointer group transition-all duration-300 ${
+                  className={`shrink-0 min-w-[160px] p-5 rounded-2xl border text-left transition-all duration-200 ${
                     selectedCourse === course.id
-                      ? 'border-secondary/40 ring-2 ring-secondary/20 shadow-[0px_0px_30px_rgba(105,246,184,0.05)]'
-                      : 'border-outline-variant/15 hover:border-primary/40'
+                      ? 'bg-secondary/10 border-secondary shadow-[0_0_20px_rgba(105,246,184,0.1)]'
+                      : 'bg-surface-container-low border-outline-variant/15 hover:border-secondary/40'
                   }`}
                 >
-                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${
-                    selectedCourse === course.id ? 'bg-secondary/10' : 'bg-surface-container-highest'
-                  }`}>
-                    <span className={`material-symbols-outlined ${
-                      selectedCourse === course.id ? 'text-secondary' : 'text-on-surface-variant'
-                    }`}>
-                      biotech
-                    </span>
-                  </div>
-                  <p className={`font-bold ${
-                    selectedCourse === course.id ? 'text-on-surface' : 'text-on-surface-variant group-hover:text-on-surface'
-                  } transition-colors`}>
-                    {course.name}
-                  </p>
-                  <p className="text-xs text-on-surface-variant mt-1">
-                    {course.document_count} Documents
-                  </p>
-                  {selectedCourse === course.id && (
-                    <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-secondary animate-pulse"></div>
-                  )}
-                </motion.div>
+                  <span className={`material-symbols-outlined text-2xl mb-3 block ${selectedCourse === course.id ? 'text-secondary' : 'text-on-surface-variant'}`}>biotech</span>
+                  <p className={`font-bold text-sm truncate ${selectedCourse === course.id ? 'text-on-surface' : 'text-on-surface-variant'}`}>{course.name}</p>
+                  <p className="text-[10px] text-on-surface-variant mt-1">{course.document_count} docs</p>
+                </motion.button>
               ))}
-              
-              {courses.length === 0 && (
-                <div className="w-full sm:min-w-[200px] glass-card p-4 sm:p-6 rounded-2xl border border-outline-variant/15 text-center">
-                  <p className="text-on-surface-variant text-sm">No courses found. Upload documents first.</p>
-                </div>
-              )}
             </div>
           </motion.div>
 
-          {/* Step 2: Select Source Material & Generate */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8"
-          >
-            {/* Left: Configuration */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-bold">
-                  02
-                </span>
-                <h3 className="text-lg font-bold tracking-tight">Select Course Material</h3>
-                {summaryData && (
-                  <span className="ml-auto text-xs text-secondary font-bold uppercase tracking-widest flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">check_circle</span>
-                    Summary Ready
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                {/* Document Selection */}
-                {documents.map((doc) => (
-                  <motion.div
-                    key={doc}
-                    whileHover={{ scale: 1.01 }}
-                    onClick={() => setSelectedDocument(selectedDocument === doc ? null : doc)}
-                    className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${
-                      selectedDocument === doc
-                        ? 'bg-surface-container-low border-primary/30'
-                        : 'bg-surface-container-lowest border-outline-variant/10 hover:border-primary/30'
+          {/* Step 2: Configure */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">02</span>
+              <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Configure Your Summary</h3>
+              <span className="flex-1 h-px bg-outline-variant/20"></span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Document */}
+              <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Source Document</p>
+                <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                  <button
+                    onClick={() => setSelectedDocument(null)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all text-sm font-bold ${
+                      !selectedDocument
+                        ? 'bg-primary/10 border-primary text-primary'
+                        : 'border-outline-variant/10 text-on-surface-variant hover:border-primary/30'
                     }`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                        selectedDocument === doc ? 'bg-primary/10' : 'bg-surface-variant'
-                      }`}>
-                        <span className={`material-symbols-outlined ${
-                          selectedDocument === doc ? 'text-primary' : 'text-on-surface-variant'
-                        }`}>
-                          description
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-on-surface">{doc}</p>
-                        <p className="text-[10px] text-on-surface-variant uppercase tracking-tighter">
-                          Document
-                        </p>
-                      </div>
-                    </div>
-                    <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
-                      selectedDocument === doc ? 'border-primary/40' : 'border-outline-variant/20'
-                    }`}>
-                      {selectedDocument === doc && (
-                        <div className="h-2.5 w-2.5 rounded-full bg-primary"></div>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-
-                {documents.length === 0 && selectedCourse && (
-                  <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/10 text-center">
-                    <p className="text-on-surface-variant text-sm">No documents in this course yet.</p>
-                  </div>
-                )}
-
-                {/* Style Selection */}
-                <div className="pt-4">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-3 block">
-                    Summary Style
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['short', 'detailed', 'exam'].map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setStyle(s)}
-                        className={`py-3 rounded-xl border text-xs font-bold capitalize transition-all ${
-                          style === s
-                            ? 'bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(189,157,255,0.2)]'
-                            : 'border-outline-variant/20 text-on-surface/60 hover:bg-white/5'
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
+                    <span className="material-symbols-outlined text-base">layers</span>
+                    All Documents
+                  </button>
+                  {documents.map((doc) => (
+                    <button
+                      key={doc}
+                      onClick={() => setSelectedDocument(selectedDocument === doc ? null : doc)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all text-sm ${
+                        selectedDocument === doc
+                          ? 'bg-primary/10 border-primary text-primary font-bold'
+                          : 'border-outline-variant/10 text-on-surface-variant hover:border-primary/30'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-base">description</span>
+                      <span className="truncate">{doc}</span>
+                    </button>
+                  ))}
+                  {documents.length === 0 && selectedCourse && (
+                    <p className="text-xs text-on-surface-variant/60 italic p-2 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-sm">info</span>
+                      No documents in this course yet — upload one in Knowledge Base.
+                    </p>
+                  )}
                 </div>
+              </div>
 
-                {/* Topic Focus */}
-                <div className="pt-4">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-3 block">
-                    Specific Topic (Optional)
-                  </label>
+              {/* Style */}
+              <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Summary Style</p>
+                <div className="space-y-2">
+                  {[
+                    { id: 'short', label: 'Short', desc: 'Key points only' },
+                    { id: 'detailed', label: 'Detailed', desc: 'Full breakdown' },
+                    { id: 'exam', label: 'Exam Ready', desc: 'Exam-focused' },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setStyle(s.id)}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
+                        style === s.id
+                          ? 'bg-secondary/10 border-secondary'
+                          : 'border-outline-variant/10 hover:border-secondary/30'
+                      }`}
+                    >
+                      <span className={`text-sm font-bold ${style === s.id ? 'text-secondary' : 'text-on-surface-variant'}`}>{s.label}</span>
+                      <span className="text-[10px] text-on-surface-variant">{s.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Topic + Generate */}
+              <div className="flex flex-col gap-4">
+                <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/60">Focus Topic <span className="font-normal">— optional</span></p>
                   <input
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
-                    placeholder="e.g., k-nearest neighbors, photosynthesis, etc."
-                    className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl py-3 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all"
+                    placeholder="e.g. photosynthesis, neural networks..."
+                    className="w-full bg-surface-container-highest border border-outline-variant/20 rounded-xl py-3 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:ring-1 focus:ring-primary/50 transition-all"
                   />
-                  <p className="text-[9px] text-on-surface-variant/60 italic mt-2">Leave blank to summarize all course content</p>
+                  <p className="text-[9px] text-on-surface-variant/40 italic">Leave blank to summarize all content</p>
                 </div>
               </div>
+            </div>
+          </motion.div>
 
+          {/* Step 3: Generate */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="h-6 w-6 rounded-full bg-secondary/20 text-secondary text-xs flex items-center justify-center font-black shrink-0">03</span>
+              <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Generate</h3>
+              <span className="flex-1 h-px bg-outline-variant/20"></span>
+              {summaryData && (
+                <span className="text-xs text-secondary font-bold uppercase tracking-widest flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">check_circle</span>
+                  Summary Ready
+                </span>
+              )}
+            </div>
+            <div className="flex gap-4">
               <button
                 onClick={handleGenerate}
                 disabled={!selectedCourse || isGenerating}
-                className="w-full mt-6 py-5 bg-[#551a8b] rounded-2xl font-black text-on-white opacity-90 uppercase tracking-widest glow-purple group transition-all duration-500 overflow-hidden relative disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-5 rounded-2xl bg-[#551a8b] text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
               >
-                <span className="relative z-10 flex items-center justify-center gap-3">
-                  <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    auto_awesome
-                  </span>
-                  {isGenerating ? 'Synthesizing...' : 'Synthesize Summary'}
-                </span>
-                <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                {isGenerating ? (
+                  <>
+                    <motion.span
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+                      className="material-symbols-outlined"
+                    >auto_awesome</motion.span>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined">auto_awesome</span>
+                    Generate Summary
+                  </>
+                )}
               </button>
-
               {summaryData && (
                 <button
                   onClick={handleClear}
-                  className="w-full mt-3 py-3 bg-error-container/10 border border-error-dim/20 rounded-xl text-error-dim font-bold text-xs uppercase tracking-widest hover:bg-error-container/20 transition-all"
+                  className="px-6 py-5 rounded-2xl bg-error-container/10 border border-error-dim/20 text-error-dim font-bold text-xs uppercase tracking-widest hover:bg-error-container/20 transition-all"
                 >
-                  Clear Summary
+                  Clear
                 </button>
               )}
             </div>
 
-            {/* Right: Neural Distillation Status */}
-            <div className="glass-card rounded-3xl p-8 border border-primary/10 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[400px]">
-              <div className="absolute inset-0 bg-primary/5 blur-[100px] rounded-full scale-50"></div>
-              
-              <AnimatePresence mode="wait">
-                {isGenerating ? (
+            {/* Progress bar while generating */}
+            {isGenerating && (
+              <div className="mt-4">
+                <div className="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
                   <motion.div
-                    key="generating"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="relative z-10"
-                  >
-                    <div className="mb-8 relative">
-                      <div className="h-24 w-24 rounded-full bg-primary/20 flex items-center justify-center relative">
-                        <motion.span
-                          animate={{ rotate: 360 }}
-                          transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
-                          className="material-symbols-outlined text-primary text-4xl"
-                        >
-                hub
-
-                        </motion.span>
-                        <motion.div
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ repeat: Infinity, duration: 2 }}
-                          className="absolute inset-0 border border-primary/30 rounded-full"
-                        ></motion.div>
-                      </div>
-                    </div>
-                    <h4 className="text-xl font-bold text-primary mb-2">Course Summarization In Progress</h4>
-                    <p className="text-sm text-on-surface-variant mb-8 max-w-[240px] mx-auto">
-                      Extracting core semantic structures from your documents...
-                    </p>
-                    <div className="w-full max-w-[280px] bg-surface-container-highest h-1.5 rounded-full overflow-hidden mb-2">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
-                        className="h-full bg-primary shadow-[0_0_10px_#bd9dff] rounded-full"
-                      ></motion.div>
-                    </div>
-                    <div className="flex justify-between text-[10px] text-primary/60 font-mono tracking-widest uppercase">
-                      <span>summarizing</span>
-                      <span>{Math.round(progress)}% Complete</span>
-                    </div>
-                  </motion.div>
-                ) : summaryData ? (
-                  <motion.div
-                    key="ready"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative z-10"
-                  >
-                    <div className="h-20 w-20 rounded-full bg-secondary/20 flex items-center justify-center mb-6">
-                      <span className="material-symbols-outlined text-secondary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                        verified
-                      </span>
-                    </div>
-                    <h4 className="text-xl font-bold text-secondary mb-2">Summarization Complete</h4>
-                    <p className="text-sm text-on-surface-variant mb-6">
-                      Your summary is ready for review.
-                    </p>
-                    <div className="flex gap-2 justify-center">
-                      <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="px-4 py-2 bg-secondary/10 text-secondary border border-secondary/20 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-secondary/20 transition-all disabled:opacity-50"
-                      >
-                        {isSaving ? 'Saving...' : 'Save'}
-                      </button>
-                      <button
-                        onClick={handleExport}
-                        className="px-4 py-2 bg-surface-container-highest text-on-surface border border-outline-variant/20 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-surface-variant transition-all"
-                      >
-                        Export
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="idle"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="relative z-10"
-                  >
-                    <div className="h-20 w-20 rounded-full bg-surface-container-highest flex items-center justify-center mb-6 opacity-40">
-                      <span className="material-symbols-outlined text-on-surface-variant text-3xl">
-                        psychology
-                      </span>
-                    </div>
-                    <h4 className="text-lg font-bold text-on-surface-variant mb-2">Awaiting Input</h4>
-                    <p className="text-sm text-on-surface-variant/60">
-                      Select a course and configure your summary parameters to begin.
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Decorative Binary Flow */}
-              <div className="absolute bottom-4 left-0 right-0 opacity-10 font-mono text-[8px] flex justify-center gap-4 select-none">
-                <span>01011001</span>
-                <span>11001010</span>
-                <span>10101111</span>
-                <span>00011001</span>
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    className="h-full bg-primary shadow-[0_0_10px_#bd9dff] rounded-full"
+                  />
+                </div>
+                <p className="text-[10px] text-primary/60 font-mono tracking-widest uppercase mt-2">{Math.round(progress)}% — Extracting core concepts...</p>
               </div>
-            </div>
+            )}
           </motion.div>
 
           {/* Summary Output Section */}
@@ -794,6 +685,17 @@ const Summary = () => {
         </section>
       </div>
       <ScrollToTopButton />
+
+      {/* Save summary modal */}
+      <InputModal
+        open={saveModalOpen}
+        title="Save Summary"
+        description="Give this summary a name so you can find it later in Saved Assets."
+        placeholder="e.g. Chapter 5 — Nervous System"
+        confirmLabel="Save Summary"
+        onConfirm={handleSaveConfirm}
+        onCancel={() => setSaveModalOpen(false)}
+      />
     </div>
   );
 };

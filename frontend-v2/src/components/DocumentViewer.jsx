@@ -202,7 +202,7 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
 
   // ── Annotation form (shared between PDF and DOCX) ─────────────────────────
   const AnnotationForm = ({ paraIndex }) => (
-    <div className="mt-4 mb-6 p-4 bg-[#0a0f0b] border border-primary/20 rounded-xl space-y-4 shadow-xl">
+    <div className="mt-4 mb-6 p-4 bg-surface-container-low border border-primary/20 rounded-xl space-y-4 shadow-xl">
       <div className="flex flex-wrap gap-2">
         {ANNOTATION_TYPES.map(t => (
           <button

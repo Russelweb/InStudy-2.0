@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { ConfirmModal } from './Modal';
 
 /**
  * Best-effort converter: wraps common plain-text math patterns in LaTeX delimiters
@@ -39,6 +40,7 @@ const AITutorChat = ({ courseId }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [clearModalOpen, setClearModalOpen] = useState(false);
   const [useEli12, setUseEli12] = useState(false);
   const scrollRef = useRef(null);
   const abortRef = useRef(null);
@@ -189,12 +191,7 @@ const AITutorChat = ({ courseId }) => {
             {isStreaming ? 'InStudy is Processing...' : 'InTeacher is LIVE'}
           </span>
           <button 
-            onClick={() => {
-              if (window.confirm('Clear neural history for this course?')) {
-                setMessages([{ type: 'ai', text: 'Neural link reset. How can I assist you further?' }]);
-                localStorage.removeItem(`chat_history_${courseId}`);
-              }
-            }}
+            onClick={() => setClearModalOpen(true)}
             className="text-[10px] text-on-surface-variant hover:text-error transition-colors"
             title="Clear Chat History"
           >
@@ -226,7 +223,7 @@ const AITutorChat = ({ courseId }) => {
             animate={{ opacity: 1, scale: 1 }}
             className={`flex gap-4 max-w-[90%] ${ms.type === 'user' ? 'self-end flex-row-reverse' : ''}`}
           >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ms.type === 'ai' ? 'bg-[#06402b] shadow-lg shadow-primary/20' : 'bg-primary/20 border border-primary/40'}`}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ms.type === 'ai' ? 'bg-secondary-container/40 shadow-lg shadow-primary/20' : 'bg-primary/20 border border-primary/40'}`}>
               <span className="material-symbols-outlined text-sm text-on-surface">
                 {ms.type === 'ai' ? 'psychology' : 'person'}
               </span>
@@ -319,6 +316,22 @@ const AITutorChat = ({ courseId }) => {
           </button>
         </form>
       </div>
+
+      {/* Clear chat confirm modal */}
+      <ConfirmModal
+        open={clearModalOpen}
+        title="Clear Chat History?"
+        description="All messages in this conversation will be removed. Your mastery data is not affected."
+        confirmLabel="Clear History"
+        cancelLabel="Keep It"
+        danger
+        onConfirm={() => {
+          setClearModalOpen(false);
+          setMessages([{ type: 'ai', text: 'Chat cleared. How can I help you?' }]);
+          localStorage.removeItem(`chat_history_${courseId}`);
+        }}
+        onCancel={() => setClearModalOpen(false)}
+      />
     </div>
   );
 };

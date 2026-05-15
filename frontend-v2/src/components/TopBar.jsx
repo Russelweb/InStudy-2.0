@@ -20,7 +20,7 @@ const TopBar = ({ onMenuClick, sidebarCollapsed }) => {
   const displayName = user?.email?.split('@')[0] || 'Architect';
 
   return (
-    <header className={`fixed top-0 right-0 left-0 ${sidebarCollapsed ? 'md:left-16' : 'md:left-64'} h-16 bg-[#0c1410]/80 backdrop-blur-3xl flex justify-between items-center px-3 md:px-8 z-40 border-b border-white/5 transition-all duration-300`}>
+    <header className={`fixed top-0 right-0 left-0 ${sidebarCollapsed ? 'md:left-16' : 'md:left-64'} h-16 bg-[#141f16]/80 backdrop-blur-3xl flex justify-between items-center px-3 md:px-8 z-40 border-b border-white/5 transition-all duration-300`}>
       {/* Left Area */}
       <div className="flex items-center gap-2 md:gap-4">
         <button 

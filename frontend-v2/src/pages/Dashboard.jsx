@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { statService, authService } from '../services/api';
+import { statService, authService, masteryService } from '../services/api';
 import WelcomeModal from '../components/WelcomeModal';
+import { useAura, useAuraHelp } from '../context/AuraContext';
 
 // ---------------------------------------------------------------------------
 // Helpers — transform raw daily_activity from backend into chart rows
@@ -236,6 +237,157 @@ const StudyVelocityChart = ({ rows, period, onPeriod }) => {
 };
 
 // ---------------------------------------------------------------------------
+// Onboarding Checklist — shown to new users until they complete step 1
+// ---------------------------------------------------------------------------
+const ONBOARDING_KEY = 'instudy_onboarding_dismissed';
+
+const OnboardingChecklist = ({ stats, loading }) => {
+  const navigate = useNavigate();
+
+  // Dismissed state — persisted in localStorage
+  const [dismissed, setDismissed] = useState(
+    () => localStorage.getItem(ONBOARDING_KEY) === 'true'
+  );
+
+  // Don't evaluate steps until stats have loaded
+  const hasCourse   = !loading && stats.total_courses > 0;
+  const hasDocument = !loading && stats.total_documents > 0;
+  const hasActivity = !loading && (stats.quizzes_taken > 0 || stats.study_hours > 0);
+  const allDone     = hasCourse && hasDocument && hasActivity;
+
+  // Auto-dismiss once all three steps are done
+  useEffect(() => {
+    if (!loading && allDone && !dismissed) {
+      localStorage.setItem(ONBOARDING_KEY, 'true');
+      setDismissed(true);
+    }
+  }, [loading, allDone, dismissed]);
+
+  // Hide if: explicitly dismissed, or still loading initial stats
+  if (dismissed) return null;
+  // Don't flash the checklist while stats are loading — wait for real data
+  if (loading) return null;
+  // If all steps already done on first load (returning power user), dismiss silently
+  if (allDone) return null;
+
+  const dismiss = () => {
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+    setDismissed(true);
+  };
+
+  const steps = [
+    {
+      done: hasCourse,
+      icon: 'school',
+      title: 'Create your first course',
+      desc: 'Group your study materials by subject.',
+      action: () => navigate('/knowledge'),
+      actionLabel: 'Go to Knowledge Base',
+    },
+    {
+      done: hasDocument,
+      icon: 'upload_file',
+      title: 'Upload a document',
+      desc: 'PDF, DOCX, TXT — anything you study from.',
+      action: () => navigate('/knowledge'),
+      actionLabel: 'Upload Now',
+    },
+    {
+      done: hasActivity,
+      icon: 'auto_awesome',
+      title: 'Generate flashcards or take a quiz',
+      desc: 'Let the AI turn your notes into study tools.',
+      action: () => navigate('/flashcards'),
+      actionLabel: 'Try Flashcards',
+    },
+  ];
+
+  const completedCount = steps.filter(s => s.done).length;
+  const progressPct    = Math.round((completedCount / steps.length) * 100);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      className="mb-8 bg-surface-container-low border border-primary/20 rounded-2xl p-5 sm:p-6 relative overflow-hidden"
+    >
+      {/* Subtle glow */}
+      <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/10 blur-[60px] rounded-full pointer-events-none" />
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div>
+          <h3 className="text-base font-black text-on-surface tracking-tight">
+            Get started — {completedCount}/{steps.length} done
+          </h3>
+          <p className="text-xs text-on-surface-variant mt-0.5">
+            Complete these steps to unlock the full InStudy experience.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Progress pill */}
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-full">
+            <div className="w-16 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPct}%` }}
+                transition={{ duration: 0.6 }}
+                className="h-full bg-primary rounded-full"
+              />
+            </div>
+            <span className="text-[10px] font-black text-primary">{progressPct}%</span>
+          </div>
+          <button
+            onClick={dismiss}
+            className="text-on-surface-variant/40 hover:text-on-surface-variant transition-colors"
+            title="Dismiss"
+          >
+            <span className="material-symbols-outlined text-base">close</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {steps.map((step, i) => (
+          <div
+            key={i}
+            className={`flex items-start gap-3 p-4 rounded-xl border transition-all ${
+              step.done
+                ? 'bg-secondary/5 border-secondary/20'
+                : 'bg-surface-container border-outline-variant/15'
+            }`}
+          >
+            {/* Check / icon */}
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+              step.done ? 'bg-secondary text-background' : 'bg-surface-container-highest text-on-surface-variant'
+            }`}>
+              <span className="material-symbols-outlined text-sm">
+                {step.done ? 'check' : step.icon}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className={`text-sm font-bold leading-tight ${step.done ? 'text-secondary line-through opacity-60' : 'text-on-surface'}`}>
+                {step.title}
+              </p>
+              <p className="text-[11px] text-on-surface-variant mt-0.5 leading-snug">{step.desc}</p>
+              {!step.done && (
+                <button
+                  onClick={step.action}
+                  className="mt-2 text-[10px] font-black text-primary uppercase tracking-widest hover:text-secondary transition-colors flex items-center gap-1"
+                >
+                  {step.actionLabel}
+                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Stat Card
 // ---------------------------------------------------------------------------
 const StatCard = ({ icon, title, value, change, accentColor }) => (
@@ -260,6 +412,9 @@ const Dashboard = () => {
   const [stats, setStats]     = useState({ total_documents: 0, total_courses: 0, study_hours: 0, quizzes_taken: 0, courses: [], recent_questions: [], daily_activity: {} });
   const [loading, setLoading] = useState(true);
   const [period, setPeriod]   = useState('1m');
+  const navigate              = useNavigate();
+  const { triggerAura }       = useAura();
+  useAuraHelp('This is your Dashboard — track study hours, mastery progress, and recent activity. Start by creating a course in Knowledge Base.');
 
   const user        = authService.getCurrentUser();
   const displayName = user?.email?.split('@')[0] || 'Architect';
@@ -271,14 +426,57 @@ const Dashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  // Aura stale nudge — fires once per session if user hasn't studied in 3+ days
+  useEffect(() => {
+    if (loading) return;
+    const nudgeSeen = sessionStorage.getItem('aura_nudge_shown');
+    if (nudgeSeen) return;
+
+    const activeCourse = stats.courses?.[0];
+    if (!activeCourse) return;
+
+    masteryService.getStale(activeCourse.id, 3)
+      .then(res => {
+        const stale = res.data?.stale_concepts || [];
+        if (stale.length > 0) {
+          sessionStorage.setItem('aura_nudge_shown', 'true');
+          const concept = stale[0]?.concept_id || 'some concepts';
+          triggerAura(
+            'nudge',
+            `Your mastery of "${concept}" has started to decay. A quick review will lock it in.`,
+            { label: 'Review Flashcards', onClick: () => navigate(`/flashcards?id=${activeCourse.id}`) },
+            9000
+          );
+        }
+      })
+      .catch(() => {});
+  }, [loading, stats.courses]);
+
+  // Aura guide — fires once for new users with no courses
+  useEffect(() => {
+    if (loading) return;
+    if (stats.total_courses > 0) return;
+    const guideSeen = sessionStorage.getItem('aura_guide_shown');
+    if (guideSeen) return;
+    sessionStorage.setItem('aura_guide_shown', 'true');
+    setTimeout(() => {
+      triggerAura(
+        'pointing',
+        'Start by creating a course and uploading your study material. I\'ll take it from there.',
+        { label: 'Create a Course', onClick: () => navigate('/knowledge') },
+        10000
+      );
+    }, 1500); // slight delay so page has settled
+  }, [loading, stats.total_courses]);
+
   // Build chart rows from raw daily_activity
   const allRows = useMemo(() => buildDailyRows(stats.daily_activity), [stats.daily_activity]);
 
   const statsCards = [
-    { label: 'Active Courses', value: stats.total_courses,    icon: 'school',     color: 'primary'   },
-    { label: 'Documents',    value: stats.total_documents,  icon: 'psychology', color: 'secondary' },
-    { label: 'Study Hours',    value: `${stats.study_hours}h`,icon: 'timer',      color: 'primary'   },
-    { label: 'Evaluations',    value: stats.quizzes_taken,    icon: 'analytics',  color: 'secondary' },
+    { label: 'Active Courses', value: stats.total_courses,     icon: 'school',     color: 'primary',   badge: 'COURSES'   },
+    { label: 'Documents',      value: stats.total_documents,   icon: 'psychology', color: 'secondary', badge: 'UPLOADED'  },
+    { label: 'Study Hours',    value: `${stats.study_hours}h`, icon: 'timer',      color: 'primary',   badge: 'LOGGED'    },
+    { label: 'Evaluations',    value: stats.quizzes_taken,     icon: 'analytics',  color: 'secondary', badge: 'COMPLETED' },
   ];
 
   const topCourse    = stats.courses.length > 0 ? stats.courses.reduce((a, b) => a.mastery > b.mastery ? a : b) : null;
@@ -290,6 +488,12 @@ const Dashboard = () => {
     <div className="p-4 md:p-8 pb-12">
       {/* Welcome modal — shown once for new users */}
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+
+      {/* Onboarding checklist — shown to any user who hasn't dismissed it yet */}
+      <AnimatePresence>
+        <OnboardingChecklist stats={stats} loading={loading} />
+      </AnimatePresence>
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -314,7 +518,7 @@ const Dashboard = () => {
       {/* Stat Grid */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8 sm:mb-12">
         {statsCards.map((card, i) => (
-          <StatCard key={i} icon={card.icon} title={card.label} value={loading ? '—' : card.value} change={i % 2 === 0 ? 'OPTIMAL' : 'ACTIVE'} accentColor={card.color} />
+          <StatCard key={i} icon={card.icon} title={card.label} value={loading ? '—' : card.value} change={card.badge} accentColor={card.color} />
         ))}
       </div>
 

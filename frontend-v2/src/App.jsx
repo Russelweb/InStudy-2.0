@@ -4,6 +4,9 @@ import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation }
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 import PolicyOverlay from './components/PolicyOverlay'
+import { ToastContainer } from './components/Toast'
+import AuraMascot from './components/AuraMascot'
+import { AuraProvider } from './context/AuraContext'
 import Dashboard from './pages/Dashboard'
 import KnowledgeBase from './pages/KnowledgeBase'
 import Workspace from './pages/Workspace'
@@ -29,6 +32,19 @@ const ScrollToTop = () => {
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return null;
 };
+
+// Page transition wrapper — used for Workspace enter/exit
+const PageTransition = ({ children }) => (
+  <motion.div
+    initial={{ opacity: 0, x: 24 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -24 }}
+    transition={{ duration: 0.22, ease: 'easeOut' }}
+    style={{ height: '100%' }}
+  >
+    {children}
+  </motion.div>
+);
 
 function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -72,47 +88,61 @@ function MainLayout() {
       <div className="fixed bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-surface-variant/50 pointer-events-none z-[100] whitespace-nowrap hidden md:block">
         InStudy AI can make mistakes. Please verify important information.
       </div>
+
+      {/* Global toast notifications */}
+      <ToastContainer />
+
+      {/* Aura mascot — ambient AI companion */}
+      <AuraMascot />
     </div>
   );
 }
 
 function App() {
   return (
-    <Router>
-      <ScrollToTop />
-      <div className="min-h-screen bg-background text-on-surface">
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+    <AuraProvider>
+      <Router>
+        <ScrollToTop />
+        <div className="min-h-screen bg-background text-on-surface">
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
 
-          {/* Protected Area */}
-          <Route element={<ProtectedRoute />}>
-            {/* Main App Layout */}
-            <Route path="/" element={<MainLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="knowledge" element={<KnowledgeBase />} />
-              <Route path="courses" element={<KnowledgeBase />} />
-              <Route path="flashcards" element={<Flashcards />} />
-              <Route path="quiz" element={<Quiz />} />
-              <Route path="ai-tutor" element={<AITutor />} />
-              <Route path="planner"  element={<Planner />} />
-              <Route path="summary" element={<Summary />} />
-              <Route path="mastery" element={<Mastery />} />
-              <Route path="saved-assets" element={<SavedAssets />} />
-              <Route path="admin"    element={<AdminDashboard />} />
-              <Route path="settings" element={<Settings />} />
+            {/* Protected Area */}
+            <Route element={<ProtectedRoute />}>
+              {/* Main App Layout */}
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="knowledge" element={<KnowledgeBase />} />
+                <Route path="courses" element={<KnowledgeBase />} />
+                <Route path="flashcards" element={<Flashcards />} />
+                <Route path="quiz" element={<Quiz />} />
+                <Route path="ai-tutor" element={<AITutor />} />
+                <Route path="planner"  element={<Planner />} />
+                <Route path="summary" element={<Summary />} />
+                <Route path="mastery" element={<Mastery />} />
+                <Route path="saved-assets" element={<SavedAssets />} />
+                <Route path="admin"    element={<AdminDashboard />} />
+                <Route path="settings" element={<Settings />} />
+              </Route>
+              
+              {/* Workspace Mode (Full Screen) */}
+              <Route path="/workspace" element={
+                <AnimatePresence mode="wait">
+                  <PageTransition key="workspace">
+                    <Workspace />
+                  </PageTransition>
+                </AnimatePresence>
+              } />
             </Route>
-            
-            {/* Workspace Mode (Full Screen) */}
-            <Route path="/workspace" element={<Workspace />} />
-          </Route>
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-    </Router>
+            {/* Catch-all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </Router>
+    </AuraProvider>
   )
 }
 

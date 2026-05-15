@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import DocumentViewer from '../components/DocumentViewer';
 import AITutorChat from '../components/AITutorChat';
@@ -9,6 +9,7 @@ import { documentService, statService } from '../services/api';
 
 const Workspace = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const courseId = searchParams.get('id');
 
   const [isUploadOpen, setIsUploadOpen]     = useState(false);
@@ -67,28 +68,50 @@ const Workspace = () => {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden text-on-background">
       {/* Top Workspace Nav */}
-      <nav className="shrink-0 w-full z-50 bg-[#0c1410]/80 backdrop-blur-3xl flex justify-between items-center px-4 md:px-8 h-16 shadow-[0px_20px_40px_rgba(189,157,255,0.05)] border-b border-primary/10">
-        <Link to="/" className="text-xl md:text-2xl font-black tracking-tighter text-[#bd9dff] shrink-0">InStudy 2.0</Link>
-        <div className="hidden sm:flex items-center gap-4 md:gap-6 overflow-hidden">
-          {courseName && (
-            <span className="text-on-surface-variant text-[10px] md:text-sm font-medium truncate max-w-[150px] md:max-w-none">
-              Course: <span className="text-secondary font-bold">{courseName}</span>
+      <motion.nav
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className="shrink-0 w-full z-50 bg-[#141f16]/80 backdrop-blur-3xl flex justify-between items-center px-4 md:px-8 h-16 shadow-[0px_20px_40px_rgba(189,157,255,0.05)] border-b border-primary/10"
+      >
+        {/* Left — back breadcrumb */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors shrink-0 group"
+            title="Go back"
+          >
+            <span className="material-symbols-outlined text-lg group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
+          </button>
+          <span className="text-on-surface-variant/30 hidden sm:block">|</span>
+          {/* Breadcrumb trail */}
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-on-surface-variant min-w-0">
+            <Link to="/" className="hover:text-primary transition-colors shrink-0">Dashboard</Link>
+            <span className="material-symbols-outlined text-sm opacity-40">chevron_right</span>
+            <span className="text-primary font-bold truncate max-w-[120px] md:max-w-[200px]">
+              {courseName || 'Workspace'}
             </span>
-          )}
-          <div className="h-4 w-px bg-outline-variant/20 hidden md:block"></div>
-          <Link className="text-[#d8e8d6]/60 hover:text-[#d8e8d6] text-xs md:text-sm tracking-tight transition-all hidden lg:block" to="/knowledge">Library</Link>
-          <span className="text-[#bd9dff] border-b-2 border-[#bd9dff] pb-1 text-xs md:text-sm tracking-tight whitespace-nowrap">Workspace</span>
-          <Link className="text-[#d8e8d6]/60 hover:text-[#d8e8d6] text-xs md:text-sm tracking-tight transition-all hidden lg:block" to="/flashcards">Flashcards</Link>
+          </div>
+          {/* Mobile — just the brand */}
+          <Link to="/" className="text-lg font-black tracking-tighter text-[#bd9dff] sm:hidden shrink-0">InStudy</Link>
         </div>
-        <div className="flex items-center gap-3 md:gap-4">
-{/*           <span className="material-symbols-outlined text-[#bd9dff] cursor-pointer text-xl md:text-2xl">settings</span> */}
-          <Link to="/"><span className="material-symbols-outlined text-[#bd9dff] cursor-pointer text-xl md:text-2xl">home</span></Link>
+
+        {/* Center — nav links (desktop) */}
+        <div className="hidden lg:flex items-center gap-6">
+          <Link className="text-on-surface-variant/60 hover:text-on-surface text-sm tracking-tight transition-all" to="/knowledge">Library</Link>
+          <span className="text-primary border-b-2 border-primary pb-1 text-sm tracking-tight whitespace-nowrap">Workspace</span>
+          <Link className="text-on-surface-variant/60 hover:text-on-surface text-sm tracking-tight transition-all" to="/flashcards">Flashcards</Link>
         </div>
-      </nav>
+
+        {/* Right */}
+        <div className="flex items-center gap-3">
+          <Link to="/"><span className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer text-xl">home</span></Link>
+        </div>
+      </motion.nav>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Workspace Side Nav */}
-        <aside className={`${sidebarCollapsed ? 'w-16' : 'w-20 md:w-64'} bg-[#0c1410] flex flex-col py-8 px-2 gap-6 shrink-0 border-r border-outline-variant/10 transition-all duration-300 overflow-y-auto`}>
+        <aside className={`${sidebarCollapsed ? 'w-16' : 'w-20 md:w-64'} bg-[#141f16] flex flex-col py-8 px-2 gap-6 shrink-0 border-r border-outline-variant/10 transition-all duration-300 overflow-y-auto`}>
           {!sidebarCollapsed && (
             <div className="px-2 mb-4 hidden md:block">
               <p className="text-xs font-bold tracking-widest uppercase text-secondary/40">AI Tutor Workspace</p>
@@ -186,7 +209,7 @@ const Workspace = () => {
           </AnimatePresence>
 
           {/* Mobile Tab Switcher */}
-          <div className="flex md:hidden bg-[#0c1410]/50 backdrop-blur-3xl p-1.5 rounded-2xl mx-4 my-2 border border-outline-variant/10 shadow-2xl shrink-0">
+          <div className="flex md:hidden bg-[#141f16]/50 backdrop-blur-3xl p-1.5 rounded-2xl mx-4 my-2 border border-outline-variant/10 shadow-2xl shrink-0">
             <button 
               onClick={() => setActiveMobileTab('reader')}
               className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${activeMobileTab === 'reader' ? 'bg-primary/20 text-primary border border-primary/20 shadow-[0_0_20px_rgba(189,157,255,0.1)]' : 'text-on-surface-variant hover:text-white border border-transparent'}`}

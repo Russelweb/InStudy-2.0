@@ -32,7 +32,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#0d1410] relative overflow-hidden p-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden p-4">
       {/* Dynamic Background Auras */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
@@ -47,7 +47,7 @@ const Login = () => {
           
           <div className="text-center mb-10">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-on-surface mb-2">InStudy 2.0</h1>
-            <p className="text-xs text-on-surface-variant uppercase tracking-[0.4em] font-bold">InStudent Login</p>
+            <p className="text-xs text-on-surface-variant uppercase tracking-[0.4em] font-bold">Welcome Back</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
@@ -62,19 +62,19 @@ const Login = () => {
             )}
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#69f6b8]/60 ml-1">InStudent Email</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#69f6b8]/60 ml-1">Email</label>
               <input 
                 required
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-surface-container-high border-none rounded-xl py-4 px-4 text-sm text-on-surface focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-on-surface-variant/30"
-                placeholder="architect@instudy.ai"
+                placeholder="you@example.com"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">InStudent Password</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">Password</label>
               <div className="relative">
                 <input 
                   required
@@ -104,16 +104,15 @@ const Login = () => {
               {loading ? (
                 <span className="material-symbols-outlined animate-spin">sync</span>
               ) : (
-                'Initialize Session'
+                'Log In'
               )}
             </button>
           </form>
 
           <div className="mt-8 text-center space-y-4">
             <p className="text-xs text-on-surface-variant">
-              New to the system? <Link to="/signup" className="text-secondary font-bold hover:underline underline-offset-4">Register(SignUp)</Link>
+              New here? <Link to="/signup" className="text-secondary font-bold hover:underline underline-offset-4">Sign Up</Link>
             </p>
-            <Link to="#" className="block text-[10px] text-on-surface-variant/40 hover:text-on-surface-variant transition-colors uppercase tracking-widest">Forgot Password?</Link>
           </div>
         </div>
       </motion.div>

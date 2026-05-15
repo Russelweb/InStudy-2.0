@@ -162,7 +162,7 @@ const WelcomeModal = ({ onClose }) => {
         animate={{ opacity: 1, y: 0,  scale: 1 }}
         exit={{ opacity: 0, y: -16, scale: 0.96 }}
         transition={{ duration: 0.28, ease: 'easeOut' }}
-        className="w-full max-w-lg bg-[#080c10] border border-white/8 rounded-2xl shadow-2xl overflow-hidden"
+        className="w-full max-w-lg bg-[#141f16] border border-white/8 rounded-2xl shadow-2xl overflow-hidden"
       >
         {/* Progress bar */}
         <div className="h-1 bg-white/5">

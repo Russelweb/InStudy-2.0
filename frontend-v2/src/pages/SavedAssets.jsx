@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { assetService } from '../services/api';
+import { ConfirmModal } from '../components/Modal';
+import { showToast } from '../components/Toast';
 
 const SavedAssets = () => {
   const [assets, setAssets] = useState([]);
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({});
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,15 +42,22 @@ const SavedAssets = () => {
   };
 
   const handleDelete = async (assetId) => {
-    if (!window.confirm('Delete this saved asset? This cannot be undone.')) return;
-    
+    setPendingDeleteId(assetId);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setDeleteModalOpen(false);
     try {
-      await assetService.delete(assetId);
+      await assetService.delete(pendingDeleteId);
       fetchAssets();
       fetchStats();
+      showToast('Asset deleted.', 'success');
     } catch (error) {
       console.error('Failed to delete asset:', error);
-      alert('Failed to delete asset');
+      showToast('Failed to delete asset. Please try again.', 'error');
+    } finally {
+      setPendingDeleteId(null);
     }
   };
 
@@ -200,6 +211,18 @@ const SavedAssets = () => {
           </div>
         )}
       </div>
+
+      {/* Delete confirm modal */}
+      <ConfirmModal
+        open={deleteModalOpen}
+        title="Delete Asset?"
+        description="This saved asset will be permanently deleted. This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Keep It"
+        danger
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => { setDeleteModalOpen(false); setPendingDeleteId(null); }}
+      />
     </div>
   );
 };

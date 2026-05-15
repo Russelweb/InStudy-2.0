@@ -2,6 +2,49 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { authService } from '../services/api';
 
+// ---------------------------------------------------------------------------
+// Avatar — generates initials + a stable color from the email, no external deps
+// ---------------------------------------------------------------------------
+const AVATAR_COLORS = [
+  { bg: 'rgba(189,157,255,0.2)', text: '#bd9dff', border: 'rgba(189,157,255,0.35)' }, // purple
+  { bg: 'rgba(105,246,184,0.15)', text: '#69f6b8', border: 'rgba(105,246,184,0.3)' }, // emerald
+  { bg: 'rgba(184,249,222,0.15)', text: '#b8f9de', border: 'rgba(184,249,222,0.3)' }, // mint
+  { bg: 'rgba(164,127,239,0.2)', text: '#a47fef', border: 'rgba(164,127,239,0.35)' }, // violet
+  { bg: 'rgba(88,231,171,0.15)', text: '#58e7ab', border: 'rgba(88,231,171,0.3)' },   // teal
+];
+
+function getAvatarProps(email = '') {
+  // Initials: up to 2 chars from the part before @
+  const name = email.split('@')[0] || '?';
+  const parts = name.split(/[._\-\s]+/).filter(Boolean);
+  const initials = parts.length >= 2
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+
+  // Deterministic color from email char codes
+  const hash = email.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const color = AVATAR_COLORS[hash % AVATAR_COLORS.length];
+
+  return { initials, color };
+}
+
+const UserAvatar = ({ email, size = 'md' }) => {
+  const { initials, color } = getAvatarProps(email);
+  const dim = size === 'sm' ? 'w-7 h-7 text-[10px]' : 'w-9 h-9 text-xs';
+  return (
+    <div
+      className={`${dim} rounded-full flex items-center justify-center font-black shrink-0 select-none`}
+      style={{
+        background: color.bg,
+        color: color.text,
+        border: `1.5px solid ${color.border}`,
+      }}
+    >
+      {initials}
+    </div>
+  );
+};
+
 const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
   const location = useLocation();
   const currentUser = authService.getCurrentUser();
@@ -27,7 +70,7 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
     <aside
       className={`
         ${mobile ? 'w-full shadow-2xl' : isCollapsed ? 'fixed left-0 top-0 w-16' : 'fixed left-0 top-0 w-64'}
-        h-full bg-[#0c1410] flex flex-col z-50 transition-all duration-300
+        h-full bg-[#141f16] flex flex-col z-50 transition-all duration-300
         shadow-[0px_20px_40px_rgba(189,157,255,0.04)]
         overflow-hidden
       `}
@@ -72,8 +115,8 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
                   isCollapsed ? 'justify-center' : ''
                 } ${
                   isActive
-                    ? 'text-[#bd9dff] bg-[#202821]/60 font-bold border-r-2 border-[#bd9dff]'
-                    : 'text-[#d8e8d6]/60 hover:text-[#bd9dff] hover:bg-[#202821]/40'
+                    ? 'text-[#bd9dff] bg-[#242e25]/60 font-bold border-r-2 border-[#bd9dff]'
+                    : 'text-[#d8e8d6]/60 hover:text-[#bd9dff] hover:bg-[#242e25]/40'
                 }`}
               >
                 <span className="material-symbols-outlined shrink-0">{item.icon}</span>
@@ -100,23 +143,27 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
       <div className={`mt-auto shrink-0 border-t border-outline-variant/10 pt-4 pb-6 px-3 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
         {!isCollapsed && (
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-full border border-primary/20 p-0.5 overflow-hidden shrink-0">
-              <img
-                alt="User profile"
-                className="w-full h-full object-cover rounded-full"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQVbPjTFstZg2xuiXl6JZO1xrhTzTb_pLHPOM3Zz5z__fFrm4qIdkjQNc4oYi1sbI89gkCGMMQC6NxmXIeeo28iZ3xOdVa1ir68WakWZdaDp_eBoS5BwPwzXOO4jSruYI-6L4dDVywzQOxqg86iaBMmHzVktWeSJZgyjn_c5x6X1Y5sQ7S8T1MI9ZcsMpsgTiqmBljsBAc5VW22v9mzUA2JvRdWhguP0Oho-PjPt_IypvBguC62bp6iJaIMcTWA5ugAEpz2NvPxQ"
-              />
-            </div>
+            <UserAvatar email={currentUser?.email || ''} size="md" />
             <div className="overflow-hidden">
-              <p className="text-sm font-bold text-on-surface truncate max-w-[110px]">{currentUser?.email?.split('@')[0] || 'Scholar'}</p>
-              <p className="text-[10px] text-on-surface-variant tracking-widest">{isAdmin ? 'System Admin' : 'InStudent'}</p>
+              <p className="text-sm font-bold text-on-surface truncate max-w-[110px]">
+                {currentUser?.email?.split('@')[0] || 'Scholar'}
+              </p>
+              <p className="text-[10px] text-on-surface-variant tracking-widest">
+                {isAdmin ? 'System Admin' : 'InStudent'}
+              </p>
             </div>
           </div>
         )}
+
+        {/* Collapsed: show avatar only, no text */}
+        {isCollapsed && (
+          <UserAvatar email={currentUser?.email || ''} size="sm" />
+        )}
+
         <button
           onClick={() => authService.logout()}
           className="p-2 rounded-lg text-error hover:bg-error/10 transition-colors shrink-0"
-          title="Terminate Session"
+          title="Log Out"
         >
           <span className="material-symbols-outlined">logout</span>
         </button>

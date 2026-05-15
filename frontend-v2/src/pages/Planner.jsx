@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { plannerService, statService, assetService } from '../services/api';
+import { plannerService, statService, assetService, masteryService } from '../services/api';
+import { InputModal } from '../components/Modal';
+import { showToast } from '../components/Toast';
+import { useAura, useAuraHelp } from '../context/AuraContext';
 import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const Planner = () => {
@@ -9,18 +12,24 @@ const Planner = () => {
   const [selectedCourse, setSelectedCourse] = useState('');
   const [examDate, setExamDate] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() + 14); // Default to 2 weeks from now
+    d.setDate(d.getDate() + 14);
     return d.toISOString().split('T')[0];
   });
   const [topics, setTopics] = useState([]);
   const [newTopic, setNewTopic] = useState('');
-  const [focusTopic, setFocusTopic] = useState(''); // New: specific topic to prioritize
+  const [focusTopic, setFocusTopic] = useState('');
   const [plan, setPlan] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [completedTasks, setCompletedTasks] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [masteryInsight, setMasteryInsight] = useState(null);
   const isInitialized = useRef(false);
+  const { triggerAura } = useAura();
+  useAuraHelp(
+    'Your study plan is weighted by your mastery scores — weak topics get more days. Add your exam date and topics, then click Generate.'
+  );
 
   useEffect(() => {
     // Check for loaded asset from Saved Assets page FIRST
@@ -101,6 +110,21 @@ const Planner = () => {
     });
   }, []);
 
+  // Fetch mastery insight when course changes
+  useEffect(() => {
+    if (!selectedCourse) return;
+    masteryService.getProfile(selectedCourse)
+      .then(res => {
+        const profile = res.data.profile || [];
+        if (profile.length === 0) { setMasteryInsight(null); return; }
+        const urgent = profile.filter(p => p.familiarity_score < -0.2).map(p => p.concept_id);
+        const review = profile.filter(p => p.familiarity_score >= -0.2 && p.familiarity_score <= 0.4).map(p => p.concept_id);
+        const solid  = profile.filter(p => p.familiarity_score > 0.4).map(p => p.concept_id);
+        setMasteryInsight({ urgent, review, solid });
+      })
+      .catch(() => setMasteryInsight(null));
+  }, [selectedCourse]);
+
   const addTopic = () => {
     if (newTopic.trim()) {
       setTopics([...topics, newTopic.trim()]);
@@ -119,10 +143,11 @@ const Planner = () => {
 
   const handleSavePlan = async () => {
     if (!plan) return;
-    
-    const title = prompt('Name this study plan:');
-    if (!title) return;
-    
+    setSaveModalOpen(true);
+  };
+
+  const handleSavePlanConfirm = async (title) => {
+    setSaveModalOpen(false);
     setIsSaving(true);
     try {
       await assetService.save(
@@ -132,10 +157,10 @@ const Planner = () => {
         { plan, examDate, topics, completedTasks },
         { exam_date: examDate, topic_count: topics.length }
       );
-      alert('✅ Study plan saved successfully!');
+      showToast('Study plan saved successfully!', 'success');
     } catch (error) {
       console.error('Save failed:', error);
-      alert('Failed to save plan. Please try again.');
+      showToast('Failed to save plan. Please try again.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -148,7 +173,7 @@ const Planner = () => {
       const res = await plannerService.discoverTopics(selectedCourse);
       const newTopics = res.data.topics || [];
       if (newTopics.length === 0) {
-        alert("No clear topics found in documents. Try adding them manually.");
+        showToast('No clear topics found in documents. Try adding them manually.', 'warning');
       } else {
         // Add only unique new topics
         setTopics(prev => [...new Set([...prev, ...newTopics])]);
@@ -172,7 +197,7 @@ const Planner = () => {
     // Add timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       console.error('Plan synthesis timed out after 60 seconds');
-      alert('⏱️ Plan generation is taking too long. This might be due to:\n\n• No AI API key configured\n• Large amount of course content\n• Network issues\n\nPlease check your settings and try again.');
+      showToast('Plan generation timed out. Check your API key in Settings and try again.', 'error');
       setIsLoading(false);
       setStep('setup');
     }, 60000); // 60 second timeout
@@ -191,7 +216,7 @@ const Planner = () => {
       if (res.data?.plan) {
         setPlan(res.data.plan);
         setStep('timeline');
-        // Scroll to top so user sees the timeline
+        triggerAura('celebrating', `Your study plan is ready — mapped out and weighted to your mastery gaps.`);
         setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
       } else {
         throw new Error('Invalid plan format received from server');
@@ -202,11 +227,13 @@ const Planner = () => {
       
       const errorMsg = err.response?.data?.detail || err.message || 'Unknown error';
       if (errorMsg.includes('API key') || err.response?.status === 401) {
-        alert('🔑 No AI key configured.\n\nGo to Settings and paste your Groq API key to enable AI features.');
+        triggerAura('concerned', 'No API key configured. Add your Groq key in Settings to enable AI features.',
+          { label: 'Open Settings', onClick: () => {} });
       } else if (errorMsg.includes('NO_DOCUMENTS')) {
-        alert('📂 No documents found in this course.\n\nGo to Knowledge Base → select this course → upload documents first.');
+        triggerAura('concerned', 'This course has no documents yet. Upload study material first.',
+          { label: 'Go to Knowledge Base', onClick: () => {} });
       } else {
-        alert(`Neural synthesis failed: ${errorMsg}\n\nPlease check your topics and try again.`);
+        showToast(`Plan generation failed: ${errorMsg}`, 'error');
       }
       setStep('setup');
     } finally {
@@ -232,8 +259,8 @@ const Planner = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 group-hover:opacity-100 transition-opacity opacity-0 pointer-events-none"></div>
                 
                 <div className="relative text-center mb-6 md:mb-10">
-                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-[#551a8b] bg-clip-text text-transparent">Intelligent Study Plan</h1>
-                  <p className="text-on-surface-variant text-xs sm:text-sm font-medium">Create your high-performance Study Plan.</p>
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-[#551a8b] bg-clip-text text-transparent">Study Planner</h1>
+                  <p className="text-on-surface-variant text-xs sm:text-sm font-medium">Set your exam date, add your topics, and get a personalised day-by-day plan.</p>
                 </div>
 
                 <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -314,12 +341,50 @@ const Planner = () => {
                   <p className="text-[9px] text-on-surface-variant/60 italic">Leave blank to cover all topics equally</p>
                 </div>
 
+                {/* Mastery insight banner */}
+                {masteryInsight && (masteryInsight.urgent.length > 0 || masteryInsight.review.length > 0) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative mt-6 p-4 rounded-2xl border border-primary/20 bg-primary/5 overflow-hidden"
+                  >
+                    <div className="absolute -right-6 -top-6 w-24 h-24 bg-primary/10 blur-2xl rounded-full pointer-events-none" />
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-primary text-xl shrink-0 mt-0.5">psychology</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-primary uppercase tracking-widest mb-2">Mastery-Aware Plan</p>
+                        <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">
+                          Your plan will prioritise the topics you're weakest on based on your quiz and flashcard history.
+                        </p>
+                        {masteryInsight.urgent.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-1.5">
+                            <span className="text-[9px] font-black text-error uppercase tracking-widest shrink-0 mt-0.5">Urgent:</span>
+                            {masteryInsight.urgent.slice(0, 4).map((c, i) => (
+                              <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-error/10 border border-error/20 text-error font-bold">{c}</span>
+                            ))}
+                            {masteryInsight.urgent.length > 4 && <span className="text-[10px] text-error/60">+{masteryInsight.urgent.length - 4} more</span>}
+                          </div>
+                        )}
+                        {masteryInsight.review.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="text-[9px] font-black text-primary uppercase tracking-widest shrink-0 mt-0.5">Review:</span>
+                            {masteryInsight.review.slice(0, 4).map((c, i) => (
+                              <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold">{c}</span>
+                            ))}
+                            {masteryInsight.review.length > 4 && <span className="text-[10px] text-primary/60">+{masteryInsight.review.length - 4} more</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 <button 
                   onClick={synthesizePlan}
                   disabled={!selectedCourse || !examDate}
                   className="relative z-10 w-full mt-10 bg-[#551a8b] text-on-white font-black py-5 rounded-2xl shadow-xl shadow-primary/14 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale uppercase tracking-widest text-sm cursor-pointer"
                 >
-                  Synthesize Study Plan
+                  Generate Study Plan
                 </button>
               </div>
             </motion.section>
@@ -351,13 +416,13 @@ const Planner = () => {
                 <div className="absolute -right-32 top-8 space-y-2 opacity-50 font-mono text-[9px]">
                   <p className="text-secondary flex items-center gap-2">
                     <span className="w-1 h-1 rounded-full bg-secondary animate-pulse"></span>
-                    SYNA_MAP: ACTIVE
+                    PLAN: GENERATING
                   </p>
                   <p className="text-primary flex items-center gap-2">
                     <span className="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
-                    RETENTION_CALC: 98.2%
+                    TOPICS: ANALYSING
                   </p>
-                  <p className="text-on-surface-variant">0x8F2... COMPILING</p>
+                  <p className="text-on-surface-variant">SCHEDULE: BUILDING</p>
                 </div>
               </div>
               <div className="text-center space-y-2">
@@ -381,7 +446,7 @@ const Planner = () => {
                 return (
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 border-b border-outline-variant/10 pb-6 sm:pb-8">
                     <div>
-                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter">Optimized Pathway</h2>
+                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter">Your Study Plan</h2>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         <span className="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-secondary border border-secondary/20 flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
@@ -409,8 +474,7 @@ const Planner = () => {
                         className="px-5 py-3 rounded-xl bg-secondary/10 text-secondary border border-secondary/20 font-bold text-xs uppercase tracking-widest hover:bg-secondary/20 transition-all disabled:opacity-50"
                       >
                         {isSaving ? 'Saving...' : 'Save Plan'}
-                      </button>
-                      <button
+                      </button>                      <button
                         onClick={() => { setCompletedTasks({}); localStorage.removeItem('planner_completed_tasks'); }}
                         className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-error transition-colors shadow-sm"
                         title="Reset progress"
@@ -530,6 +594,17 @@ const Planner = () => {
         </AnimatePresence>
       </div>
       <ScrollToTopButton />
+
+      {/* Save plan modal */}
+      <InputModal
+        open={saveModalOpen}
+        title="Save Study Plan"
+        description="Give this plan a name so you can find it later in Saved Assets."
+        placeholder="e.g. Finals Week — Organic Chemistry"
+        confirmLabel="Save Plan"
+        onConfirm={handleSavePlanConfirm}
+        onCancel={() => setSaveModalOpen(false)}
+      />
     </div>
   );
 };

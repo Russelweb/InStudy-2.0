@@ -3,10 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import UploadZone from '../components/UploadZone';
 import CourseCard from '../components/CourseCard';
+import EmptyState from '../components/EmptyState';
 import { documentService, statService } from '../services/api';
+import { useAuraHelp } from '../context/AuraContext';
 import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const KnowledgeBase = () => {
+  useAuraHelp('Create a course first, then upload your documents. Once uploaded, you can generate flashcards, quizzes, and summaries from any page.');
   const [courses, setCourses] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -198,7 +201,7 @@ const KnowledgeBase = () => {
         {/* Filter Tabs */}
         <div className="flex items-center gap-2 md:gap-3 mb-6 md:mb-10 overflow-x-auto pb-4 custom-scrollbar">
           {[
-            { label: 'All Circuits', value: 'all' },
+            { label: 'All Courses', value: 'all' },
             { label: 'In Progress', value: 'in-progress' },
             { label: 'Completed',   value: 'completed' },
           ].map((tab) => (
@@ -218,10 +221,17 @@ const KnowledgeBase = () => {
 
         {/* Course Grid */}
         {filteredCourses.length === 0 ? (
-          <div className="text-center py-20">
-            <span className="material-symbols-outlined text-5xl text-on-surface-variant mb-4 block opacity-40">school</span>
-            <p className="text-on-surface-variant font-bold">No courses found. Create a course and upload documents to get started.</p>
-          </div>
+          <EmptyState
+            icon="school"
+            title={filter === 'all' ? 'No courses yet' : `No ${filter === 'in-progress' ? 'in-progress' : 'completed'} courses`}
+            description={
+              filter === 'all'
+                ? 'Create your first course using the button above, then upload a document to get started.'
+                : 'Try switching to "All Courses" to see everything.'
+            }
+            action={filter === 'all' ? { label: 'Create a Course', onClick: () => setShowCreateModal(true) } : undefined}
+            secondaryAction={filter !== 'all' ? { label: 'Show All Courses', onClick: () => setFilter('all') } : undefined}
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {filteredCourses.map((course, idx) => (

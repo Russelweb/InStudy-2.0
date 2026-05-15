@@ -20,7 +20,7 @@ const NeuralControlDeck = ({ annotations = [] }) => {
   }));
 
   return (
-    <footer className="hidden md:flex fixed bottom-0 left-0 w-full h-[120px] z-50 bg-[#050505] border-t border-outline-variant/10 px-4 md:px-12 justify-between items-center shadow-[0px_-10px_30px_rgba(0,0,0,0.5)]">
+    <footer className="hidden md:flex fixed bottom-0 left-0 w-full h-[120px] z-50 bg-[#141f16] border-t border-outline-variant/10 px-4 md:px-12 justify-between items-center shadow-[0px_-10px_30px_rgba(0,0,0,0.4)]">
       {/* Left: Annotations Zone */}
       <div className="flex-grow flex items-center gap-2 md:gap-4">
         <div className="flex flex-col gap-1 pr-4 md:pr-6 border-r border-white/10">

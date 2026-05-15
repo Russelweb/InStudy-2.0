@@ -53,7 +53,7 @@ const Signup = () => {
   const update = (field) => (e) => setFormData({ ...formData, [field]: e.target.value });
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#0d1410] relative overflow-hidden p-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden p-4">
       <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse"></div>
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-secondary/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
 
@@ -149,7 +149,7 @@ const Signup = () => {
             >
               {loading
                 ? <span className="material-symbols-outlined animate-spin">sync</span>
-                : 'Become An InStudent'}
+                : 'Create Account'}
             </button>
           </form>
 
