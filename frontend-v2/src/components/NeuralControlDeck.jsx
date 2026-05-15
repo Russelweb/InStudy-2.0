@@ -44,8 +44,8 @@ const NeuralControlDeck = ({ annotations = [] }) => {
         </div>
       </div>
 
-{/*        */}{/* Right: Neural Control Panel */}
-{/*       <div className="flex items-center gap-4 pl-8 border-l border-white/10"> */}
+       {/* Right: Neural Control Panel */}
+      {/* <div className="flex items-center gap-4 pl-8 border-l border-white/10"> */}
 {/*         <button className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-6 py-3 rounded-xl flex items-center gap-3 transition-all hover:scale-105 active:scale-95 group"> */}
 {/*           <span className="material-symbols-outlined text-lg group-hover:text-secondary">quiz</span> */}
 {/*           <span className="text-xs font-bold tracking-widest uppercase">Generate Quiz</span> */}

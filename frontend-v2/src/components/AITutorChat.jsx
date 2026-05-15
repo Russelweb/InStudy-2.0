@@ -286,7 +286,7 @@ const AITutorChat = ({ courseId }) => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-surface-container-lowest border-t border-outline-variant/10 shrink-0 space-y-2">
+      <div className="p-4 bg-surface-container-low border-t border-outline-variant/10 shrink-0 space-y-2">
         {isStreaming && (
           <button
             onClick={handleStop}

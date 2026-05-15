@@ -32,6 +32,18 @@ export const AuraProvider = ({ children }) => {
     visible: false,
   });
 
+  const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
+  const [quickChatQuery, setQuickChatQuery] = useState(null);
+
+  const toggleQuickChat = useCallback(() => {
+    setIsQuickChatOpen(prev => !prev);
+  }, []);
+
+  const openQuickChatWithQuery = useCallback((query) => {
+    setQuickChatQuery(query);
+    setIsQuickChatOpen(true);
+  }, []);
+
   // Page-level contextual help — registered by each page on mount
   const pageHelpRef = useRef({ message: null, action: null });
   const dismissTimer = useRef(null);
@@ -67,7 +79,19 @@ export const AuraProvider = ({ children }) => {
   }, [triggerAura]);
 
   return (
-    <AuraContext.Provider value={{ auraState: state, triggerAura, dismissAura, registerPageHelp, handleOrbClick }}>
+    <AuraContext.Provider value={{ 
+      auraState: state, 
+      isQuickChatOpen,
+      quickChatQuery,
+      triggerAura, 
+      dismissAura, 
+      registerPageHelp, 
+      handleOrbClick,
+      toggleQuickChat,
+      setIsQuickChatOpen,
+      openQuickChatWithQuery,
+      setQuickChatQuery
+    }}>
       {children}
     </AuraContext.Provider>
   );

@@ -7,6 +7,8 @@
  */
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAura } from '../context/AuraContext';
+import AuraQuickChat from './AuraQuickChat';
+import TextSelectionMenu from './TextSelectionMenu';
 
 // ── Orb animation variants per mode ──────────────────────────────────────
 const orbVariants = {
@@ -151,7 +153,7 @@ const SpeechBubble = ({ message, action, mode, onDismiss }) => {
 
 // ── Main component ────────────────────────────────────────────────────────
 const AuraMascot = () => {
-  const { auraState, dismissAura, handleOrbClick } = useAura();
+  const { auraState, dismissAura, handleOrbClick, toggleQuickChat } = useAura();
   const { mode, message, action, visible } = auraState;
 
   const glow   = orbGlow[mode]  || orbGlow.idle;
@@ -159,7 +161,14 @@ const AuraMascot = () => {
   const showArrow = (mode === 'pointing' || mode === 'guide') && visible;
 
   return (
-    <div className="fixed bottom-6 right-5 z-[110] flex flex-col items-end select-none">
+    <>
+      {/* Global Text Selection Listener for Aura */}
+      <TextSelectionMenu />
+
+      <div className="fixed bottom-6 right-5 z-[110] flex flex-col items-end select-none">
+        {/* Quick Chat Popover */}
+      <AuraQuickChat />
+
       {/* Speech bubble */}
       <AnimatePresence>
         {visible && message && (
@@ -179,10 +188,10 @@ const AuraMascot = () => {
           if (visible) {
             dismissAura();
           } else {
-            handleOrbClick(); // show contextual help for current page
+            toggleQuickChat();
           }
         }}
-        aria-label="Aura — click for help on this page"
+        aria-label="Aura — click to chat"
         className="relative w-12 h-12 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         variants={orbVariants}
         animate={mode}
@@ -248,6 +257,7 @@ const AuraMascot = () => {
         </svg>
       </motion.button>
     </div>
+    </>
   );
 };
 

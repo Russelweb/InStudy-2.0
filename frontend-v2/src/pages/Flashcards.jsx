@@ -345,7 +345,7 @@ const Flashcards = () => {
       {/* Central Radial Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="max-w-5xl mx-auto h-full flex flex-col items-center">
+      <div className="max-w-5xl mx-auto h-full flex flex-col items-center bg-surface-container-lower">
         {/* HUD Stats */}
         <div className="w-full flex justify-between items-center mb-6">
           <motion.div
@@ -433,7 +433,7 @@ const Flashcards = () => {
 
               {/* ── Step 1: Course ── */}
               <div className="mb-10">
-                <div className="flex items-center gap-3 mb-5">
+                <div className="flex items-center gap-3 mb-4">
                   <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">01</span>
                   <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Choose Your Course</h3>
                   <span className="flex-1 h-px bg-outline-variant/20"></span>
@@ -452,8 +452,8 @@ const Flashcards = () => {
                       onClick={() => setCurrentDeckId(deck.id)}
                       className={`shrink-0 min-w-[160px] p-5 rounded-2xl border text-left transition-all duration-200 group ${
                         currentDeckId === deck.id
-                          ? 'bg-primary/10 border-primary shadow-[0_0_20px_rgba(189,157,255,0.15)]'
-                          : 'bg-surface-container-low border-outline-variant/15 hover:border-primary/40'
+                          ? 'bg-primary/15 border-primary shadow-[0_0_20px_rgba(189,157,255,0.15)]'
+                          : 'bg-surface-container-low border-outline-variant/40 hover:border-primary/40'
                       }`}
                     >
                       <span className={`material-symbols-outlined text-2xl mb-3 block ${currentDeckId === deck.id ? 'text-primary' : 'text-on-surface-variant'}`}>folder</span>
@@ -466,8 +466,8 @@ const Flashcards = () => {
 
               {/* ── Step 2: Configure ── */}
               <div className="mb-10">
-                <div className="flex items-center gap-3 mb-5">
-                  <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">02</span>
+                <div className="flex items-center gap-3 mb-5 mt-2">
+                  <span className="h-6 w-6 rounded-full bg-surface-container-low text-primary text-xs flex items-center justify-center font-black shrink-0">02</span>
                   <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Configure Your Deck</h3>
                   <span className="flex-1 h-px bg-outline-variant/20"></span>
                 </div>
@@ -530,7 +530,7 @@ const Flashcards = () => {
 
               {/* ── Step 3: Topic (optional) ── */}
               <div className="mb-10">
-                <div className="flex items-center gap-3 mb-5">
+                <div className="flex items-center gap-3 mt-3 mb-3">
                   <span className="h-6 w-6 rounded-full bg-outline-variant/30 text-on-surface-variant text-xs flex items-center justify-center font-black shrink-0">03</span>
                   <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Focus Topic <span className="text-on-surface-variant/40 font-normal normal-case tracking-normal">— optional</span></h3>
                   <span className="flex-1 h-px bg-outline-variant/20"></span>
@@ -540,7 +540,7 @@ const Flashcards = () => {
                   value={settings.topic || ''}
                   onChange={(e) => setSettings({...settings, topic: e.target.value})}
                   placeholder="e.g. photosynthesis, k-nearest neighbors — leave blank to cover all topics"
-                  className="w-full bg-surface-container-low border border-outline-variant/15 rounded-2xl py-4 px-5 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:ring-1 focus:ring-primary/50 transition-all"
+                  className="w-full mb-2 bg-surface-container-low border border-outline-variant/15 rounded-2xl py-4 px-5 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:ring-1 focus:ring-primary/50 transition-all"
                 />
               </div>
 

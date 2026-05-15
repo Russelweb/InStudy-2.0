@@ -92,8 +92,6 @@ function MainLayout() {
       {/* Global toast notifications */}
       <ToastContainer />
 
-      {/* Aura mascot — ambient AI companion */}
-      <AuraMascot />
     </div>
   );
 }
@@ -140,6 +138,9 @@ function App() {
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+
+          {/* Global Aura Mascot (available everywhere including Workspace) */}
+          <AuraMascot />
         </div>
       </Router>
     </AuraProvider>

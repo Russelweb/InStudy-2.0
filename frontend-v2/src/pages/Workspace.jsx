@@ -118,10 +118,10 @@ const Workspace = () => {
               <p className="text-[10px] text-primary/60">{courseId ? 'Bio-Sync Active' : 'No course selected'}</p>
             </div>
           )}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1" >
             <button
               onClick={() => setSidebarCollapsed(v => !v)}
-              className="flex items-center justify-center p-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest rounded-lg transition-all"
+              className="flex items-center justify-center p-1 mt-0 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest rounded-lg transition-all"
               title={sidebarCollapsed ? 'Expand' : 'Collapse'}
             >
               <span className="material-symbols-outlined text-lg">{sidebarCollapsed ? 'chevron_right' : 'chevron_left'}</span>
@@ -146,13 +146,22 @@ const Workspace = () => {
               <span className="material-symbols-outlined">quiz</span>
               {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">Smart Quiz</span>}
             </Link>
-            <Link to="/ai-tutor" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="AI Tutor">
-              <span className="material-symbols-outlined">smart_toy</span>
-              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">AI Tutor</span>}
+            <Link to="/summary" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="Smart Quiz">
+              <span className="material-symbols-outlined">auto_awesome</span>
+              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">AI Summarizer</span>}
             </Link>
             <Link to="/planner" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="Study Planner">
               <span className="material-symbols-outlined">event_note</span>
               {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">Study Planner</span>}
+            </Link>
+            <Link to="/mastery" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="Study Planner">
+              <span className="material-symbols-outlined">psychology</span>
+              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">Mastery Tracker</span>}
+            </Link>
+            
+            <Link to="/ai-tutor" className="flex items-center gap-4 p-3 text-[#d8e8d6]/40 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200" title="AI Tutor">
+              <span className="material-symbols-outlined">smart_toy</span>
+              {!sidebarCollapsed && <span className="hidden md:block text-sm font-medium">AI Tutor</span>}
             </Link>
           </div>
           <div className="mt-auto px-1">
@@ -241,7 +250,7 @@ const Workspace = () => {
       <NeuralControlDeck annotations={activeAnnotations} />
       
       {/* Persistent AI Disclaimer */}
-      <div className="fixed bottom-1 left-1/2 -translate-x-1/2 text-[9px] text-on-surface-variant/30 pointer-events-none z-[60] whitespace-nowrap hidden lg:block">
+      <div className="fixed bottom-1 left-1/2 -translate-x-1/2 text-[11px] text-on-surface-variant/50 pointer-events-none z-[60] whitespace-nowrap hidden lg:block">
         InStudy AI can make mistakes. Please verify important information.
       </div>
     </div>

@@ -35,7 +35,7 @@ const TopBar = ({ onMenuClick, sidebarCollapsed }) => {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
           </span>
-          <span className="text-secondary text-[10px] font-bold tracking-tight truncate max-w-[140px] md:max-w-none">
+          <span className="text-secondary text-[12px] font-bold tracking-tight truncate max-w-[140px] md:max-w-none">
             🔥 Aura: <span className="text-on-surface font-normal">{auraMessage}</span>
           </span>
         </div>

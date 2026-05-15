@@ -18,7 +18,7 @@ const ScrollToTopButton = () => {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-8 right-8 z-50 w-11 h-11 rounded-full bg-surface-container-highest border border-primary/20 text-primary shadow-lg hover:bg-primary/10 hover:scale-110 transition-all flex items-center justify-center"
+          className="fixed bottom-20 right-5 z-50 w-11 h-11 rounded-full bg-surface-container-highest border border-primary/20 text-primary shadow-lg hover:bg-primary/10 hover:scale-110 transition-all flex items-center justify-center"
           title="Back to top"
         >
           <span className="material-symbols-outlined text-lg">arrow_upward</span>

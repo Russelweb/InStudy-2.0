@@ -589,7 +589,7 @@ const Summary = () => {
                   </div>
 
                   {/* Mind Map Section */}
-                  {summaryData.mind_map && (
+                  {!summaryData.mind_map && (
                     <div className="mt-12 pt-8 border-t border-outline-variant/10">
                       <div className="flex items-center justify-between mb-6">
                         <h5 className="text-on-surface-variant text-xs font-bold uppercase tracking-widest">
@@ -677,7 +677,7 @@ const Summary = () => {
 {/*                         </p> */}
 {/*                       </div> */}
                     </div>
-                  )}
+                  )} 
                 </div>
               </motion.div>
             )}

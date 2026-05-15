@@ -41,7 +41,7 @@ const QuizSetup = ({ onStart, availableCourses }) => {
 
       {/* ── Step 1: Course ── */}
       <div className="mb-10">
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3 mb-3">
           <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">01</span>
           <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Choose Your Course</h3>
           <span className="flex-1 h-px bg-outline-variant/20"></span>
@@ -76,7 +76,7 @@ const QuizSetup = ({ onStart, availableCourses }) => {
 
       {/* ── Step 2: Configure ── */}
       <div className="mb-10">
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3 mb-3 mt-3">
           <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">02</span>
           <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Configure Your Quiz</h3>
           <span className="flex-1 h-px bg-outline-variant/20"></span>
@@ -145,7 +145,7 @@ const QuizSetup = ({ onStart, availableCourses }) => {
 
       {/* ── Step 3: Topic (optional) ── */}
       <div className="mb-10">
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3 mb-3 mt-3">
           <span className="h-6 w-6 rounded-full bg-outline-variant/30 text-on-surface-variant text-xs flex items-center justify-center font-black shrink-0">03</span>
           <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Focus Topic <span className="text-on-surface-variant/40 font-normal normal-case tracking-normal">— optional</span></h3>
           <span className="flex-1 h-px bg-outline-variant/20"></span>
@@ -155,7 +155,7 @@ const QuizSetup = ({ onStart, availableCourses }) => {
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           placeholder="e.g. photosynthesis, k-nearest neighbors — leave blank to cover all topics"
-          className="w-full bg-surface-container-low border border-outline-variant/15 rounded-2xl py-4 px-5 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:ring-1 focus:ring-primary/50 transition-all"
+          className="w-full mb-2 bg-surface-container-low border border-outline-variant/15 rounded-2xl py-4 px-5 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:ring-1 focus:ring-primary/50 transition-all"
         />
       </div>
 
@@ -180,7 +180,7 @@ const QuizSetup = ({ onStart, availableCourses }) => {
           onClick={() => setTimedMode(v => !v)}
           className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
             timedMode
-              ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
+              ? 'bg-primary/10  border-primary/30 text-primary hover:bg-primary/20'
               : 'bg-surface-container-highest border-outline-variant/20 text-on-surface-variant hover:border-primary/30 hover:text-primary'
           }`}
         >

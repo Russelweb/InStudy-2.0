@@ -654,25 +654,33 @@ You MUST respond entirely in {detected_lang}.
 - Even if the history or material is in another language, your answer MUST be in {detected_lang}.
 - If the material is not in {detected_lang}, act as an expert translator.
 """
-                else:
+                    is_quick_chat = "[QUICK_CHAT]" in question
+                    clean_question = question.replace("[QUICK_CHAT]", "").strip()
+
+                    explanation_format = ""
+                    if is_quick_chat:
+                        explanation_format = f"Provide an extremely concise, direct answer in 2-3 sentences max. Do NOT use lists or structured sections. You MUST respond entirely in {detected_lang}."
+                    else:
+                        explanation_format = """Provide a structured explanation:
+1. Concept Definition (mention page numbers if relevant)
+2. Step-by-Step Explanation
+3. Example
+4. Possible Exam Question
+5. Quick Summary"""
+
                     prompt = f"""You are an expert AI tutor helping a university student.
 {conversation_context}
 
 Study Material (with page numbers):
 {context_text}
 
-Current Question: {question}
+Current Question: {clean_question}
 
 IMPORTANT: For ANY mathematical expression, equation, symbol, or formula — always use LaTeX notation:
 - Inline math: $expression$ (e.g. $f'(x)$, $\\cos(x^2)$, $\\frac{{d}}{{dx}}$)
 - Block/display math: $$expression$$ on its own line for standalone equations
 
-Provide a structured explanation:
-1. Concept Definition (mention page numbers if relevant)
-2. Step-by-Step Explanation
-3. Example
-4. Possible Exam Question
-5. Quick Summary
+{explanation_format}
 
 If the question asks about a specific page or exercise, focus on that content.
 
@@ -727,10 +735,23 @@ IMPORTANT: For ANY mathematical expression, equation, or formula — always use 
 LANGUAGE INSTRUCTION:
 Identify the language of the 'Current Question'. Respond ENTIRELY in that same language."""
         else:
+            is_quick_chat = "[QUICK_CHAT]" in question
+            clean_question = question.replace("[QUICK_CHAT]", "").strip()
+
+            explanation_format = ""
+            if is_quick_chat:
+                explanation_format = f"Provide an extremely concise, direct answer in 2-3 sentences max. Do NOT use lists or structured sections. You MUST respond entirely in {detected_lang}."
+            else:
+                explanation_format = """Provide a clear explanation as if teaching a university student. Include:
+1. Clear definition
+2. Step-by-step explanation
+3. Practical example
+4. Quick summary"""
+
             prompt = f"""You are a knowledgeable AI tutor.
 {conversation_context}
 
-Current Question: {question}
+Current Question: {clean_question}
 
 IMPORTANT: For ANY mathematical expression, equation, symbol, or formula — always use LaTeX notation:
 - Inline math: $expression$ (e.g. $f'(x)$, $\\cos(x^2)$, $\\frac{{d}}{{dx}}$)
@@ -739,11 +760,7 @@ IMPORTANT: For ANY mathematical expression, equation, symbol, or formula — alw
 LANGUAGE INSTRUCTION:
 Identify the language of the 'Current Question'. Respond ENTIRELY in that same language.
 
-Provide a clear explanation as if teaching a university student. Include:
-1. Clear definition
-2. Step-by-step explanation
-3. Practical example
-4. Quick summary"""
+{explanation_format}"""
         
         response = llm.invoke(prompt)
         # Extract text content (handles both strings from Ollama and objects from Groq)
