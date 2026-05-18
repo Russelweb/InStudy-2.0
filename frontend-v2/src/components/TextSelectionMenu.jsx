@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAura } from '../context/AuraContext';
 
 const TextSelectionMenu = () => {
-  const { openQuickChatWithQuery } = useAura();
+  const { askAuraBackground } = useAura();
   const [selection, setSelection] = useState({
     text: '',
     x: 0,
@@ -54,7 +54,7 @@ const TextSelectionMenu = () => {
   }, []);
 
   const handleExplain = () => {
-    openQuickChatWithQuery(`Explain this concept: "${selection.text}"`);
+    askAuraBackground(`Explain this concept in a concise sentence or two: "${selection.text}"`);
     setSelection(prev => ({ ...prev, show: false }));
     window.getSelection()?.removeAllRanges();
   };

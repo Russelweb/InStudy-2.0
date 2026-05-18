@@ -62,7 +62,7 @@ const NeuralControlDeck = ({ annotations = [] }) => {
 
       {/* Branding Overlay */}
       <div className="absolute bottom-2 right-4 opacity-30 pointer-events-none">
-        <span className="text-[8px] text-white font-black tracking-tighter uppercase">ControlDeck Neural Interface v2.0</span>
+        <span className="text-[8px] text-white font-black tracking-tighter uppercase"></span>
       </div>
     </footer>
   );

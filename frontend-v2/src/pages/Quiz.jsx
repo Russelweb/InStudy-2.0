@@ -203,6 +203,7 @@ const QuizSetup = ({ onStart, availableCourses }) => {
 
 const QuizAssessment = ({ questions, timedMode = true, onComplete, onAbort }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const { triggerAura, askAuraBackground } = useAura();
   const [selected, setSelected] = useState(null);
   const [userAnswers, setUserAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(questions.length * 60);
@@ -233,6 +234,22 @@ const QuizAssessment = ({ questions, timedMode = true, onComplete, onAbort }) =>
     options: ["Alpha", "Beta", "Gamma", "Delta"],
     id: "0"
   };
+
+  useEffect(() => {
+    const idleTimer = setTimeout(() => {
+      triggerAura(
+        'concerned', 
+        "You've been on this question for a while. Need a subtle hint?", 
+        { 
+          label: 'Get a Hint', 
+          onClick: () => askAuraBackground(`Give me a subtle hint for this question without giving away the answer. End by encouraging me to try again. Question: "${currentQ.question}"`) 
+        },
+        10000
+      );
+    }, 30000); // 30 seconds of inactivity triggers a hint
+
+    return () => clearTimeout(idleTimer);
+  }, [currentIndex, currentQ, triggerAura, askAuraBackground]);
 
   const handleNext = () => {
     // Save current answer
@@ -335,7 +352,7 @@ const QuizAssessment = ({ questions, timedMode = true, onComplete, onAbort }) =>
             )}
           </div>
         </div>
-        <div className="bg-black/40 px-12 py-6 flex justify-between items-center border-t border-outline-variant/5">
+        <div className=" px-12 py-6 flex justify-between items-center border-t border-outline-variant/5">
           <div className="flex gap-6">
             <button 
               onClick={onAbort}

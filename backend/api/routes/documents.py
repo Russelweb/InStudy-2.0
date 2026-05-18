@@ -349,6 +349,35 @@ async def get_paragraphs(
         raise HTTPException(404, "Document not found")
 
     try:
+        ext = os.path.splitext(filename)[1].lower()
+        if ext in [".xlsx", ".xls", ".csv"]:
+            import pandas as pd
+            if ext == ".csv":
+                df = pd.read_csv(file_path)
+            else:
+                df = pd.read_excel(file_path)
+            
+            # Limit preview to 150 rows to ensure snappy UI performance
+            df_preview = df.head(150)
+            columns = [str(col) for col in df_preview.columns.tolist()]
+            rows = df_preview.fillna("").astype(str).values.tolist()
+            
+            # Keep fallback text paragraph
+            paragraphs = [df.to_string(index=False)]
+            styles = ["body"]
+            annotations = _load_annotations(_get_annotations_path(user_id, course_id, filename))
+            
+            return {
+                "paragraphs": paragraphs,
+                "styles": styles,
+                "annotations": annotations,
+                "data_table": {
+                    "columns": columns,
+                    "rows": rows,
+                    "total_rows": len(df)
+                }
+            }
+
         blocks = _extract_paragraphs(file_path)
         # paragraphs list = text only (for backward compat with annotation index)
         paragraphs = [b["text"] for b in blocks]
@@ -356,6 +385,8 @@ async def get_paragraphs(
         annotations = _load_annotations(_get_annotations_path(user_id, course_id, filename))
         return {"paragraphs": paragraphs, "styles": styles, "annotations": annotations}
     except Exception as e:
+        logger.error(f"Error reading document paragraphs: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(500, f"Could not read document: {str(e)}")
 
 

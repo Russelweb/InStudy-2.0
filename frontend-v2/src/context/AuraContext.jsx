@@ -21,6 +21,7 @@
  *   When the user clicks the idle orb, Aura shows that page's help message.
  */
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { chatService } from '../services/api';
 
 const AuraContext = createContext(null);
 
@@ -34,6 +35,14 @@ export const AuraProvider = ({ children }) => {
 
   const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
   const [quickChatQuery, setQuickChatQuery] = useState(null);
+  const [personality, setPersonality] = useState(() => {
+    return localStorage.getItem('aura_personality') || 'strict';
+  });
+
+  const updatePersonality = useCallback((newP) => {
+    localStorage.setItem('aura_personality', newP);
+    setPersonality(newP);
+  }, []);
 
   const toggleQuickChat = useCallback(() => {
     setIsQuickChatOpen(prev => !prev);
@@ -63,6 +72,22 @@ export const AuraProvider = ({ children }) => {
     setState({ mode: 'idle', message: null, action: null, visible: false });
   }, []);
 
+  const askAuraBackground = useCallback(async (query) => {
+    triggerAura('thinking');
+    try {
+      // Append [QUICK_CHAT] to ensure concise responses
+      const finalQuery = query.includes('[QUICK_CHAT]') ? query : `${query} [QUICK_CHAT]`;
+      const currentP = localStorage.getItem('aura_personality') || 'socratic';
+      const response = await chatService.sendMessage(finalQuery, 'general', false, currentP);
+      const text = response.data?.answer || "I couldn't process that right now.";
+      triggerAura('guide', text, null, 15000);
+    } catch (error) {
+      console.error("Background Aura request failed:", error);
+      triggerAura('concerned', "I'm having trouble connecting to my neural net.", null, 5000);
+    }
+  }, [triggerAura]);
+
+
   // Pages register their contextual help message here
   const registerPageHelp = useCallback((message, action = null) => {
     pageHelpRef.current = { message, action };
@@ -90,7 +115,10 @@ export const AuraProvider = ({ children }) => {
       toggleQuickChat,
       setIsQuickChatOpen,
       openQuickChatWithQuery,
-      setQuickChatQuery
+      setQuickChatQuery,
+      askAuraBackground,
+      personality,
+      updatePersonality
     }}>
       {children}
     </AuraContext.Provider>

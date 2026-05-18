@@ -255,15 +255,15 @@ export const documentService = {
 // Chat
 // ---------------------------------------------------------------------------
 export const chatService = {
-  sendMessage: (message, courseId, useEli12 = false) =>
-    API.post('/chat/ask', { course_id: courseId, question: message, use_eli12: useEli12 }),
+  sendMessage: (message, courseId, useEli12 = false, personality = 'strict') =>
+    API.post('/chat/ask', { course_id: courseId, question: message, use_eli12: useEli12, personality }),
 
   getHistory: (courseId) => API.get(`/chat/history/${courseId}`),
 
   clearMemory: (courseId) => API.delete('/chat/memory/clear', { params: { course_id: courseId } }),
 
   // Streaming — returns a native fetch Response so the caller can iterate SSE chunks
-  streamMessage: async (message, courseId, useEli12 = false) => {
+  streamMessage: async (message, courseId, useEli12 = false, personality = 'strict') => {
     const token = localStorage.getItem('auth_token');
     const groqKey = localStorage.getItem('groq_api_key');
 
@@ -274,7 +274,7 @@ export const chatService = {
     return fetch(`/api/chat/ask-stream`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ course_id: courseId, question: message, use_eli12: useEli12 }),
+      body: JSON.stringify({ course_id: courseId, question: message, use_eli12: useEli12, personality }),
     });
   },
 };

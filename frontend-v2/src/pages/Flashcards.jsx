@@ -70,7 +70,7 @@ const FlashcardTutorial = ({ onDismiss }) => (
 const Flashcards = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { triggerAura } = useAura();
+  const { triggerAura, askAuraBackground } = useAura();
   useAuraHelp(
     'Rate each card using the buttons below — Unfamiliar, Familiar, or Mastered. Your ratings update your Mastery score automatically.',
     { label: 'View Mastery', onClick: () => navigate('/mastery') }
@@ -98,6 +98,28 @@ const Flashcards = () => {
     topic: '' // New: specific topic focus
   });
   const isInitialized = useRef(false);
+
+  // ---------- Idle / Stuck Nudge ----------
+  useEffect(() => {
+    if (cards.length === 0 || isGenerating || showSettings || (cards.length > 0 && currentIndex >= cards.length)) return;
+
+    const currentCard = cards[currentIndex];
+    if (!currentCard) return;
+
+    const idleTimer = setTimeout(() => {
+      triggerAura(
+        'concerned', 
+        "Stuck on this flashcard? I can help break down this concept for you.", 
+        { 
+          label: 'Explain it', 
+          onClick: () => askAuraBackground(`Give me a subtle hint or simple breakdown for this concept: "${currentCard.front || currentCard.concept || currentCard.question}". Do not give the direct answer if it's a question. End by encouraging me to try again.`) 
+        },
+        10000
+      );
+    }, 30000); // 30 seconds
+
+    return () => clearTimeout(idleTimer);
+  }, [currentIndex, cards, isGenerating, showSettings, triggerAura, askAuraBackground]);
 
   // ---------- Fetch courses as decks ----------
   const fetchDecks = async () => {

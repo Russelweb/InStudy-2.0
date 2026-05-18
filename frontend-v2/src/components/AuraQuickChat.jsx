@@ -4,7 +4,7 @@ import { useAura } from '../context/AuraContext';
 import { chatService } from '../services/api';
 
 const AuraQuickChat = () => {
-  const { isQuickChatOpen, toggleQuickChat, triggerAura, quickChatQuery, setQuickChatQuery } = useAura();
+  const { isQuickChatOpen, toggleQuickChat, triggerAura, quickChatQuery, setQuickChatQuery, personality } = useAura();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +34,7 @@ const AuraQuickChat = () => {
 
         try {
           const apiQuery = `[QUICK_CHAT] ${queryText}`;
-          const res = await chatService.sendMessage(apiQuery, 'general');
+          const res = await chatService.sendMessage(apiQuery, 'general', false, personality);
           const data = res.data;
           setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
           triggerAura('idle');
@@ -48,7 +48,7 @@ const AuraQuickChat = () => {
 
       handleInitialQuery();
     }
-  }, [quickChatQuery, isQuickChatOpen, isLoading, setQuickChatQuery, triggerAura]);
+  }, [quickChatQuery, isQuickChatOpen, isLoading, setQuickChatQuery, triggerAura, personality]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,7 +63,7 @@ const AuraQuickChat = () => {
     try {
       // Use 'general' course_id for quick chat without a specific context
       const apiQuery = `[QUICK_CHAT] ${userMessage.content}`;
-      const res = await chatService.sendMessage(apiQuery, 'general');
+      const res = await chatService.sendMessage(apiQuery, 'general', false, personality);
       const data = res.data;
 
       setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);

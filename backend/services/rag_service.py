@@ -23,6 +23,32 @@ class RAGService:
         # Store conversation history per user/course
         self.conversation_memory: Dict[str, List[Dict[str, str]]] = {}
     
+    def _get_personality_instruction(self, personality: str) -> str:
+        """Get prompt modifier based on selected tutor personality"""
+        p = (personality or "strict").lower()
+        if p == "socratic":
+            return (
+                "PERSONALITY INSTRUCTION - SOCRATIC GUIDE:\n"
+                "- You are a Socratic Guide. Do NOT just give direct answers or step-by-step solutions.\n"
+                "- Instead, prompt the user's critical thinking by asking guiding questions and raising key concepts to help them discover the answer themselves.\n"
+                "- IGNORE the standard structured explanation sections (like Definition, Step-by-step, Possible Exam Question, Summary). Instead, write a concise, conversational prompt with 1 or 2 high-quality Socratic questions based on the retrieved study materials."
+            )
+        elif p == "cheerleader":
+            return (
+                "PERSONALITY INSTRUCTION - CHEERLEADER STUDY BUDDY:\n"
+                "- You are a highly enthusiastic Cheerleader. Be extremely warm, positive, energetic, and supportive.\n"
+                "- Include study emojis (e.g. 🌟, 🚀, 💪, 📚) and highly encouraging phrases.\n"
+                "- Inject positive reinforcement throughout your explanation (e.g. 'You're asking fantastic questions! Let's crush this!')."
+            )
+        elif p == "strict":
+            return (
+                "PERSONALITY INSTRUCTION - STRICT TUTOR:\n"
+                "- You are a Strict, direct Tutor. Be highly formal, structured, concise, and no-nonsense.\n"
+                "- Do NOT use emojis, exclamations, or conversational filler/fluff.\n"
+                "- Keep explanations precise, mathematically rigorous, and straight-to-the-point."
+            )
+        return ""
+    
     def _detect_and_update_language(self, user_id: str, question: str, llm):
         """Detect language of question and update user preference if it's consistent"""
         if not user_id.isdigit() or len(question) < 10:
@@ -203,12 +229,14 @@ class RAGService:
                 section_docs.append(doc)
         
         return section_docs[:k] if section_docs else docs[:k]
-    def answer_question_stream(self, user_id: str, course_id: str, question: str, use_eli12: bool = False, api_key: Optional[str] = None):
+    def answer_question_stream(self, user_id: str, course_id: str, question: str, use_eli12: bool = False, api_key: Optional[str] = None, personality: Optional[str] = None):
         """
         Stream answer word by word with page-aware retrieval and memory.
         Yields Server-Sent Events format.
         """
         logger.info(f"Streaming answer for user {user_id}, course {course_id}")
+        
+        personality_instruction = self._get_personality_instruction(personality)
         
         # Get appropriate LLM
         llm = get_llm(api_key)
@@ -343,6 +371,8 @@ class RAGService:
                     prompt = f"""You are a visual analysis expert. You are helping the user explore and understand an image they uploaded (e.g., a house plan, diagram, or chart).
 {conversation_context}
 
+{personality_instruction}
+
 Visual Content Description:
 {context_text}
 
@@ -361,6 +391,8 @@ You MUST respond entirely in {detected_lang}.
                 elif use_eli12:
                     prompt = f"""You are a friendly tutor explaining to a 12-year-old student.
 {conversation_context}
+
+{personality_instruction}
 
 Study Material (with page numbers):
 {context_text}
@@ -391,6 +423,8 @@ COURSE-WIDE INSTRUCTION:
                 else:
                     prompt = f"""You are an expert AI tutor helping a university student.
 {conversation_context}
+
+{personality_instruction}
 
 Study Material (with page numbers):
 {context_text}
@@ -442,6 +476,8 @@ COURSE-WIDE INSTRUCTION:
                     prompt = f"""You are a friendly tutor explaining to a 12-year-old student.
 {conversation_context}
 
+{personality_instruction}
+
 Current Question: {question}
 
 Explain this concept using simple everyday language, fun analogies, short sentences, and no complex jargon.
@@ -457,6 +493,8 @@ Identify the language of the 'Current Question'.
             else:
                     prompt = f"""You are a knowledgeable AI tutor.
 {conversation_context}
+
+{personality_instruction}
 
 Current Question: {question}
 
@@ -518,11 +556,13 @@ You MUST respond entirely in {detected_lang}.
             "last_question": memory[-1]["question"] if memory else None
         }
     
-    def answer_question(self, user_id: str, course_id: str, question: str, use_eli12: bool = False, api_key: Optional[str] = None):
+    def answer_question(self, user_id: str, course_id: str, question: str, use_eli12: bool = False, api_key: Optional[str] = None, personality: Optional[str] = None):
         """
         Enhanced hybrid AI answering system with page-aware retrieval and memory.
         """
         logger.info(f"Answering question for user {user_id}, course {course_id}")
+        
+        personality_instruction = self._get_personality_instruction(personality)
         
         # Get appropriate LLM
         llm = get_llm(api_key)
@@ -541,26 +581,26 @@ You MUST respond entirely in {detected_lang}.
         # Cross-lingual retrieval support
         search_query = question
         
+        # Identify language and generate search query if needed
+        try:
+            # Detect current language for the prompt
+            detection_prompt = f"Identify the language of this text. Return ONLY the language name (e.g., 'English', 'Spanish', 'French'). Text: '{question[:100]}'"
+            detected = llm.invoke(detection_prompt)
+            detected_lang = (detected if isinstance(detected, str) else getattr(detected, 'content', str(detected))).strip().capitalize()
+            if not detected_lang: detected_lang = "English"
+
+            if len(question) > 5:
+                optimization_prompt = f"Convert this user question into a concise, keyword-rich search query for a vector database. Maintain the original meaning. Return ONLY the optimized query text. Question: '{question}'"
+                search_query = llm.invoke(optimization_prompt)
+                search_query = search_query if isinstance(search_query, str) else getattr(search_query, 'content', str(search_query))
+                search_query = search_query.strip()
+        except Exception as e:
+            logger.warning(f"Failed to optimize search query: {e}")
+            search_query = question
+            detected_lang = "English"
+
         if vector_store:
             logger.info("Retrieving relevant documents...")
-            
-            # Identify language and generate search query if needed
-            try:
-                # Detect current language for the prompt
-                detection_prompt = f"Identify the language of this text. Return ONLY the language name (e.g., 'English', 'Spanish', 'French'). Text: '{question[:100]}'"
-                detected = llm.invoke(detection_prompt)
-                detected_lang = (detected if isinstance(detected, str) else getattr(detected, 'content', str(detected))).strip().capitalize()
-                if not detected_lang: detected_lang = "English"
-
-                if len(question) > 5:
-                    optimization_prompt = f"Convert this user question into a concise, keyword-rich search query for a vector database. Maintain the original meaning. Return ONLY the optimized query text. Question: '{question}'"
-                    search_query = llm.invoke(optimization_prompt)
-                    search_query = search_query if isinstance(search_query, str) else getattr(search_query, 'content', str(search_query))
-                    search_query = search_query.strip()
-            except Exception as e:
-                logger.warning(f"Failed to optimize search query: {e}")
-                search_query = question
-                detected_lang = "English"
             
             # Page-specific retrieval
             if page_ref:
@@ -633,6 +673,8 @@ You MUST respond entirely in {detected_lang}.
                     prompt = f"""You are a friendly tutor explaining to a 12-year-old student.
 {conversation_context}
 
+{personality_instruction}
+
 Study Material (with page numbers):
 {context_text}
 
@@ -654,6 +696,7 @@ You MUST respond entirely in {detected_lang}.
 - Even if the history or material is in another language, your answer MUST be in {detected_lang}.
 - If the material is not in {detected_lang}, act as an expert translator.
 """
+                else:
                     is_quick_chat = "[QUICK_CHAT]" in question
                     clean_question = question.replace("[QUICK_CHAT]", "").strip()
 
@@ -670,6 +713,8 @@ You MUST respond entirely in {detected_lang}.
 
                     prompt = f"""You are an expert AI tutor helping a university student.
 {conversation_context}
+
+{personality_instruction}
 
 Study Material (with page numbers):
 {context_text}
@@ -725,6 +770,8 @@ COURSE-WIDE INSTRUCTION:
             prompt = f"""You are a friendly tutor explaining to a 12-year-old student.
 {conversation_context}
 
+{personality_instruction}
+
 Current Question: {question}
 
 Explain this concept using simple everyday language, fun analogies, short sentences, and no complex jargon.
@@ -750,6 +797,8 @@ Identify the language of the 'Current Question'. Respond ENTIRELY in that same l
 
             prompt = f"""You are a knowledgeable AI tutor.
 {conversation_context}
+
+{personality_instruction}
 
 Current Question: {clean_question}
 

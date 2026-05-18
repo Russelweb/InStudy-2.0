@@ -75,6 +75,7 @@ class PlannerService:
         
         today_dt = datetime.now()
         today    = today_dt.strftime("%Y-%m-%d")
+        today_day_name = today_dt.strftime("%A")
         
         try:
             exam_dt      = datetime.strptime(exam_date, "%Y-%m-%d")
@@ -121,12 +122,12 @@ class PlannerService:
 
 Course: {course_name}
 Duration: {duration_text}
-Start Date (Today): {today}
+Start Date (Today): {today} ({today_day_name})
 Exam Date: {exam_date}
 Topics: {', '.join(topics)}
 
 CRITICAL: Return ONLY a JSON object. No markdown, no extra text.
-The plan MUST start from today ({today}) and be organised by date.
+The plan MUST start precisely from today ({today}, which is a {today_day_name}) and progress chronologically. The very first day in the first week MUST be {today_day_name}. Do NOT automatically start the plan on a Monday unless today is Monday.
 Weight the schedule so URGENT mastery gaps appear earliest and most frequently.
 
 Format:
@@ -202,15 +203,21 @@ Generate the plan starting from {today}:"""
     def _fallback_study_plan(self, course_name: str, topics: list):
         """Generate a basic fallback study plan"""
         logger.warning("Using fallback study plan")
+        from datetime import datetime, timedelta
+        today_dt = datetime.now()
+        day1 = today_dt
+        day2 = today_dt + timedelta(days=2)
+        day3 = today_dt + timedelta(days=4)
+        
         return {
             "weeks": [
                 {
                     "week_number": 1,
                     "focus": topics[0] if topics else "Course fundamentals",
                     "days": [
-                        {"day": "Monday",    "tasks": ["Review lecture notes"],  "duration": "2 hours"},
-                        {"day": "Wednesday", "tasks": ["Practice problems"],     "duration": "2 hours"},
-                        {"day": "Friday",    "tasks": ["Review and quiz"],       "duration": "1.5 hours"}
+                        {"date": day1.strftime("%Y-%m-%d"), "day": day1.strftime("%A"), "tasks": ["Review lecture notes"], "duration": "2 hours"},
+                        {"date": day2.strftime("%Y-%m-%d"), "day": day2.strftime("%A"), "tasks": ["Practice problems"],    "duration": "2 hours"},
+                        {"date": day3.strftime("%Y-%m-%d"), "day": day3.strftime("%A"), "tasks": ["Review and quiz"],      "duration": "1.5 hours"}
                     ]
                 }
             ],

@@ -9,6 +9,90 @@ const ANNOTATION_TYPES = [
   { id: 'question',  icon: 'help_center',       label: 'Question',  color: 'text-error border-error bg-error/10',                           line: 'border-error' },
 ];
 
+const DataTable = ({ data, filename }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const columns = data.columns || [];
+  const rows = data.rows || [];
+  const totalRows = data.total_rows || rows.length;
+
+  const filteredRows = rows.filter(row => 
+    row.some(cell => String(cell).toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  return (
+    <div className="flex flex-col gap-4 w-full select-text animate-fade-in">
+      {/* Table Controls / Info Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-surface-container-low border border-outline-variant/15 p-4 rounded-xl shadow-sm">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-xl">table_chart</span>
+            <h4 className="text-sm font-black tracking-wide text-on-surface">{filename}</h4>
+          </div>
+          <p className="text-[10px] text-on-surface-variant/80 font-bold uppercase tracking-wider">
+            {totalRows > 150 ? `Previewing first 150 of ${totalRows} rows` : `Showing all ${totalRows} rows`} · {columns.length} columns
+          </p>
+        </div>
+        <div className="relative w-full sm:w-64">
+          <span className="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant/60 text-sm">search</span>
+          <input
+            type="text"
+            placeholder="Search columns & rows..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full bg-surface-container border border-outline-variant/20 rounded-lg pl-9 pr-4 py-2 text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-secondary/50 focus:border-secondary transition-all"
+          />
+          {searchTerm && (
+            <button 
+              onClick={() => setSearchTerm('')} 
+              className="absolute right-3 top-2 text-on-surface-variant/60 hover:text-error text-xs"
+            >
+              clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Actual Data Table grid */}
+      <div className="border border-outline-variant/15 rounded-2xl overflow-hidden shadow-xl bg-surface-container-low max-w-full">
+        <div className="overflow-x-auto overflow-y-auto max-h-[500px] custom-scrollbar">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead className="sticky top-0 bg-surface-container-high border-b border-outline-variant/20 z-10">
+              <tr>
+                <th className="p-3 text-[10px] font-black uppercase tracking-wider text-primary border-r border-outline-variant/10 text-center w-12 bg-primary/5">#</th>
+                {columns.map((col, idx) => (
+                  <th key={idx} className="p-3 text-[10px] font-black uppercase tracking-wider text-primary border-r border-outline-variant/10 min-w-[120px] bg-primary/5">
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10">
+              {filteredRows.length > 0 ? (
+                filteredRows.map((row, rIdx) => (
+                  <tr key={rIdx} className="hover:bg-primary/5 transition-colors group/row odd:bg-surface-container-low even:bg-surface-container-low/50">
+                    <td className="p-3 font-mono text-[10px] text-on-surface-variant/50 text-center border-r border-outline-variant/10 bg-surface-container-high/20">{rIdx + 1}</td>
+                    {row.map((cell, cIdx) => (
+                      <td key={cIdx} className="p-3 text-on-surface-variant font-medium border-r border-outline-variant/10 max-w-[250px] truncate" title={cell}>
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length + 1} className="p-8 text-center text-on-surface-variant/60 italic">
+                    No matching rows found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
   const [documents,    setDocuments]    = useState([]);
   const [selectedDoc,  setSelectedDoc]  = useState(null);
@@ -360,6 +444,34 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
                alt={selectedDoc} 
                className="max-w-full rounded-2xl shadow-2xl border border-primary/10" 
              />
+          </div>
+
+        ) : docContent?.data_table ? (
+          /* ── DATA TABLE: Excel / CSV preview ── */
+          <div className="space-y-4 pb-8 w-full max-w-full">
+            {activeParaIndex === -1 && <AnnotationForm paraIndex={-1} />}
+            
+            {/* Table Annotations */}
+            {docContent.annotations?.length > 0 && (
+              <div className="w-full space-y-2 mb-4">
+                {docContent.annotations.map(ann => {
+                  const t = ANNOTATION_TYPES.find(x => x.id === ann.type) || ANNOTATION_TYPES[0];
+                  return (
+                    <div key={ann.id} className={`p-3 rounded-xl border-l-2 bg-surface-container/50 relative group/ann ${t.line}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-[10px] uppercase font-bold tracking-widest ${t.line.replace('border-', 'text-')}`}>{t.label}</span>
+                        <button onClick={() => handleDeleteAnnotation(ann.id)} className="opacity-0 group-hover/ann:opacity-100 text-error/60 hover:text-error transition-opacity">
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      </div>
+                      <p className="text-sm text-on-surface/90 whitespace-pre-wrap">{ann.content}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            <DataTable data={docContent.data_table} filename={selectedDoc} />
           </div>
 
         ) : docContent?.paragraphs ? (

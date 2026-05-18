@@ -17,6 +17,7 @@ class AuthenticatedChatRequest(BaseModel):
     course_id: str
     question: str
     use_eli12: bool = False
+    personality: str = "strict"
 
 @router.post("/health")
 async def health_check():
@@ -57,7 +58,8 @@ async def ask_question(
             payload.course_id,
             payload.question,
             payload.use_eli12,
-            api_key=api_key
+            api_key=api_key,
+            personality=payload.personality
         )
         
         # Log the question
@@ -98,7 +100,8 @@ async def ask_question_stream(
                     payload.course_id,
                     payload.question,
                     payload.use_eli12,
-                    api_key=api_key
+                    api_key=api_key,
+                    personality=payload.personality
                 )
                 
                 for chunk in stream:
@@ -113,7 +116,8 @@ async def ask_question_stream(
                         payload.course_id,
                         payload.question,
                         payload.use_eli12,
-                        api_key=api_key
+                        api_key=api_key,
+                        personality=payload.personality
                     )
                     
                     # Send as streaming format

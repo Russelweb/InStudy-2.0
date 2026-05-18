@@ -5,11 +5,11 @@ This document tracks the planned upgrades to transform Aura from a reactive noti
 ## 1. Contextual Workspace Tools 🛠️
 - [x] **Highlight-to-Explain**: Detect when a user highlights text anywhere in the app. Make Aura pulse/react. Clicking Aura opens a panel to explain, simplify, or convert the text into a flashcard.
 - [x] **Quick Chat Popover**: Clicking a specific area or action opens a quick spotlight-style input for fast questions without leaving the current view.
-- [ ] **Drag-and-Drop Target**: Allow users to drag files (PDFs, images) or text blocks and drop them directly onto the Aura orb for instant summarization or addition to the Knowledge Base.
+- [x] **Drag-and-Drop Target**: Allow users to drag files (PDFs, images) or text blocks and drop them directly onto the Aura orb for instant summarization or addition to the Knowledge Base.
 
 ## 2. Quick Action Radial Menu 🎯
-- [ ] **Radial Menu UI**: Implement a glassmorphic radial menu that expands around the orb on right-click.
-- [ ] **Contextual Actions**: Populate the menu dynamically based on the current page (e.g., "Summarize", "Plan my day", "Generate Quiz").
+- [x] **Radial Menu UI**: Implement a glassmorphic radial menu that expands around the orb on right-click.
+- [x] **Contextual Actions**: Populate the menu dynamically based on the current page (e.g., "Summarize", "Plan my day", "Generate Quiz").
 
 ## 3. Visual "Study Health" & Gamification (Tamagotchi Effect) 🌟
 - [ ] **Dynamic Energy Levels**: Tie Aura's idle animation and brightness to the user's recent study activity (e.g., sleepy/dim if inactive, vibrant if active).
@@ -18,7 +18,7 @@ This document tracks the planned upgrades to transform Aura from a reactive noti
 
 ## 4. Ambient Focus & Productivity Buddy ⏳
 - [ ] **Pomodoro Timer Mode**: Make Aura act as a visual timer during study sessions, slowly filling up or pulsing with a calm breathing rhythm.
-- [ ] **Idle/Stuck Nudges**: Detect if a user is stalled on a quiz or flashcard for too long, and have Aura switch to `concerned` mode to offer a gentle hint.
+- [x] **Idle/Stuck Nudges**: Detect if a user is stalled on a quiz or flashcard for too long, and have Aura switch to `concerned` mode to offer a gentle hint.
 
 ## 5. Personalities & Tone 🎭
 - [ ] **Personality Selector**: Allow users to choose Aura's personality in settings (e.g., Socratic Guide, Cheerleader, Strict Tutor).

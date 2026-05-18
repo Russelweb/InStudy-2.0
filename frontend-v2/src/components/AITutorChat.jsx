@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { ConfirmModal } from './Modal';
+import { useAura } from '../context/AuraContext';
 
 /**
  * Best-effort converter: wraps common plain-text math patterns in LaTeX delimiters
@@ -37,6 +38,7 @@ function preprocessMath(text) {
 }
 
 const AITutorChat = ({ courseId }) => {
+  const { personality } = useAura();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -112,7 +114,7 @@ const AITutorChat = ({ courseId }) => {
     setMessages((prev) => [...prev, { type: 'ai', text: '', streaming: true, sources: [] }]);
 
     try {
-      const fetchResponse = await chatService.streamMessage(question, courseId, useEli12);
+      const fetchResponse = await chatService.streamMessage(question, courseId, useEli12, personality);
 
       if (!fetchResponse.ok) {
         throw new Error(`Server error: ${fetchResponse.status}`);

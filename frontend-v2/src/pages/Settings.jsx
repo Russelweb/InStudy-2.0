@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '../services/api';
+import { useAura } from '../context/AuraContext';
 
 // ── Step-by-step guide content ────────────────────────────────────────────────
 const STEPS = [
@@ -40,6 +41,7 @@ const STEPS = [
 ];
 
 const Settings = () => {
+  const { personality, updatePersonality } = useAura();
   const [key,        setKey]        = useState('');
   const [hasKey,     setHasKey]     = useState(false);
   const [showKey,    setShowKey]    = useState(false);
@@ -277,6 +279,97 @@ const Settings = () => {
             <span className="material-symbols-outlined text-sm">shield</span>
             Your key is encrypted with AES-256 (Fernet) before being stored. It is never logged or shared.
           </p>
+        </div>
+      </div>
+
+      {/* ── Companion Mascot Personality Selector ───────────────────────────────── */}
+      <div className="bg-surface-container rounded-2xl border border-outline-variant/10 overflow-hidden">
+        <div className="p-6 border-b border-outline-variant/10 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-secondary">face</span>
+          </div>
+          <div>
+            <h2 className="font-bold text-on-surface">Aura Companion Personality</h2>
+            <p className="text-xs text-on-surface-variant">Select Aura's core persona and visual styling to guide your studies.</p>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              {
+                id: 'socratic',
+                title: 'Socratic Guide',
+                icon: 'psychology',
+                desc: 'Guides thinking by posing targeted, critical questions instead of giving easy, direct answers.',
+                color: 'text-sky-400',
+                bgColor: 'bg-sky-400/10 border-sky-400/20',
+                activeBorder: 'border-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.25)]',
+                badge: 'Cyan / Blue Theme'
+              },
+              {
+                id: 'cheerleader',
+                title: 'Cheerleader',
+                icon: 'celebration',
+                desc: 'A super enthusiastic, highly positive study companion loaded with encouragement and study emojis.',
+                color: 'text-yellow-400',
+                bgColor: 'bg-yellow-400/10 border-yellow-400/20',
+                activeBorder: 'border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.25)]',
+                badge: 'Gold / Yellow Theme'
+              },
+              {
+                id: 'strict',
+                title: 'Strict Tutor',
+                icon: 'gavel',
+                desc: 'Rigorous, highly formal, mathematically precise, and absolutely direct. No emojis, no fluff.',
+                color: 'text-rose-400',
+                bgColor: 'bg-rose-400/10 border-rose-400/20',
+                activeBorder: 'border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.25)]',
+                badge: 'Crimson / Ruby Theme'
+              }
+            ].map(p => {
+              const isActive = personality === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => updatePersonality(p.id)}
+                  className={`text-left rounded-xl p-5 border backdrop-blur-md transition-all flex flex-col justify-between h-48 cursor-pointer relative hover:scale-[1.02] active:scale-98 ${
+                    isActive ? p.activeBorder + ' bg-surface-container-high/60' : 'border-outline-variant/10 bg-surface-container-low/40 hover:border-outline-variant/30'
+                  }`}
+                >
+                  {/* Selected Indicator Badge */}
+                  {isActive && (
+                    <span className="absolute top-3 right-3 text-[8px] font-black uppercase tracking-widest bg-secondary/20 text-secondary border border-secondary/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[10px]">done</span> Selected
+                    </span>
+                  )}
+                  
+                  <div>
+                    {/* Top Row Icon & Label */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isActive ? p.bgColor + ' border' : 'bg-surface-variant'}`}>
+                        <span className={`material-symbols-outlined text-sm ${isActive ? p.color : 'text-on-surface-variant'}`}>
+                          {p.icon}
+                        </span>
+                      </div>
+                      <span className="text-xs font-black uppercase tracking-widest text-on-surface-variant/40">Persona</span>
+                    </div>
+
+                    <h3 className="text-sm font-black text-on-surface tracking-tight leading-none mb-1.5">{p.title}</h3>
+                    <p className="text-[11px] text-on-surface-variant leading-relaxed line-clamp-3">{p.desc}</p>
+                  </div>
+
+                  {/* Dynamic Color Palette badge at bottom */}
+                  <div className="mt-3 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                    <span className="text-[9px] uppercase tracking-widest font-black text-on-surface-variant/60">
+                      {p.badge}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
