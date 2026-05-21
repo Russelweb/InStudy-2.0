@@ -72,7 +72,7 @@ const AdminDashboard = () => {
     <div className="flex h-screen items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-[#bd9dff]/20 border-t-[#bd9dff] rounded-full animate-spin"></div>
-        <p className="text-[#bd9dff] font-medium animate-pulse">Accessing Secure Neural Link...</p>
+        <p className="text-[#bd9dff] font-medium animate-pulse">Accessing information...</p>
       </div>
     </div>
   );
