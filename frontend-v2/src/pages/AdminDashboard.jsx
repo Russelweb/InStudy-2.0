@@ -74,7 +74,7 @@ const AdminDashboard = () => {
         <div className="w-12 h-12 border-4 border-[#bd9dff]/20 border-t-[#bd9dff] rounded-full animate-spin"></div>
         <p className="text-[#bd9dff] font-medium animate-pulse">Accessing information...</p>
       </div>
-    </div>
+    </div>  
   );
 
   return (
