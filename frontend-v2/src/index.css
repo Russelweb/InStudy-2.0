@@ -158,3 +158,9 @@ body {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* Word breaking utilities for long content */
+.overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

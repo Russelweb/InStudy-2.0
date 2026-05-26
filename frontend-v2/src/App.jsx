@@ -17,6 +17,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Planner from './pages/Planner'
 import Summary from './pages/Summary'
+import SummaryView from './pages/SummaryView'
 import Mastery from './pages/Mastery'
 import AdminDashboard from './pages/AdminDashboard'
 import Settings from './pages/Settings'
@@ -119,6 +120,7 @@ function App() {
                 <Route path="ai-tutor" element={<AITutor />} />
                 <Route path="planner"  element={<Planner />} />
                 <Route path="summary" element={<Summary />} />
+                <Route path="summary-view" element={<SummaryView />} />
                 <Route path="mastery" element={<Mastery />} />
                 <Route path="saved-assets" element={<SavedAssets />} />
                 <Route path="admin"    element={<AdminDashboard />} />

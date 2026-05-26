@@ -62,15 +62,13 @@ const SavedAssets = () => {
   };
 
   const handleLoad = (asset) => {
-    // Store the asset data in localStorage with a special key
     localStorage.setItem(`load_asset_${asset.asset_type}`, JSON.stringify(asset));
     
-    // Navigate to the appropriate page
     const routes = {
       flashcards: '/flashcards',
       quiz: '/quiz',
       study_plan: '/planner',
-      summary: '/summary'
+      summary: '/summary-view'
     };
     
     navigate(routes[asset.asset_type] || '/');
