@@ -87,7 +87,7 @@ function MainLayout() {
       </div>
 
       {/* Persistent AI Disclaimer */}
-      <div className="fixed bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-surface-variant/50 pointer-events-none z-[100] whitespace-nowrap hidden md:block">
+      <div className="fixed bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-surface-white/70 pointer-events-none z-[100] whitespace-nowrap hidden md:block">
         InStudy AI can make mistakes. Please verify important information.
       </div>
 

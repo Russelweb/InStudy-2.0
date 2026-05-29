@@ -50,6 +50,12 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
   const currentUser = authService.getCurrentUser();
   const isAdmin = currentUser?.is_admin;
 
+  const handleLogout = () => {
+    // Implement custom toast logic here
+    // For now, directly log out
+    authService.logout();
+  };
+
   const menuItems = [
     { icon: 'home', label: 'Dashboard', path: '/' },
     { icon: 'database', label: 'Knowledge Base', path: '/knowledge' },
@@ -162,7 +168,7 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
         )}
 
         <button
-          onClick={() => authService.logout()}
+          onClick={handleLogout}
           className="p-2 rounded-lg text-error hover:bg-error/10 transition-colors shrink-0"
           title="Log Out"
         >
