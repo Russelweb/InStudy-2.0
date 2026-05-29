@@ -19,6 +19,7 @@ export default function InSpace() {
   const [nodeDetails, setNodeDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [docsExpanded, setDocsExpanded] = useState(true);
+  const [isLauncherCollapsed, setIsLauncherCollapsed] = useState(false);
 
   // ── Mobile Tab State ──────────────────────────────────────────────────────
   // 'launcher' | 'canvas' | 'details'
@@ -620,17 +621,26 @@ export default function InSpace() {
     <div className="relative w-full h-full flex flex-col overflow-hidden">
       {currentCanvas ? (
         <>
-          {/* Header info bar */}
-          <div className="absolute top-3 left-3 z-10 bg-[#141f16]/90 backdrop-blur-sm border border-outline-variant/10 rounded-xl px-3 py-1.5 flex items-center gap-2 max-w-[60%]">
-            <div className="overflow-hidden">
-              <h3 className="text-xs font-bold text-[#bd9dff] truncate">
-                {currentCanvas.topic}
-              </h3>
-              <p className="text-[8px] text-on-surface-variant/50 truncate">
-                {currentCanvas.document_id ? "📄 Grounded" : "🌐 Standalone"}
-              </p>
-            </div>
-          </div>
+           {/* Header info bar */}
+           <div className="absolute top-3 left-3 z-10 bg-[#141f16]/90 backdrop-blur-sm border border-outline-variant/10 rounded-xl px-3 py-1.5 flex items-center gap-2 max-w-[60%]">
+             <div className="overflow-hidden">
+               <h3 className="text-xs font-bold text-[#bd9dff] truncate">
+                 {currentCanvas.topic}
+               </h3>
+               <p className="text-[8px] text-on-surface-variant/50 truncate">
+                 {currentCanvas.document_id ? "📄 Grounded" : "🌐 Standalone"}
+               </p>
+             </div>
+             <button
+               onClick={() => setIsLauncherCollapsed(!isLauncherCollapsed)}
+               className="p-1 rounded-lg bg-surface/90 backdrop-blur-sm border border-outline-variant/10 hover:text-[#bd9dff] transition-colors"
+               title="Toggle Launcher Panel"
+             >
+               <span className="material-symbols-outlined text-sm">
+                 {isLauncherCollapsed ? "menu_open" : "menu"}
+               </span>
+             </button>
+           </div>
 
           {/* Zoom controls */}
           <div className="absolute top-3 right-3 z-10 flex gap-1.5">
@@ -901,7 +911,7 @@ export default function InSpace() {
                 <div className="p-4 border border-primary/20 bg-primary/5 rounded-xl space-y-3">
                   <div className="flex justify-between items-center">
                     <h4 className="text-xs font-bold text-[#bd9dff] uppercase tracking-wider">
-                      Concept Check
+                      Quick test
                     </h4>
                     <span className="text-[10px] text-on-surface-variant/40">
                       {currentQuestionIndex + 1} / {nodeDetails.quiz.length}
@@ -971,7 +981,7 @@ export default function InSpace() {
                 style={{ minHeight: "280px" }}
               >
                 <h4 className="text-xs font-bold text-[#bd9dff] uppercase tracking-wider mb-2">
-                  Contextual AI Tutor
+                  Conceptual AI Tutor
                 </h4>
                 <div
                   className="flex-1 overflow-y-auto space-y-2.5 p-3 border border-outline-variant/5 rounded-xl bg-surface-container/30 custom-scrollbar mb-3 text-[11px]"
@@ -1067,10 +1077,10 @@ export default function InSpace() {
 
       {/* ── DESKTOP (md+): 3-column side-by-side layout ── */}
       <div className="hidden md:flex flex-row h-[calc(100vh-120px)] min-h-[750px] gap-6 overflow-hidden select-none">
-        {/* Left */}
-        <div className="w-80 bg-[#141f16] border border-outline-variant/10 rounded-2xl flex flex-col shrink-0 overflow-hidden">
-          {renderLauncherPanel()}
-        </div>
+          {/* Left */}
+          <div className={`${isLauncherCollapsed ? "w-0" : "w-80"} bg-[#141f16] border border-outline-variant/10 rounded-2xl flex flex-col shrink-0 overflow-hidden transition-all duration-200`}>
+           {renderLauncherPanel()}
+         </div>
 
         {/* Centre canvas */}
         <div
@@ -1142,10 +1152,10 @@ export default function InSpace() {
                 disabled={isDisabled}
                 className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
                   isActive
-                    ? "bg-[#bd9dff]/10 text-[#bd9dff]"
+                    ? "bg-[#bd9dff]/10 text-primary"
                     : isDisabled
                       ? "text-on-surface-variant/20 cursor-not-allowed"
-                      : "text-on-surface-variant/50 hover:text-[#bd9dff] active:bg-[#bd9dff]/5"
+                      : "text-on-surface-variant/50 hover:text-primary active:bg-[#bd9dff]/5"
                 }`}
               >
                 <span className="material-symbols-outlined text-xl">
