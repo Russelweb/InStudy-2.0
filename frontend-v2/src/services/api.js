@@ -413,4 +413,44 @@ export const assetService = {
   getStats: () => API.get('/assets/stats'),
 };
 
+// ---------------------------------------------------------------------------
+// InSpace (Canvas)
+// ---------------------------------------------------------------------------
+export const inSpaceService = {
+  generate: (topic, documentId = null) =>
+    API.post('/inspace/generate', { topic, document_id: documentId }),
+
+  list: () => API.get('/inspace/list'),
+
+  getCanvas: (canvasId) => API.get(`/inspace/canvas/${canvasId}`),
+
+  getNodeDetails: (canvasId, nodeId, label, topic, documentId = null) =>
+    API.get(`/inspace/canvas/${canvasId}/node/${nodeId}/details`, {
+      params: { label, topic, document_id: documentId }
+    }),
+
+  updateNodeMastery: (canvasId, nodeId, mastery, confidence, attemptsIncrement = 1, timeIncrement = 0) =>
+    API.put(`/inspace/canvas/${canvasId}/node/${nodeId}/mastery`, {
+      mastery,
+      confidence,
+      attempts_increment: attemptsIncrement,
+      time_increment: timeIncrement
+    }),
+
+  updateNodeNotes: (canvasId, nodeId, notes, isBookmarked) =>
+    API.put(`/inspace/canvas/${canvasId}/node/${nodeId}/notes`, {
+      notes,
+      is_bookmarked: isBookmarked ? 1 : 0
+    }),
+
+  askNodeQuestion: (canvasId, nodeId, label, question) =>
+    API.post(`/inspace/canvas/${canvasId}/ask`, {
+      node_id: nodeId,
+      label,
+      question
+    }),
+
+  deleteCanvas: (canvasId) => API.delete(`/inspace/canvas/${canvasId}`),
+};
+
 export default API;

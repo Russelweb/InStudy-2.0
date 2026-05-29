@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 import logging
 from pathlib import Path
 
-from api.routes import documents, chat, quiz, flashcards, summary, planner, stats, auth, admin, mastery, assets
+from api.routes import documents, chat, quiz, flashcards, summary, planner, stats, auth, admin, mastery, assets, inspace
 from services.auth_service import verify_token
 from models.global_models import preload_models
 from middleware.auth_middleware import AuthMiddleware
@@ -87,6 +87,7 @@ app.include_router(planner.router, prefix="/api/planner", tags=["planner"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(mastery.router, prefix="/api/mastery", tags=["mastery"])
 app.include_router(assets.router, prefix="/api/assets", tags=["assets"])
+app.include_router(inspace.router, prefix="/api/inspace", tags=["inspace"])
 
 @app.get("/")
 async def root():

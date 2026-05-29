@@ -22,6 +22,7 @@ import Mastery from './pages/Mastery'
 import AdminDashboard from './pages/AdminDashboard'
 import Settings from './pages/Settings'
 import SavedAssets from './pages/SavedAssets'
+import InSpace from './pages/InSpace'
 
 const ProtectedRoute = () => {
   const token = localStorage.getItem('auth_token');
@@ -125,6 +126,7 @@ function App() {
                 <Route path="saved-assets" element={<SavedAssets />} />
                 <Route path="admin"    element={<AdminDashboard />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="inspace" element={<InSpace />} />
               </Route>
               
               {/* Workspace Mode (Full Screen) */}

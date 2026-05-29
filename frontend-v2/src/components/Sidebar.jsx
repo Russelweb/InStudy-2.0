@@ -58,6 +58,7 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
     { icon: 'auto_awesome', label: 'AI Summarizer', path: '/summary' },
     { icon: 'event_note', label: 'Study Planner', path: '/planner' },
     { icon: 'psychology', label: 'Mastery Tracker', path: '/mastery' },
+    { icon: 'space_dashboard', label: 'InSpace Canvas', path: '/inspace' },
     { icon: 'smart_toy', label: 'AI Tutor', path: '/ai-tutor' },
   ];
 
