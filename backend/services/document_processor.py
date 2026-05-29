@@ -195,14 +195,11 @@ class DocumentProcessor:
         
         logger.info(f"Created {len(all_chunks)} chunks from {len(documents)} pages")
 
-        from utils.file_utils import get_absolute_path
-        vector_store_path = get_absolute_path(os.path.join(
-            settings.VECTOR_STORE_DIR,
-            f"{user_id}_{course_id}"
-        ))
+        from utils.file_utils import get_vector_store_path, get_vector_store_root
+        vector_store_path = get_vector_store_path(user_id, course_id)
 
         # Create vector store directory if missing
-        os.makedirs(get_absolute_path(settings.VECTOR_STORE_DIR), exist_ok=True)
+        os.makedirs(get_vector_store_root(), exist_ok=True)
 
         # Load existing store or create new one
         logger.info("Creating embeddings...")
@@ -228,11 +225,8 @@ class DocumentProcessor:
 
     def get_vector_store(self, user_id: str, course_id: str):
         """Retrieve vector store for user and course"""
-        from utils.file_utils import get_absolute_path
-        vector_store_path = get_absolute_path(os.path.join(
-            settings.VECTOR_STORE_DIR,
-            f"{user_id}_{course_id}"
-        ))
+        from utils.file_utils import get_vector_store_path
+        vector_store_path = get_vector_store_path(user_id, course_id)
 
         if not os.path.exists(vector_store_path):
             return None

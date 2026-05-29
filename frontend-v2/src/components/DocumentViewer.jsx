@@ -148,22 +148,22 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
       setPdfPageCount(0);
       setPdfAnnotations([]);
       setDocContent(null);
-      // For images, we just use the raw serving URL
-      const imageUrl = documentService.getRawUrl(courseId, selectedDoc);
-      setDocContent({ isImage: true, url: imageUrl });
-      
-      // Load annotations
-      const loadAnns = async () => {
+      const loadImage = async () => {
         try {
+          const imageRes = await documentService.getRawBlob(courseId, selectedDoc);
+          const imageUrl = URL.createObjectURL(imageRes.data);
+          setDocContent({ isImage: true, url: imageUrl });
+
           const annRes = await documentService.getAnnotations(courseId, selectedDoc);
           const anns = annRes.data.annotations || [];
           setDocContent(prev => ({ ...prev, annotations: anns }));
           if (onAnnotationsLoaded) onAnnotationsLoaded(anns);
         } catch (err) {
-          console.error('Failed to load image annotations:', err);
+          console.error('Failed to load image:', err);
+          setError('Could not load this image document.');
         }
       };
-      loadAnns();
+      loadImage();
 
     } else if (ext === 'pdf') {
       setDocContent(null);

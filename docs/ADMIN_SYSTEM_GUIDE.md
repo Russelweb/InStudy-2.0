@@ -11,12 +11,12 @@ InStudy 2.0 now includes a comprehensive admin system with the following feature
 - ✅ **System Statistics**: Monitor system usage and health
 - ✅ **Secure Access Control**: Admin-only endpoints and UI components
 
-## Default Admin Account
+## Bootstrap Admin Account
 
-A default admin account is automatically created when the system starts:
+The first admin account is created only when these environment variables are set and no admin exists yet:
 
-- **Email**: `admin@instudy.com`
-- **Password**: `admin123`
+- `BOOTSTRAP_ADMIN_EMAIL`
+- `BOOTSTRAP_ADMIN_PASSWORD`
 
 ⚠️ **Important**: Change this password immediately in production!
 
@@ -126,7 +126,7 @@ A default admin account is automatically created when the system starts:
 ### Accessing Admin Dashboard
 
 1. **Login as Admin**:
-   - Use default credentials: `admin@instudy.com` / `admin123`
+   - Use the bootstrap admin credentials configured in the environment
    - Or login with any account that has admin privileges
 
 2. **Navigate to Admin Panel**:
@@ -243,9 +243,9 @@ This tests:
 
 ### Security Hardening
 
-1. **Change Default Admin Password**:
-   - Login as admin immediately
-   - Change password from default `admin123`
+1. **Protect Bootstrap Credentials**:
+   - Use a strong temporary bootstrap password
+   - Remove `BOOTSTRAP_ADMIN_PASSWORD` from production after the first admin exists
 
 2. **Limit Admin Accounts**:
    - Only create necessary admin accounts

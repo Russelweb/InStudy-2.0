@@ -1,10 +1,16 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import List, Optional
 import os
 from pathlib import Path
 
+DEFAULT_ENCRYPTION_KEY = "instudy_secret_key_32_bytes_long_!!"
+
 
 class Settings(BaseSettings):
+    # Runtime
+    APP_ENV: str = "development"
+    FRONTEND_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+
     # Ollama Configuration
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "gemma:2b"
@@ -12,9 +18,6 @@ class Settings(BaseSettings):
     # Groq Configuration (Optional)
     GROQ_API_KEY: Optional[str] = None
     GROQ_MODEL: str = "llama-3.1-8b-instant"
-
-    # Encryption key for storing user API keys (32+ chars)
-    ENCRYPTION_KEY: str = "instudy-default-encryption-key-32chars!"
 
     # Embedding Model (Multilingual support for cross-lingual RAG)
     EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -40,19 +43,47 @@ class Settings(BaseSettings):
     STREAM_CHUNK_SIZE: int = 1024  # Size of streaming chunks
     
     # Security
-    ENCRYPTION_KEY: str = "instudy_secret_key_32_bytes_long_!!" # Should be 32 bytes for Fernet
+    ENCRYPTION_KEY: str = DEFAULT_ENCRYPTION_KEY # Override in production
+    BOOTSTRAP_ADMIN_EMAIL: Optional[str] = None
+    BOOTSTRAP_ADMIN_PASSWORD: Optional[str] = None
 
     class Config:
         env_file = ".env"
         extra = "ignore"
 
+    @property
+    def is_production(self) -> bool:
+        return self.APP_ENV.lower() == "production"
+
+    @property
+    def cors_origins(self) -> List[str]:
+        return [
+            origin.strip()
+            for origin in self.FRONTEND_ORIGINS.split(",")
+            if origin.strip()
+        ]
+
+
+def validate_security_settings(settings: Settings) -> None:
+    if not settings.is_production:
+        return
+
+    if settings.ENCRYPTION_KEY == DEFAULT_ENCRYPTION_KEY:
+        raise RuntimeError("Set a production ENCRYPTION_KEY before deployment.")
+
+    if len(settings.ENCRYPTION_KEY) < 32:
+        raise RuntimeError("ENCRYPTION_KEY must be at least 32 characters.")
+
+    if not settings.cors_origins or "*" in settings.cors_origins:
+        raise RuntimeError("Set explicit FRONTEND_ORIGINS before production deployment.")
+
 
 # Initialize settings
 try:
     settings = Settings()
+    validate_security_settings(settings)
 except Exception as e:
-    print(f"Warning: Could not load settings from .env: {e}")
-    settings = Settings()
+    raise RuntimeError(f"Invalid application settings: {e}") from e
 
 # Create directories
 base_dir = Path(__file__).parent

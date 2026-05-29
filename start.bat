@@ -5,10 +5,10 @@ echo ===========================================
 echo         InStudy 2.0 Unified Launcher
 echo ===========================================
 echo.
-echo [1] Launch Cyber-Elite React (New High-Performance)
-echo [2] Launch Classic Streamlit (Legacy Interface)
+echo [1] Launch With The React Frontend
+echo [2] Launch With Classic Streamlit Frontend
 echo.
-set /p choice="Select your terminal experience [1-2]: "
+set /p choice="Select which to launch [1-2]: "
 
 REM Check for Backend .env
 if not exist backend\.env (
@@ -28,7 +28,7 @@ REM Wait for backend to warm up
 timeout /t 3 /nobreak > nul
 
 if "%choice%"=="1" (
-    echo [*] Launching Cyber-Elite React Dashboard...
+    echo [*] Launching React Interface...
     echo [*] Interface: http://localhost:5173
     cd frontend-v2
     if not exist node_modules (

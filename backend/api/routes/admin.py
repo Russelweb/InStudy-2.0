@@ -14,6 +14,14 @@ from models.auth_models import User
 from services.auth_service import auth_service
 from api.routes.auth import get_authenticated_user
 from config import settings
+from utils.file_utils import (
+    get_vector_store_root,
+    get_upload_root,
+    get_user_course_dir,
+    get_user_file_path,
+    get_vector_store_path,
+    safe_join,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -45,12 +53,12 @@ async def delete_user(user_id: int, admin: User = Depends(require_admin)):
         if not success:
             raise HTTPException(status_code=404, detail="User not found")
         
-        user_upload_dir = Path(settings.UPLOAD_DIR) / str(user_id)
+        user_upload_dir = Path(safe_join(get_upload_root(), str(user_id)))
         if user_upload_dir.exists():
             shutil.rmtree(user_upload_dir)
             logger.info(f"Deleted upload directory for user {user_id}")
         
-        vector_store_dir = Path(settings.VECTOR_STORE_DIR)
+        vector_store_dir = Path(get_vector_store_root())
         for vector_dir in vector_store_dir.glob(f"{user_id}_*"):
             shutil.rmtree(vector_dir)
             logger.info(f"Deleted vector store: {vector_dir.name}")
@@ -97,17 +105,19 @@ async def revoke_user_admin(user_id: int, admin: User = Depends(require_admin)):
 async def delete_course(user_id: int, course_id: str, admin: User = Depends(require_admin)):
     """Delete a course and all its data (admin only)"""
     try:
-        course_dir = Path(settings.UPLOAD_DIR) / str(user_id) / course_id
+        course_dir = Path(get_user_course_dir(str(user_id), course_id))
         if course_dir.exists():
             shutil.rmtree(course_dir)
             logger.info(f"Deleted course directory: {course_dir}")
         
-        vector_store_path = Path(settings.VECTOR_STORE_DIR) / f"{user_id}_{course_id}"
+        vector_store_path = Path(get_vector_store_path(str(user_id), course_id))
         if vector_store_path.exists():
             shutil.rmtree(vector_store_path)
             logger.info(f"Deleted vector store: {vector_store_path}")
         
         return {"message": f"Course {course_id} deleted successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error deleting course: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete course")
@@ -143,7 +153,7 @@ async def get_system_stats(admin: User = Depends(require_admin)):
 async def get_user_courses(user_id: int, admin: User = Depends(require_admin)):
     """Get all courses for a specific user (admin only)"""
     try:
-        user_dir = Path(settings.UPLOAD_DIR) / str(user_id)
+        user_dir = Path(safe_join(get_upload_root(), str(user_id)))
         
         if not user_dir.exists():
             return {"courses": []}
@@ -237,12 +247,13 @@ async def get_system_interactions(limit: int = 50, admin: User = Depends(require
 async def delete_specific_document(user_id: int, course_id: str, filename: str, admin: User = Depends(require_admin)):
     """Delete a specific document from a user's course (admin only)"""
     try:
-        file_path = Path(settings.UPLOAD_DIR) / str(user_id) / course_id / filename
+        file_path = Path(get_user_file_path(str(user_id), course_id, filename))
         if file_path.exists():
             os.remove(file_path)
             logger.info(f"Admin deleted document: {file_path}")
             
-            annotations_path = Path(settings.UPLOAD_DIR) / str(user_id) / course_id / f"{filename}.annotations.json"
+            from utils.file_utils import get_user_annotations_path
+            annotations_path = Path(get_user_annotations_path(str(user_id), course_id, filename))
             if annotations_path.exists():
                 os.remove(annotations_path)
             return {"message": f"Document {filename} deleted successfully"}
@@ -250,6 +261,8 @@ async def delete_specific_document(user_id: int, course_id: str, filename: str, 
             raise HTTPException(status_code=404, detail="Document not found")
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error deleting document: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete specific document")

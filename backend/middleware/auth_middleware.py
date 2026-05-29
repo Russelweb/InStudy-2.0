@@ -33,6 +33,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/",
             "/health",
             "/docs",
+            "/redoc",
             "/openapi.json",
             "/api/auth"
         ]
@@ -86,7 +87,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     logger.error(traceback.format_exc())
                     return JSONResponse(
                         status_code=500,
-                        content={"detail": f"Authentication error: {str(auth_error)}"}
+                        content={"detail": "Authentication error"}
                     )
             else:
                 # Even for public routes, try to extract Groq API Key if available
@@ -102,7 +103,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             logger.error(traceback.format_exc())
             return JSONResponse(
                 status_code=500,
-                content={"detail": f"Middleware error: {str(e)}"}
+                content={"detail": "Middleware error"}
             )
     
     def is_protected_route(self, path: str) -> bool:
@@ -134,10 +135,5 @@ class AuthMiddleware(BaseHTTPMiddleware):
         token_header = request.headers.get("X-Auth-Token")
         if token_header:
             return token_header
-        
-        # Try query parameter (for development/testing)
-        token_param = request.query_params.get("token")
-        if token_param:
-            return token_param
         
         return None

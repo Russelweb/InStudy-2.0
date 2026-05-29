@@ -29,13 +29,13 @@ doc_processor = DocumentProcessor()
 # ---------------------------------------------------------------------------
 
 def _get_file_path(user_id: str, course_id: str, filename: str) -> str:
-    from utils.file_utils import get_absolute_path
-    return get_absolute_path(os.path.join(settings.UPLOAD_DIR, user_id, course_id, filename))
+    from utils.file_utils import get_user_file_path
+    return get_user_file_path(user_id, course_id, filename)
 
 
 def _get_annotations_path(user_id: str, course_id: str, filename: str) -> str:
-    from utils.file_utils import get_absolute_path
-    return get_absolute_path(os.path.join(settings.UPLOAD_DIR, user_id, course_id, f"{filename}.annotations.json"))
+    from utils.file_utils import get_user_annotations_path
+    return get_user_annotations_path(user_id, course_id, filename)
 
 
 def _load_annotations(path: str) -> list:
@@ -266,14 +266,14 @@ async def upload_document(
         if file_ext not in allowed_extensions:
             raise HTTPException(400, f"Unsupported file type: {file_ext}")
 
-        from utils.file_utils import sanitize_filename, get_absolute_path
+        from utils.file_utils import get_user_course_dir, get_user_file_path, sanitize_filename
         
         original_filename = file.filename
         sanitized_filename = sanitize_filename(original_filename)
         
-        user_dir = get_absolute_path(os.path.join(settings.UPLOAD_DIR, user_id, course_id))
+        user_dir = get_user_course_dir(user_id, course_id)
         os.makedirs(user_dir, exist_ok=True)
-        file_path = os.path.join(user_dir, sanitized_filename)
+        file_path = get_user_file_path(user_id, course_id, sanitized_filename)
 
         # 1. Save file (very fast)
         with open(file_path, "wb") as buffer:
@@ -308,9 +308,12 @@ async def upload_document(
 
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     except Exception as e:
-        print(traceback.format_exc())
-        raise HTTPException(500, f"Error processing document: {str(e)}")
+        logger.error(f"Error processing document: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(500, "Error processing document")
 
 
 @router.get("/list/{course_id}")
@@ -321,7 +324,9 @@ async def list_documents(
     """List all documents for a course"""
     try:
         user_id = str(current_user.id)
-        user_dir = os.path.join(settings.UPLOAD_DIR, user_id, course_id)
+        from utils.file_utils import get_user_course_dir
+
+        user_dir = get_user_course_dir(user_id, course_id)
 
         if not os.path.exists(user_dir):
             return {"documents": []}
@@ -331,8 +336,11 @@ async def list_documents(
             if not f.endswith(".annotations.json")
         ]
         return {"documents": files}
+    except ValueError:
+        raise HTTPException(400, "Invalid course id")
     except Exception as e:
-        raise HTTPException(500, f"Error listing documents: {str(e)}")
+        logger.error(f"Error listing documents: {e}")
+        raise HTTPException(500, "Error listing documents")
 
 
 @router.get("/paragraphs/{course_id}/{filename}")
@@ -384,10 +392,12 @@ async def get_paragraphs(
         styles = [b["style"] for b in blocks]
         annotations = _load_annotations(_get_annotations_path(user_id, course_id, filename))
         return {"paragraphs": paragraphs, "styles": styles, "annotations": annotations}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     except Exception as e:
         logger.error(f"Error reading document paragraphs: {e}")
         logger.error(traceback.format_exc())
-        raise HTTPException(500, f"Could not read document: {str(e)}")
+        raise HTTPException(500, "Could not read document")
 
 
 class AnnotationRequest(BaseModel):
@@ -404,7 +414,10 @@ async def get_annotations(
     current_user: User = Depends(get_authenticated_user)
 ):
     user_id = str(current_user.id)
-    annotations = _load_annotations(_get_annotations_path(user_id, course_id, filename))
+    try:
+        annotations = _load_annotations(_get_annotations_path(user_id, course_id, filename))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     return {"annotations": annotations}
 
 
@@ -417,7 +430,10 @@ async def save_annotation(
 ):
     """Save an inline annotation tied to a paragraph index — deduplicates by content+paragraph+type"""
     user_id = str(current_user.id)
-    ann_path = _get_annotations_path(user_id, course_id, filename)
+    try:
+        ann_path = _get_annotations_path(user_id, course_id, filename)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     annotations = _load_annotations(ann_path)
 
     # Dedup: skip if identical content+paragraph+page+type already exists
@@ -451,7 +467,10 @@ async def delete_annotation(
     current_user: User = Depends(get_authenticated_user)
 ):
     user_id = str(current_user.id)
-    ann_path = _get_annotations_path(user_id, course_id, filename)
+    try:
+        ann_path = _get_annotations_path(user_id, course_id, filename)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
     if not os.path.exists(ann_path):
         raise HTTPException(404, "No annotations found")
@@ -470,7 +489,10 @@ async def serve_raw_file(
 ):
     """Stream the raw file so the frontend can embed it in an iframe."""
     user_id = str(current_user.id)
-    file_path = _get_file_path(user_id, course_id, filename)
+    try:
+        file_path = _get_file_path(user_id, course_id, filename)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
     if not os.path.exists(file_path):
         raise HTTPException(404, "Document not found")
@@ -512,7 +534,10 @@ async def export_annotated_document(
 ):
     """Export the annotated document as a Word (.docx) file"""
     user_id = str(current_user.id)
-    file_path = _get_file_path(user_id, course_id, filename)
+    try:
+        file_path = _get_file_path(user_id, course_id, filename)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
     if not os.path.exists(file_path):
         raise HTTPException(404, "Document not found")
@@ -530,8 +555,9 @@ async def export_annotated_document(
             headers={"Content-Disposition": f'attachment; filename="{export_name}"'}
         )
     except Exception as e:
-        print(traceback.format_exc())
-        raise HTTPException(500, f"Export failed: {str(e)}")
+        logger.error(f"Export failed: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(500, "Export failed")
 
 
 
@@ -556,7 +582,10 @@ async def get_pdf_page_image(
 ):
     """Render a single PDF page as a PNG image using PyMuPDF (cached)."""
     user_id = str(current_user.id)
-    file_path = _get_file_path(user_id, course_id, filename)
+    try:
+        file_path = _get_file_path(user_id, course_id, filename)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
     if not os.path.exists(file_path):
         raise HTTPException(404, "Document not found")
@@ -579,7 +608,8 @@ async def get_pdf_page_image(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(500, f"Page render failed: {str(e)}")
+        logger.error(f"Page render failed: {e}")
+        raise HTTPException(500, "Page render failed")
 
 
 @router.get("/pagecount/{course_id}/{filename}")
@@ -590,7 +620,10 @@ async def get_pdf_page_count(
 ):
     """Return total page count for a PDF."""
     user_id = str(current_user.id)
-    file_path = _get_file_path(user_id, course_id, filename)
+    try:
+        file_path = _get_file_path(user_id, course_id, filename)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
     if not os.path.exists(file_path):
         raise HTTPException(404, "Document not found")
@@ -601,7 +634,8 @@ async def get_pdf_page_count(
         doc.close()
         return {"page_count": count}
     except Exception as e:
-        raise HTTPException(500, str(e))
+        logger.error(f"Page count failed: {e}")
+        raise HTTPException(500, "Page count failed")
 
 
 @router.get("/thumbnail/{course_id}")

@@ -25,6 +25,7 @@ from api.routes import documents, chat, quiz, flashcards, summary, planner, stat
 from services.auth_service import verify_token
 from models.global_models import preload_models
 from middleware.auth_middleware import AuthMiddleware
+from config import settings
 
 # Configure logging
 logging.basicConfig(
@@ -35,12 +36,18 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-app = FastAPI(title="InStudy 2.0 API", version="2.0.0")
+app = FastAPI(
+    title="InStudy 2.0 API",
+    version="2.0.0",
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
+)
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

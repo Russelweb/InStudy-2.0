@@ -125,13 +125,10 @@ async def get_authenticated_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> User:
-    """Dependency to get authenticated user for protected routes (supports query param 'token')"""
+    """Dependency to get authenticated user for protected routes."""
     token = None
     if credentials:
         token = credentials.credentials
-    if not token:
-        # Fallback to query param
-        token = request.query_params.get("token")
 
     if not token:
         raise HTTPException(status_code=401, detail="Authentication required")

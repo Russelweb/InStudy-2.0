@@ -5,6 +5,7 @@ Test script for admin functionality.
 
 import requests
 import json
+import os
 
 BASE_URL = "http://localhost:8000"
 
@@ -16,8 +17,8 @@ def test_admin_system():
     # Test 1: Login as admin
     print("\n1. Testing admin login...")
     login_data = {
-        "email": "admin@instudy.com",
-        "password": "admin123"
+        "email": os.getenv("BOOTSTRAP_ADMIN_EMAIL", "admin@instudy.com"),
+        "password": os.getenv("BOOTSTRAP_ADMIN_PASSWORD", "change-me-before-production")
     }
     
     try:
@@ -99,9 +100,9 @@ def test_admin_system():
     
     print("\n" + "=" * 50)
     print("🎉 Admin system test completed!")
-    print("\n📝 Default Admin Account:")
-    print("   Email: admin@instudy.com")
-    print("   Password: admin123")
+    print("\nBootstrap Admin Account:")
+    print("   Email: set BOOTSTRAP_ADMIN_EMAIL")
+    print("   Password: set BOOTSTRAP_ADMIN_PASSWORD")
     print("\n🚀 You can now access the Admin Panel in the frontend!")
 
 if __name__ == "__main__":

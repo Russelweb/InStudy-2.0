@@ -64,19 +64,34 @@ class AuthDatabase:
                     FOREIGN KEY (user_id) REFERENCES users (id)
                 )
             """)
-            
-            # Create default admin account if it doesn't exist
-            cursor = conn.execute("SELECT COUNT(*) FROM users WHERE email = ?", ("admin@instudy.com",))
-            if cursor.fetchone()[0] == 0:
-                admin_password_hash = self._hash_password("admin123")
-                conn.execute(
-                    "INSERT INTO users (email, password_hash, is_admin) VALUES (?, ?, 1)",
-                    ("admin@instudy.com", admin_password_hash)
-                )
-                logger.info("Default admin account created: admin@instudy.com / admin123")
+
+            self._bootstrap_admin_if_needed(conn)
             
             conn.commit()
             logger.info("Database initialized successfully")
+
+    def _bootstrap_admin_if_needed(self, conn: sqlite3.Connection) -> None:
+        """Create the first admin only from explicit environment settings."""
+        cursor = conn.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1")
+        if cursor.fetchone()[0] > 0:
+            return
+
+        email = settings.BOOTSTRAP_ADMIN_EMAIL
+        password = settings.BOOTSTRAP_ADMIN_PASSWORD
+        if not email or not password:
+            logger.warning("No admin account exists. Set BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD to create one.")
+            return
+
+        admin_password_hash = self._hash_password(password)
+        conn.execute(
+            """
+            INSERT INTO users (email, password_hash, is_admin)
+            VALUES (?, ?, 1)
+            ON CONFLICT(email) DO UPDATE SET is_admin = 1
+            """,
+            (email.lower().strip(), admin_password_hash)
+        )
+        logger.info("Bootstrap admin account created from environment settings.")
     
     def create_user(self, email: str, password: str) -> Optional[int]:
         """Create a new user account"""

@@ -219,16 +219,15 @@ export const documentService = {
 
   delete: (docId) => API.delete(`/documents/${docId}`),
 
-  // Signed URL to view raw file inside an <iframe>
-  getRawUrl: (courseId, filename) => {
-    const token = localStorage.getItem('auth_token');
-    return `/api/documents/raw/${courseId}/${encodeURIComponent(filename)}?token=${token}`;
-  },
+  getRawBlob: (courseId, filename) =>
+    API.get(`/documents/raw/${courseId}/${encodeURIComponent(filename)}`, {
+      responseType: 'blob',
+    }),
 
-  getThumbnailUrl: (courseId) => {
-    const token = localStorage.getItem('auth_token');
-    return `/api/documents/thumbnail/${courseId}?token=${token}`;
-  },
+  getThumbnailBlob: (courseId) =>
+    API.get(`/documents/thumbnail/${courseId}`, {
+      responseType: 'blob',
+    }),
 
   getParagraphs: (courseId, filename) =>
     API.get(`/documents/paragraphs/${courseId}/${encodeURIComponent(filename)}`),

@@ -25,13 +25,23 @@ const KnowledgeBase = () => {
   const fetchDocuments = async () => {
     try {
       const response = await statService.getOverview();
-      const transformed = (response.data.courses || []).map((course) => ({
+      const transformed = await Promise.all((response.data.courses || []).map(async (course) => {
+        let image = null;
+        try {
+          const thumb = await documentService.getThumbnailBlob(course.id);
+          image = URL.createObjectURL(thumb.data);
+        } catch {
+          image = null;
+        }
+
+        return {
         id: course.id,
         title: course.name,
         lastAccessed: course.upload_date || new Date().toLocaleDateString(),
         materialCount: course.document_count,
         mastery: course.mastery || 0,
-        image: documentService.getThumbnailUrl(course.id),
+        image,
+        };
       }));
       setCourses(transformed);
       // Auto-select first course for uploads if none selected
