@@ -66,7 +66,7 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
     { icon: 'event_note', label: 'Study Planner', path: '/planner' },
     { icon: 'psychology', label: 'Mastery Tracker', path: '/mastery' },
     { icon: 'smart_toy', label: 'AI Tutor', path: '/ai-tutor' },
-    { label: 'saved assets', path: '/saved-assets' }
+    { icon: 'bookmarks', label: 'Saved Assets', path: '/saved-assets' }
   ];
 
   if (isAdmin) menuItems.push({ icon: 'admin_panel_settings', label: 'Admin Hub', path: '/admin' });

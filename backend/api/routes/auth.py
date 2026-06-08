@@ -35,6 +35,7 @@ async def register(request: RegisterRequest, response: Response):
             max_age=90 * 24 * 60 * 60,  # 90 days
             samesite="lax",
             secure=False,  # Set to True in production with HTTPS
+            path="/",      # Ensure cookie is sent to all paths
         )
         
         return result
@@ -65,6 +66,7 @@ async def login(request: LoginRequest, response: Response):
             max_age=90 * 24 * 60 * 60,  # 90 days
             samesite="lax",
             secure=False,  # Set to True in production with HTTPS
+            path="/",      # Ensure cookie is sent to all paths
         )
         
         return result
@@ -92,7 +94,7 @@ async def logout(response: Response, credentials: Optional[HTTPAuthorizationCred
         success = auth_service.logout_user(token)
         
         # Always clear the cookie regardless of success
-        response.delete_cookie(key="session_token")
+        response.delete_cookie(key="session_token", path="/")
         
         if not success:
             raise HTTPException(status_code=400, detail="Logout failed")

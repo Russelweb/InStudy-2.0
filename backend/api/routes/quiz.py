@@ -40,18 +40,21 @@ def get_user_from_request(request: Request) -> Optional[User]:
         if hasattr(request.state, 'user'):
             return request.state.user
         
-        # Try to extract token manually
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-            user = auth_service.get_current_user(token)
-            return user
+        # Try HttpOnly cookie first
+        token = request.cookies.get("session_token")
         
-        # Try X-Auth-Token header
-        token_header = request.headers.get("X-Auth-Token")
-        if token_header:
-            user = auth_service.get_current_user(token_header)
-            return user
+        # Fallback to Authorization header
+        if not token:
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+        
+        # Fallback to X-Auth-Token header
+        if not token:
+            token = request.headers.get("X-Auth-Token")
+            
+        if token:
+            return auth_service.get_current_user(token)
         
         return None
     except Exception as e:

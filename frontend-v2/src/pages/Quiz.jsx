@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { quizService, flashcardService, assetService } from '../services/api';
@@ -8,6 +8,87 @@ import { useAura, useAuraHelp } from '../context/AuraContext';
 import EmptyState from '../components/EmptyState';
 import ScrollToTopButton from '../components/ScrollToTopButton';
 
+// ── Helper Components for Quiz Setup ──
+
+const QuizStepHeading = ({ eyebrow, title, description }) => (
+  <div className="mb-6">
+    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-1 block">{eyebrow}</span>
+    <h2 className="text-xl md:text-2xl font-black text-on-surface tracking-tight uppercase italic">{title}</h2>
+    <p className="text-on-surface-variant text-xs mt-1 font-medium">{description}</p>
+  </div>
+);
+
+const QuizActions = ({ children }) => (
+  <div className="flex gap-3 mt-8 pt-6 border-t border-outline-variant/10">
+    {children}
+  </div>
+);
+
+const QuizPrimaryButton = ({ children, onClick, disabled, icon }) => (
+  <button
+    disabled={disabled}
+    onClick={onClick}
+    className="flex-1 h-14 bg-primary text-on-primary rounded-xl font-black text-xs uppercase tracking-widest shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+  >
+    {children}
+    {icon && <span className="material-symbols-outlined text-lg">{icon}</span>}
+  </button>
+);
+
+const QuizBackButton = ({ onClick }) => (
+  <button
+    onClick={onClick}
+    className="px-6 h-14 bg-surface-container-highest text-on-surface rounded-xl font-black text-xs uppercase tracking-widest border border-outline-variant/10 hover:bg-surface-variant transition-all flex items-center justify-center gap-2"
+  >
+    <span className="material-symbols-outlined text-lg">arrow_back</span>
+    Back
+  </button>
+);
+
+const QuizOptionCard = ({ label, children }) => (
+  <div className="bg-surface-container border border-outline-variant/15 rounded-xl p-4 space-y-3">
+    <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">{label}</p>
+    {children}
+  </div>
+);
+
+const QuizSegment = ({ values, value, onChange, accent = 'primary' }) => (
+  <div className="flex gap-2">
+    {values.map((v) => (
+      <button
+        key={v}
+        onClick={() => onChange(v)}
+        className={`flex-1 py-3 rounded-xl border text-sm font-black transition-all ${
+          value === v
+            ? accent === 'primary' 
+              ? 'bg-primary/20 border-primary text-primary' 
+              : 'bg-secondary/20 border-secondary text-secondary'
+            : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/40 hover:text-on-surface'
+        }`}
+      >
+        {v}
+      </button>
+    ))}
+  </div>
+);
+
+const QuizSectionLabel = ({ icon, label }) => (
+  <div className="flex items-center gap-2 mb-1">
+    <span className="material-symbols-outlined text-base text-primary">{icon}</span>
+    <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">{label}</span>
+  </div>
+);
+
+const QuizReviewItem = ({ icon, label, value }) => (
+  <div className="flex items-center gap-3 p-3 rounded-lg bg-surface-container-low border border-outline-variant/5">
+    <span className="material-symbols-outlined text-lg text-primary/60 shrink-0">{icon}</span>
+    <div className="min-w-0">
+      <p className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-tighter leading-none mb-1">{label}</p>
+      <p className="text-xs font-black text-on-surface truncate">{value}</p>
+    </div>
+  </div>
+);
+
 const QuizSetup = ({ onStart, availableCourses }) => {
   const navigate = useNavigate();
   const [selectedCourse, setSelectedCourse] = useState(availableCourses[0]?.id);
@@ -16,6 +97,8 @@ const QuizSetup = ({ onStart, availableCourses }) => {
   const [quizType, setQuizType] = useState('multiple_choice');
   const [topic, setTopic] = useState('');
   const [timedMode, setTimedMode] = useState(true);
+  const [activeStep, setActiveStep] = useState(0);
+  const [courseQuery, setCourseQuery] = useState('');
 
   useEffect(() => {
     if (availableCourses.length > 0 && !selectedCourse) {
@@ -23,180 +106,168 @@ const QuizSetup = ({ onStart, availableCourses }) => {
     }
   }, [availableCourses, selectedCourse]);
 
+  const selectedCourseData = availableCourses.find((course) => course.id === selectedCourse);
+  const filteredCourses = useMemo(() => {
+    const query = courseQuery.trim().toLowerCase();
+    if (!query) return availableCourses;
+    return availableCourses.filter((course) => course.name.toLowerCase().includes(query));
+  }, [availableCourses, courseQuery]);
+
   return (
     <motion.section
       key="setup"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="w-full max-w-4xl space-y-0"
+      className="w-full max-w-4xl"
     >
-      {/* Page title */}
-      <div className="mb-10 text-center">
-        <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-on-surface uppercase italic">
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl md:text-4xl font-black tracking-tight text-on-surface uppercase italic">
           Smart <span className="text-primary">Quiz</span>
         </h1>
-        <p className="text-on-surface-variant text-sm mt-2">Configure your assessment and test your knowledge.</p>
+        <p className="text-on-surface-variant text-sm mt-2">Set up a focused practice quiz without the clutter.</p>
       </div>
 
-      {/* ── Step 1: Course ── */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">01</span>
-          <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Choose Your Course</h3>
-          <span className="flex-1 h-px bg-outline-variant/20"></span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {availableCourses.length === 0 ? (
-            <div className="col-span-full">
-              <EmptyState
-                icon="quiz"
-                title="No courses yet"
-                description="Create a course and upload a document before generating a quiz."
-                action={{ label: 'Go to Knowledge Base', onClick: () => navigate('/knowledge') }}
-              />
-            </div>
-          ) : availableCourses.map(course => (
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        {[
+          { label: 'Course', helper: 'Pick source' },
+          { label: 'Quiz', helper: 'Set rules' },
+          { label: 'Start', helper: 'Review' },
+        ].map((step, index) => {
+          const active = activeStep === index;
+          const done = activeStep > index;
+          return (
             <button
-              key={course.id}
-              onClick={() => setSelectedCourse(course.id)}
-              className={`p-5 rounded-2xl border text-left transition-all duration-200 group ${
-                selectedCourse === course.id
-                  ? 'bg-primary/10 border-primary shadow-[0_0_20px_rgba(189,157,255,0.15)]'
-                  : 'bg-surface-container-low border-outline-variant/15 hover:border-primary/40'
-              }`}
+              key={step.label}
+              onClick={() => (index === 0 || selectedCourse) && setActiveStep(index)}
+              disabled={index > 0 && !selectedCourse}
+              className="text-left disabled:cursor-not-allowed"
             >
-              <span className={`material-symbols-outlined text-2xl mb-3 block ${selectedCourse === course.id ? 'text-primary' : 'text-on-surface-variant'}`}>quiz</span>
-              <p className={`font-bold text-sm truncate ${selectedCourse === course.id ? 'text-on-surface' : 'text-on-surface-variant'}`}>{course.name}</p>
-              <p className="text-[10px] text-on-surface-variant mt-1">{course.document_count || 0} docs</p>
+              <div className="flex items-center gap-2">
+                <span className={`h-8 w-8 rounded-xl flex items-center justify-center text-xs font-black border ${done ? 'bg-secondary text-on-secondary border-secondary' : active ? 'bg-primary text-on-primary border-primary' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/15'}`}>
+                  {done ? <span className="material-symbols-outlined text-base">check</span> : index + 1}
+                </span>
+                <span className="min-w-0">
+                  <span className={`block text-[10px] font-black uppercase tracking-widest ${active || done ? 'text-secondary' : 'text-on-surface-variant'}`}>{step.label}</span>
+                  <span className="hidden sm:block text-[10px] text-on-surface-variant/70 truncate">{step.helper}</span>
+                </span>
+              </div>
+              <div className="mt-2 h-1 rounded-full bg-surface-container-highest overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${active || done ? 'w-full bg-secondary' : 'w-0 bg-secondary'}`} />
+              </div>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
-      {/* ── Step 2: Configure ── */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-3 mt-3">
-          <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">02</span>
-          <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Configure Your Quiz</h3>
-          <span className="flex-1 h-px bg-outline-variant/20"></span>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Question Count */}
-          <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Questions</p>
-            <div className="flex gap-2">
-              {[5, 10, 20].map(num => (
-                <button
-                  key={num}
-                  onClick={() => setCount(num)}
-                  className={`flex-1 py-3 rounded-xl border text-sm font-black transition-all ${
-                    count === num
-                      ? 'bg-primary/20 border-primary text-primary'
-                      : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/40 hover:text-on-surface'
-                  }`}
-                >{num}</button>
-              ))}
-            </div>
-          </div>
+      <div className="bg-surface-container-low/70 border border-outline-variant/15 rounded-2xl p-4 sm:p-5 md:p-6 mt-5">
+        <AnimatePresence mode="wait">
+          {activeStep === 0 && (
+            <motion.div key="course" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <QuizStepHeading eyebrow="Step 1" title="Choose a Course" description="Pick the course you want to test yourself on." />
+              {availableCourses.length === 0 ? (
+                <EmptyState
+                  icon="quiz"
+                  title="No courses yet"
+                  description="Create a course and upload a document before generating a quiz."
+                  action={{ label: 'Go to Knowledge Base', onClick: () => navigate('/knowledge') }}
+                />
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.2fr] gap-4 mt-5">
+                  <div className="bg-surface-container border border-secondary/25 rounded-xl p-4 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <span className="h-11 w-11 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-xl">quiz</span>
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-secondary mb-1">Selected Course</p>
+                        <h4 className="text-base font-black text-on-surface truncate">{selectedCourseData?.name || 'Choose a course'}</h4>
+                        <p className="text-xs text-on-surface-variant mt-1">{selectedCourseData ? `${selectedCourseData.document_count || 0} documents ready` : 'Select a course to continue'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-surface-container border border-outline-variant/15 rounded-xl p-3">
+                    <div className="flex items-center gap-2 bg-surface-container-high rounded-lg px-3 py-2 border border-outline-variant/15">
+                      <span className="material-symbols-outlined text-base text-on-surface-variant">search</span>
+                      <input value={courseQuery} onChange={(e) => setCourseQuery(e.target.value)} placeholder="Search courses" className="w-full bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none" />
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[210px] overflow-y-auto custom-scrollbar pr-1">
+                      {filteredCourses.map((course) => {
+                        const active = selectedCourse === course.id;
+                        return (
+                          <button key={course.id} onClick={() => setSelectedCourse(course.id)} className={`h-14 px-3 rounded-lg border text-left transition-all flex items-center gap-3 min-w-0 ${active ? 'bg-secondary/10 border-secondary text-secondary' : 'bg-surface-container-low border-outline-variant/10 text-on-surface-variant hover:border-secondary/35 hover:text-on-surface'}`}>
+                            <span className="material-symbols-outlined text-lg shrink-0">{active ? 'check_circle' : 'school'}</span>
+                            <span className="min-w-0">
+                              <span className="block text-sm font-black truncate">{course.name}</span>
+                              <span className="block text-[10px] opacity-75">{course.document_count || 0} documents</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <QuizActions>
+                <QuizPrimaryButton disabled={!selectedCourse} onClick={() => setActiveStep(1)} icon="arrow_forward">Next: Quiz Rules</QuizPrimaryButton>
+              </QuizActions>
+            </motion.div>
+          )}
 
-          {/* Difficulty */}
-          <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Difficulty</p>
-            <div className="flex gap-2">
-              {['Easy', 'Moderate', 'Extreme'].map(diff => (
-                <button
-                  key={diff}
-                  onClick={() => setDifficulty(diff)}
-                  className={`flex-1 py-3 rounded-xl border text-xs font-black transition-all ${
-                    difficulty === diff
-                      ? 'bg-secondary/20 border-secondary text-secondary'
-                      : 'border-outline-variant/20 text-on-surface-variant hover:border-secondary/40 hover:text-on-surface'
-                  }`}
-                >{diff}</button>
-              ))}
-            </div>
-          </div>
+          {activeStep === 1 && (
+            <motion.div key="rules" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <QuizStepHeading eyebrow="Step 2" title="Set Quiz Rules" description="Choose the length, difficulty, and question format." />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+                <QuizOptionCard label="Questions"><QuizSegment values={[5, 10, 20]} value={count} onChange={setCount} /></QuizOptionCard>
+                <QuizOptionCard label="Difficulty"><QuizSegment values={['Easy', 'Moderate', 'Extreme']} value={difficulty} onChange={setDifficulty} accent="secondary" /></QuizOptionCard>
+                <QuizOptionCard label="Format">
+                  <div className="grid grid-cols-2 gap-2">
+                    {[{ id: 'multiple_choice', label: 'MCQ' }, { id: 'true_false', label: 'True/False' }, { id: 'short_answer', label: 'Short' }, { id: 'mixed', label: 'Mixed' }].map(type => (
+                      <button key={type.id} onClick={() => setQuizType(type.id)} className={`py-2.5 rounded-xl border text-xs font-black transition-all ${quizType === type.id ? 'bg-primary/20 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/40 hover:text-on-surface'}`}>{type.label}</button>
+                    ))}
+                  </div>
+                </QuizOptionCard>
+              </div>
+              <QuizActions>
+                <QuizBackButton onClick={() => setActiveStep(0)} />
+                <QuizPrimaryButton onClick={() => setActiveStep(2)} icon="arrow_forward">Next: Start</QuizPrimaryButton>
+              </QuizActions>
+            </motion.div>
+          )}
 
-          {/* Format */}
-          <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Format</p>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: 'multiple_choice', label: 'MCQ' },
-                { id: 'true_false', label: 'True/False' },
-                { id: 'short_answer', label: 'Short Answer' },
-                { id: 'mixed', label: 'Mixed' },
-              ].map(type => (
-                <button
-                  key={type.id}
-                  onClick={() => setQuizType(type.id)}
-                  className={`py-2.5 rounded-xl border text-xs font-black transition-all ${
-                    quizType === type.id
-                      ? 'bg-primary/20 border-primary text-primary'
-                      : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/40 hover:text-on-surface'
-                  }`}
-                >{type.label}</button>
-              ))}
-            </div>
-          </div>
-        </div>
+          {activeStep === 2 && (
+            <motion.div key="start" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <QuizStepHeading eyebrow="Step 3" title="Review and Start" description="Add an optional focus topic and choose whether to use a timer." />
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.85fr] gap-4 mt-5">
+                <div className="space-y-4">
+                  <div className="bg-surface-container border border-outline-variant/15 rounded-xl p-4">
+                    <QuizSectionLabel icon="center_focus_strong" label="Focus Topic (optional)" />
+                    <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. photosynthesis, vectors, contract law" className="mt-3 w-full bg-surface-container-highest border border-outline-variant/20 rounded-xl py-3 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all" />
+                  </div>
+                  <div className={`flex items-start gap-4 p-4 rounded-xl border transition-all ${timedMode ? 'bg-primary/5 border-primary/20' : 'bg-surface-container border-outline-variant/15'}`}>
+                    <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${timedMode ? 'bg-primary/15 text-primary' : 'bg-surface-container-highest text-on-surface-variant'}`}><span className="material-symbols-outlined text-lg">timer</span></span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-on-surface">{timedMode ? `${count} minute timed quiz` : 'Untimed quiz'}</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{timedMode ? 'One minute per question.' : 'Take as long as you need.'}</p>
+                    </div>
+                    <button onClick={() => setTimedMode(v => !v)} className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-primary/30 text-primary hover:bg-primary/10 transition-all">{timedMode ? 'Disable' : 'Enable'}</button>
+                  </div>
+                </div>
+                <div className="bg-surface-container-high/60 border border-outline-variant/15 rounded-xl p-4 space-y-2">
+                  <QuizReviewItem icon="menu_book" label="Course" value={selectedCourseData?.name || 'No course selected'} />
+                  <QuizReviewItem icon="quiz" label="Questions" value={`${count} questions`} />
+                  <QuizReviewItem icon="speed" label="Difficulty" value={difficulty} />
+                  <QuizReviewItem icon="category" label="Format" value={quizType.replace('_', ' ')} />
+                </div>
+              </div>
+              <QuizActions>
+                <QuizBackButton onClick={() => setActiveStep(1)} />
+                <QuizPrimaryButton disabled={!selectedCourse} onClick={() => onStart(selectedCourse, difficulty, count, quizType, topic, timedMode)} icon="quiz">Generate Quiz</QuizPrimaryButton>
+              </QuizActions>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-
-      {/* ── Step 3: Topic (optional) ── */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-3 mt-3">
-          <span className="h-6 w-6 rounded-full bg-outline-variant/30 text-on-surface-variant text-xs flex items-center justify-center font-black shrink-0">03</span>
-          <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Focus Topic <span className="text-on-surface-variant/40 font-normal normal-case tracking-normal">— optional</span></h3>
-          <span className="flex-1 h-px bg-outline-variant/20"></span>
-        </div>
-        <input
-          type="text"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder="e.g. photosynthesis, k-nearest neighbors — leave blank to cover all topics"
-          className="w-full mb-2 bg-surface-container-low border border-outline-variant/15 rounded-2xl py-4 px-5 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:ring-1 focus:ring-primary/50 transition-all"
-        />
-      </div>
-
-      {/* ── Timer notice ── */}
-      <div className={`mb-8 flex items-start gap-4 p-4 rounded-2xl border transition-all ${timedMode ? 'bg-primary/5 border-primary/20' : 'bg-surface-container-low border-outline-variant/15'}`}>
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${timedMode ? 'bg-primary/15' : 'bg-surface-container-highest'}`}>
-          <span className={`material-symbols-outlined text-lg ${timedMode ? 'text-primary' : 'text-on-surface-variant'}`}>timer</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-on-surface">
-            {timedMode
-              ? `Timed mode — ${count} minute${count !== 1 ? 's' : ''} total (1 min per question)`
-              : 'Untimed mode — take as long as you need'}
-          </p>
-          <p className="text-xs text-on-surface-variant mt-0.5">
-            {timedMode
-              ? 'The timer starts as soon as the quiz begins. Unanswered questions are auto-submitted when time runs out.'
-              : 'No countdown. Focus on understanding, not speed.'}
-          </p>
-        </div>
-        <button
-          onClick={() => setTimedMode(v => !v)}
-          className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
-            timedMode
-              ? 'bg-primary/10  border-primary/30 text-primary hover:bg-primary/20'
-              : 'bg-surface-container-highest border-outline-variant/20 text-on-surface-variant hover:border-primary/30 hover:text-primary'
-          }`}
-        >
-          {timedMode ? 'Disable' : 'Enable'}
-        </button>
-      </div>
-
-      {/* ── Generate ── */}
-      <button
-        onClick={() => onStart(selectedCourse, difficulty, count, quizType, topic, timedMode)}
-        disabled={!selectedCourse}
-        className="w-full py-5 rounded-2xl bg-[#551a8b] text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-      >
-        <span className="material-symbols-outlined">quiz</span>
-        Generate Quiz
-      </button>
     </motion.section>
   );
 };

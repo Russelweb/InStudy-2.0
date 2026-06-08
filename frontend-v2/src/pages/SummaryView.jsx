@@ -66,12 +66,24 @@ const SummaryView = () => {
     setSaveModalOpen(false);
     setIsSaving(true);
     try {
+      const data = {
+        ...summaryData,
+        saved_at: new Date().toISOString(),
+      };
       await assetService.save(
         summaryData.course_id,
         'summary',
         title,
-        summaryData
+        data,
+        {
+          style: summaryData.style,
+          document: summaryData.document || 'All documents',
+          course_name: summaryData.courseName,
+        }
       );
+      const updated = { ...summaryData, saved: true, savedTitle: title };
+      setSummaryData(updated);
+      localStorage.setItem('summary_view_data', JSON.stringify(updated));
       showToast('Summary saved successfully!', 'success');
     } catch (error) {
       console.error('Save failed:', error);
@@ -162,10 +174,11 @@ const SummaryView = () => {
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="p-2 md:p-3 bg-surface-container-highest rounded-xl text-on-surface-variant hover:text-on-surface transition-colors border border-outline-variant/15 disabled:opacity-50"
+                className="px-3 py-2 md:px-4 md:py-3 bg-[#551a8b] rounded-xl text-white hover:scale-[1.01] active:scale-[0.98] transition-all border border-primary/15 disabled:opacity-50 flex items-center gap-2"
                 title="Save to assets"
               >
-                <span className="material-symbols-outlined">save</span>
+                <span className="material-symbols-outlined text-base">{summaryData.saved ? 'bookmark_added' : 'save'}</span>
+                <span className="text-xs font-black uppercase tracking-widest">{summaryData.saved ? 'Saved' : 'Save'}</span>
               </button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
@@ -10,6 +10,11 @@ import { flashcardService, masteryService, documentService, assetService } from 
 import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const TUTORIAL_KEY = 'instudy_flashcard_tutorial_seen';
+const setupSteps = [
+  { label: 'Course', helper: 'Pick source' },
+  { label: 'Deck', helper: 'Set cards' },
+  { label: 'Create', helper: 'Review' },
+];
 
 // One-time tutorial overlay explaining the 5 control buttons
 const FlashcardTutorial = ({ onDismiss }) => (
@@ -88,6 +93,8 @@ const Flashcards = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [setupStep, setSetupStep] = useState(0);
+  const [deckQuery, setDeckQuery] = useState('');
 
   // Settings State
   const [showSettings, setShowSettings] = useState(true);
@@ -355,6 +362,11 @@ const Flashcards = () => {
     : 0;
 
   const currentDeck = decks.find((d) => d.id === currentDeckId);
+  const filteredDecks = useMemo(() => {
+    const query = deckQuery.trim().toLowerCase();
+    if (!query) return decks;
+    return decks.filter((deck) => deck.name.toLowerCase().includes(query));
+  }, [decks, deckQuery]);
 
   const hudStats = [
     { label: 'Learned',   value: sessionStats.learned,   color: 'text-secondary' },
@@ -445,136 +457,96 @@ const Flashcards = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-4xl space-y-0"
             >
-              {/* Page title */}
-              <div className="mb-10 text-center">
-                <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-on-surface uppercase italic">
+              <div className="mb-6 text-center">
+                <h2 className="text-2xl md:text-4xl font-black tracking-tight text-on-surface uppercase italic">
                   Flashcard <span className="text-primary">Lab</span>
                 </h2>
-                <p className="text-on-surface-variant text-sm mt-2">Configure your deck and generate cards from your course material.</p>
+                <p className="text-on-surface-variant text-sm mt-2">Build a focused deck from your course material.</p>
               </div>
 
-              {/* ── Step 1: Course ── */}
-              <div className="mb-10">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-black shrink-0">01</span>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Choose Your Course</h3>
-                  <span className="flex-1 h-px bg-outline-variant/20"></span>
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                  {decks.length === 0 ? (
-                    <EmptyState
-                      icon="style"
-                      title="No courses yet"
-                      description="Create a course and upload a document before generating flashcards."
-                      action={{ label: 'Go to Knowledge Base', onClick: () => navigate('/knowledge') }}
-                    />
-                  ) : decks.map(deck => (
-                    <button
-                      key={deck.id}
-                      onClick={() => setCurrentDeckId(deck.id)}
-                      className={`shrink-0 min-w-[160px] p-5 rounded-2xl border text-left transition-all duration-200 group ${
-                        currentDeckId === deck.id
-                          ? 'bg-primary/15 border-primary shadow-[0_0_20px_rgba(189,157,255,0.15)]'
-                          : 'bg-surface-container-low border-outline-variant/40 hover:border-primary/40'
-                      }`}
-                    >
-                      <span className={`material-symbols-outlined text-2xl mb-3 block ${currentDeckId === deck.id ? 'text-primary' : 'text-on-surface-variant'}`}>folder</span>
-                      <p className={`font-bold text-sm truncate ${currentDeckId === deck.id ? 'text-on-surface' : 'text-on-surface-variant'}`}>{deck.name}</p>
-                      <p className="text-[10px] text-on-surface-variant mt-1">{deck.document_count} docs</p>
-                    </button>
-                  ))}
-                </div>
+              <SetupStepper steps={setupSteps} activeStep={setupStep} setActiveStep={setSetupStep} canAdvance={Boolean(currentDeckId)} />
+
+              <div className="bg-surface-container-low/70 border border-outline-variant/15 rounded-2xl p-4 sm:p-5 md:p-6 mt-5">
+                <AnimatePresence mode="wait">
+                  {setupStep === 0 && (
+                    <SetupPanel key="course">
+                      <StepHeading eyebrow="Step 1" title="Choose a Course" description="Pick the course that will supply your flashcard material." />
+                      {decks.length === 0 ? (
+                        <EmptyState
+                          icon="style"
+                          title="No courses yet"
+                          description="Create a course and upload a document before generating flashcards."
+                          action={{ label: 'Go to Knowledge Base', onClick: () => navigate('/knowledge') }}
+                        />
+                      ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.2fr] gap-4 mt-5">
+                          <SelectedCourseCard icon="style" title="Selected Deck Source" course={currentDeck} countLabel={`${currentDeck?.document_count || 0} documents ready`} />
+                          <CoursePicker courses={filteredDecks} selectedCourse={currentDeckId} query={deckQuery} setQuery={setDeckQuery} onSelect={setCurrentDeckId} icon="folder" />
+                        </div>
+                      )}
+                      <StepActions>
+                        <PrimaryButton disabled={!currentDeckId} onClick={() => setSetupStep(1)} icon="arrow_forward">Next: Deck Settings</PrimaryButton>
+                      </StepActions>
+                    </SetupPanel>
+                  )}
+
+                  {setupStep === 1 && (
+                    <SetupPanel key="deck">
+                      <StepHeading eyebrow="Step 2" title="Set Up Your Deck" description="Choose how many cards you want and how detailed the answers should be." />
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+                        <OptionCard label="Cards">
+                          <SegmentedValue values={[5, 10, 20]} value={settings.numCards} onChange={(num) => setSettings({ ...settings, numCards: num })} />
+                        </OptionCard>
+                        <OptionCard label="Answer Detail">
+                          <SegmentedValue values={['brief', 'detailed']} value={settings.explanationLevel} onChange={(lvl) => setSettings({ ...settings, explanationLevel: lvl })} accent="secondary" />
+                        </OptionCard>
+                        <OptionCard label="Document">
+                          <select
+                            value={settings.targetDocument}
+                            onChange={(e) => setSettings({ ...settings, targetDocument: e.target.value })}
+                            className="w-full bg-surface-container-highest border border-outline-variant/20 rounded-xl px-3 py-3 text-sm text-on-surface focus:border-primary transition-all font-bold"
+                          >
+                            <option value="all">All Documents</option>
+                            {courseDocuments.map(doc => <option key={doc} value={doc}>{doc}</option>)}
+                          </select>
+                        </OptionCard>
+                      </div>
+                      <StepActions>
+                        <BackButton onClick={() => setSetupStep(0)} />
+                        <PrimaryButton onClick={() => setSetupStep(2)} icon="arrow_forward">Next: Review</PrimaryButton>
+                      </StepActions>
+                    </SetupPanel>
+                  )}
+
+                  {setupStep === 2 && (
+                    <SetupPanel key="create">
+                      <StepHeading eyebrow="Step 3" title="Review and Create" description="Add an optional topic, then generate your flashcards." />
+                      <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.8fr] gap-4 mt-5">
+                        <div className="bg-surface-container border border-outline-variant/15 rounded-xl p-4">
+                          <SectionLabel icon="center_focus_strong" label="Focus Topic (optional)" />
+                          <input
+                            type="text"
+                            value={settings.topic || ''}
+                            onChange={(e) => setSettings({ ...settings, topic: e.target.value })}
+                            placeholder="e.g. photosynthesis, vectors, contract law"
+                            className="mt-3 w-full bg-surface-container-highest border border-outline-variant/20 rounded-xl py-3 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all"
+                          />
+                          <p className="text-xs text-on-surface-variant mt-2">Leave empty to cover everything selected.</p>
+                        </div>
+                        <div className="bg-surface-container-high/60 border border-outline-variant/15 rounded-xl p-4 space-y-2">
+                          <ReviewItem icon="menu_book" label="Course" value={currentDeck?.name || 'No course selected'} />
+                          <ReviewItem icon="style" label="Cards" value={`${settings.numCards} cards`} />
+                          <ReviewItem icon="article" label="Source" value={settings.targetDocument === 'all' ? 'All documents' : settings.targetDocument} />
+                        </div>
+                      </div>
+                      <StepActions>
+                        <BackButton onClick={() => setSetupStep(1)} />
+                        <PrimaryButton disabled={!currentDeckId} onClick={generateCards} icon="auto_awesome">Generate Flashcards</PrimaryButton>
+                      </StepActions>
+                    </SetupPanel>
+                  )}
+                </AnimatePresence>
               </div>
-
-              {/* ── Step 2: Configure ── */}
-              <div className="mb-10">
-                <div className="flex items-center gap-3 mb-5 mt-2">
-                  <span className="h-6 w-6 rounded-full bg-surface-container-low text-primary text-xs flex items-center justify-center font-black shrink-0">02</span>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Configure Your Deck</h3>
-                  <span className="flex-1 h-px bg-outline-variant/20"></span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Deck Size */}
-                  <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Deck Size</p>
-                    <div className="flex gap-2">
-                      {[5, 10, 20].map(num => (
-                        <button
-                          key={num}
-                          onClick={() => setSettings({...settings, numCards: num})}
-                          className={`flex-1 py-3 rounded-xl border text-sm font-black transition-all ${
-                            settings.numCards === num
-                              ? 'bg-primary/20 border-primary text-primary'
-                              : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/40 hover:text-on-surface'
-                          }`}
-                        >{num}</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Detail Level */}
-                  <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Detail Level</p>
-                    <div className="flex gap-2">
-                      {['brief', 'detailed'].map(lvl => (
-                        <button
-                          key={lvl}
-                          onClick={() => setSettings({...settings, explanationLevel: lvl})}
-                          className={`flex-1 py-3 rounded-xl border text-xs font-black capitalize transition-all ${
-                            settings.explanationLevel === lvl
-                              ? 'bg-secondary/20 border-secondary text-secondary'
-                              : 'border-outline-variant/20 text-on-surface-variant hover:border-secondary/40 hover:text-on-surface'
-                          }`}
-                        >{lvl}</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Document Focus */}
-                  <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Document Focus</p>
-                    <div className="relative">
-                      <select
-                        value={settings.targetDocument}
-                        onChange={(e) => setSettings({...settings, targetDocument: e.target.value})}
-                        className="w-full bg-surface-container-highest border border-outline-variant/20 rounded-xl px-3 py-3 text-sm text-on-surface focus:border-primary transition-all appearance-none font-bold"
-                      >
-                        <option value="all">All Documents</option>
-                        {courseDocuments.map(doc => (
-                          <option key={doc} value={doc}>{doc}</option>
-                        ))}
-                      </select>
-                      <span className="material-symbols-outlined absolute right-3 top-3 text-on-surface-variant pointer-events-none text-sm">expand_more</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Step 3: Topic (optional) ── */}
-              <div className="mb-10">
-                <div className="flex items-center gap-3 mt-3 mb-3">
-                  <span className="h-6 w-6 rounded-full bg-outline-variant/30 text-on-surface-variant text-xs flex items-center justify-center font-black shrink-0">03</span>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Focus Topic <span className="text-on-surface-variant/40 font-normal normal-case tracking-normal">— optional</span></h3>
-                  <span className="flex-1 h-px bg-outline-variant/20"></span>
-                </div>
-                <input
-                  type="text"
-                  value={settings.topic || ''}
-                  onChange={(e) => setSettings({...settings, topic: e.target.value})}
-                  placeholder="e.g. photosynthesis, k-nearest neighbors — leave blank to cover all topics"
-                  className="w-full mb-2 bg-surface-container-low border border-outline-variant/15 rounded-2xl py-4 px-5 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:ring-1 focus:ring-primary/50 transition-all"
-                />
-              </div>
-
-              {/* ── Generate ── */}
-              <button
-                onClick={generateCards}
-                disabled={!currentDeckId}
-                className="w-full py-5 rounded-2xl bg-[#551a8b] text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-              >
-                <span className="material-symbols-outlined">auto_awesome</span>
-                Generate Flashcards
-              </button>
             </motion.div>
 
           ) : isGenerating ? (
@@ -755,5 +727,168 @@ const Flashcards = () => {
     </div>
   );
 };
+
+const SetupStepper = ({ steps, activeStep, setActiveStep, canAdvance }) => (
+  <div className="grid grid-cols-3 gap-2 sm:gap-4">
+    {steps.map((step, index) => {
+      const active = activeStep === index;
+      const done = activeStep > index;
+      return (
+        <button
+          key={step.label}
+          onClick={() => (index === 0 || canAdvance) && setActiveStep(index)}
+          disabled={index > 0 && !canAdvance}
+          className="text-left disabled:cursor-not-allowed"
+        >
+          <div className="flex items-center gap-2">
+            <span className={`h-8 w-8 rounded-xl flex items-center justify-center text-xs font-black border ${done ? 'bg-secondary text-on-secondary border-secondary' : active ? 'bg-primary text-on-primary border-primary' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/15'}`}>
+              {done ? <span className="material-symbols-outlined text-base">check</span> : index + 1}
+            </span>
+            <span className="min-w-0">
+              <span className={`block text-[10px] font-black uppercase tracking-widest ${active || done ? 'text-secondary' : 'text-on-surface-variant'}`}>{step.label}</span>
+              <span className="hidden sm:block text-[10px] text-on-surface-variant/70 truncate">{step.helper}</span>
+            </span>
+          </div>
+          <div className="mt-2 h-1 rounded-full bg-surface-container-highest overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${active || done ? 'w-full bg-secondary' : 'w-0 bg-secondary'}`} />
+          </div>
+        </button>
+      );
+    })}
+  </div>
+);
+
+const SetupPanel = ({ children }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 12 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    transition={{ duration: 0.22 }}
+  >
+    {children}
+  </motion.div>
+);
+
+const StepHeading = ({ eyebrow, title, description }) => (
+  <div>
+    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-primary mb-2">{eyebrow}</p>
+    <h3 className="text-xl md:text-2xl font-black text-on-surface tracking-tight">{title}</h3>
+    <p className="text-sm text-on-surface-variant leading-relaxed mt-1.5">{description}</p>
+  </div>
+);
+
+const SelectedCourseCard = ({ icon, title, course, countLabel }) => (
+  <div className="bg-surface-container border border-secondary/25 rounded-xl p-4 min-w-0">
+    <div className="flex items-center gap-3">
+      <span className="h-11 w-11 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
+        <span className="material-symbols-outlined text-xl">{icon}</span>
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-widest text-secondary mb-1">{title}</p>
+        <h4 className="text-base font-black text-on-surface truncate">{course?.name || 'Choose a course'}</h4>
+        <p className="text-xs text-on-surface-variant mt-1">{course ? countLabel : 'Select a course to continue'}</p>
+      </div>
+    </div>
+  </div>
+);
+
+const CoursePicker = ({ courses, selectedCourse, query, setQuery, onSelect, icon }) => (
+  <div className="bg-surface-container border border-outline-variant/15 rounded-xl p-3">
+    <div className="flex items-center gap-2 bg-surface-container-high rounded-lg px-3 py-2 border border-outline-variant/15">
+      <span className="material-symbols-outlined text-base text-on-surface-variant">search</span>
+      <input
+        type="text"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Search courses"
+        className="w-full bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none"
+      />
+    </div>
+    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[210px] overflow-y-auto custom-scrollbar pr-1">
+      {courses.map((course) => {
+        const selected = selectedCourse === course.id;
+        return (
+          <button
+            key={course.id}
+            onClick={() => onSelect(course.id)}
+            className={`h-14 px-3 rounded-lg border text-left transition-all flex items-center gap-3 min-w-0 ${selected ? 'bg-secondary/10 border-secondary text-secondary' : 'bg-surface-container-low border-outline-variant/10 text-on-surface-variant hover:border-secondary/35 hover:text-on-surface'}`}
+          >
+            <span className="material-symbols-outlined text-lg shrink-0">{selected ? 'check_circle' : icon}</span>
+            <span className="min-w-0">
+              <span className="block text-sm font-black truncate">{course.name}</span>
+              <span className="block text-[10px] opacity-75">{course.document_count || 0} documents</span>
+            </span>
+          </button>
+        );
+      })}
+      {courses.length === 0 && (
+        <div className="sm:col-span-2 h-20 rounded-lg border border-dashed border-outline-variant/20 flex items-center justify-center text-sm text-on-surface-variant">
+          No matching courses
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+const OptionCard = ({ label, children }) => (
+  <div className="bg-surface-container border border-outline-variant/15 rounded-xl p-4 space-y-3">
+    <p className="text-[10px] font-black uppercase tracking-widest text-primary">{label}</p>
+    {children}
+  </div>
+);
+
+const SegmentedValue = ({ values, value, onChange, accent = 'primary' }) => (
+  <div className="flex gap-2">
+    {values.map((item) => {
+      const active = value === item;
+      return (
+        <button
+          key={item}
+          onClick={() => onChange(item)}
+          className={`flex-1 py-3 rounded-xl border text-xs font-black capitalize transition-all ${active ? (accent === 'secondary' ? 'bg-secondary/20 border-secondary text-secondary' : 'bg-primary/20 border-primary text-primary') : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/40 hover:text-on-surface'}`}
+        >
+          {item}
+        </button>
+      );
+    })}
+  </div>
+);
+
+const SectionLabel = ({ icon, label }) => (
+  <div className="flex items-center gap-2">
+    <span className="material-symbols-outlined text-base text-secondary">{icon}</span>
+    <p className="text-xs font-black uppercase tracking-widest text-on-surface">{label}</p>
+  </div>
+);
+
+const StepActions = ({ children }) => (
+  <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 mt-5">
+    {children}
+  </div>
+);
+
+const BackButton = ({ onClick }) => (
+  <button onClick={onClick} className="w-full sm:w-auto px-5 py-3 rounded-xl border border-outline-variant/20 text-on-surface-variant font-black text-xs uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-all flex items-center justify-center gap-2">
+    <span className="material-symbols-outlined text-base">arrow_back</span>
+    Back
+  </button>
+);
+
+const PrimaryButton = ({ children, icon, disabled, onClick }) => (
+  <button onClick={onClick} disabled={disabled} className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#551a8b] text-white font-black text-xs uppercase tracking-widest hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+    <span className="material-symbols-outlined text-base">{icon}</span>
+    {children}
+  </button>
+);
+
+const ReviewItem = ({ icon, label, value }) => (
+  <div className="bg-surface-container-high/70 border border-outline-variant/10 rounded-xl p-3 min-w-0">
+    <div className="flex items-center gap-2 text-on-surface-variant mb-1.5">
+      <span className="material-symbols-outlined text-base">{icon}</span>
+      <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+    </div>
+    <p className="text-sm font-bold text-on-surface truncate">{value}</p>
+  </div>
+);
 
 export default Flashcards;
