@@ -241,26 +241,34 @@ const AITutorChat = ({ courseId }) => {
                     remarkPlugins={[remarkGfm, remarkMath]}
                     rehypePlugins={[rehypeKatex]}
                     components={{
-                      h1: ({children}) => <h1 className="text-base font-bold text-on-surface mt-3 mb-1">{children}</h1>,
-                      h2: ({children}) => <h2 className="text-sm font-bold text-on-surface mt-3 mb-1">{children}</h2>,
-                      h3: ({children}) => <h3 className="text-sm font-semibold text-secondary mt-2 mb-1">{children}</h3>,
-                      p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
-                      ul: ({children}) => <ul className="my-1 pl-4 space-y-0.5 list-disc">{children}</ul>,
-                      ol: ({children}) => <ol className="my-1 pl-4 space-y-0.5 list-decimal">{children}</ol>,
-                      li: ({children}) => <li className="text-on-surface-variant">{children}</li>,
+                      h1: ({children}) => <h1 className="text-xl font-black text-secondary mt-6 mb-3 pb-2 border-b border-secondary/20">{children}</h1>,
+                      h2: ({children}) => <h2 className="text-lg font-bold text-on-surface mt-5 mb-2">{children}</h2>,
+                      h3: ({children}) => <h3 className="text-base font-bold text-secondary/80 mt-4 mb-2">{children}</h3>,
+                      p: ({children}) => <p className="my-2.5 leading-relaxed text-on-surface-variant/90">{children}</p>,
+                      ul: ({children}) => <ul className="my-3 pl-5 space-y-1.5 list-disc text-on-surface-variant">{children}</ul>,
+                      ol: ({children}) => <ol className="my-3 pl-5 space-y-1.5 list-decimal text-on-surface-variant">{children}</ol>,
+                      li: ({children}) => <li className="leading-relaxed">{children}</li>,
                       strong: ({children}) => <strong className="font-bold text-secondary">{children}</strong>,
                       em: ({children}) => <em className="italic text-on-surface-variant">{children}</em>,
                       code: ({inline, children}) => inline
-                        ? <code className="bg-surface-container-highest px-1 py-0.5 rounded text-xs text-secondary font-mono">{children}</code>
-                        : <pre className="bg-surface-container-highest rounded-xl p-3 overflow-x-auto my-2"><code className="text-xs text-secondary font-mono">{children}</code></pre>,
+                        ? <code className="bg-secondary/10 px-1.5 py-0.5 rounded text-[13px] text-secondary font-mono font-medium">{children}</code>
+                        : <div className="relative group my-4">
+                            <pre className="bg-surface-container-highest/50 rounded-xl p-4 overflow-x-auto border border-outline-variant/10 shadow-inner">
+                              <code className="text-xs text-secondary font-mono leading-normal">{children}</code>
+                            </pre>
+                          </div>,
                       pre: ({children}) => <>{children}</>,
-                      blockquote: ({children}) => <blockquote className="border-l-2 border-secondary/40 pl-3 my-2 text-on-surface-variant italic">{children}</blockquote>,
-                      table: ({children}) => <div className="overflow-x-auto my-2"><table className="w-full text-xs border-collapse">{children}</table></div>,
-                      thead: ({children}) => <thead className="bg-surface-container-highest">{children}</thead>,
-                      th: ({children}) => <th className="px-3 py-2 text-left font-bold text-on-surface border border-outline-variant/20">{children}</th>,
-                      td: ({children}) => <td className="px-3 py-2 border border-outline-variant/10 text-on-surface-variant">{children}</td>,
-                      a: ({href, children}) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-secondary underline hover:opacity-80">{children}</a>,
-                      hr: () => <hr className="border-outline-variant/20 my-3" />,
+                      blockquote: ({children}) => <blockquote className="border-l-4 border-secondary/30 bg-secondary/5 pl-4 py-2 my-4 text-on-surface-variant italic rounded-r-lg">{children}</blockquote>,
+                      table: ({children}) => (
+                        <div className="my-6 overflow-x-auto rounded-xl border border-outline-variant/20 shadow-sm bg-surface-container-low/50">
+                          <table className="w-full text-sm border-collapse">{children}</table>
+                        </div>
+                      ),
+                      thead: ({children}) => <thead className="bg-secondary/10">{children}</thead>,
+                      th: ({children}) => <th className="px-4 py-3 text-left font-black text-secondary border-b border-outline-variant/20 uppercase tracking-wider text-[11px]">{children}</th>,
+                      td: ({children}) => <td className="px-4 py-3 border-b border-outline-variant/10 text-on-surface-variant leading-relaxed">{children}</td>,
+                      a: ({href, children}) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-secondary underline decoration-secondary/30 underline-offset-4 hover:text-secondary-fixed transition-colors font-medium">{children}</a>,
+                      hr: () => <hr className="border-outline-variant/10 my-6" />,
                     }}
                   >
                     {preprocessMath(ms.text)}

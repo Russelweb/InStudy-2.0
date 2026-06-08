@@ -4,6 +4,29 @@ import { useNavigate } from "react-router-dom";
 import { inSpaceService, statService } from "../services/api";
 import { showToast } from "../components/Toast";
 import { ConfirmModal } from "../components/Modal";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+
+/**
+ * Best-effort converter: wraps common plain-text math patterns in LaTeX delimiters
+ * so KaTeX can render them even when the LLM forgets to use $...$.
+ */
+function preprocessMath(text) {
+  if (!text) return text;
+  if (/\$/.test(text)) return text;
+  return text
+    .replace(/\b(d\/d[a-z]|[a-z]\/[a-z]|\d+\/\d+)\b/g, (m) => `$${m}$`)
+    .replace(/([a-zA-Z\d]+)\^(\{[^}]+\}|[a-zA-Z\d]+)/g, (m) => `$${m}$`)
+    .replace(/\b(sin|cos|tan|cot|sec|csc|ln|log|exp|sqrt|lim|sum|int)\s*\(([^)]+)\)/g, (m) => `$${m}$`)
+    .replace(/\b([a-zA-Z])'+'?\s*\([^)]+\)/g, (m) => `$${m}$`)
+    .replace(/\b(alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|sigma|omega|phi|psi)\b/g, (m) => `$\\${m}$`)
+    .replace(/([a-zA-Z][a-zA-Z0-9'_^()*/+\-\s]*=[a-zA-Z0-9'_^()*/+\-\s]+)/g, (m) => {
+      if (/[\^*]|sin|cos|tan|ln|sqrt|d\/d/.test(m)) return `$${m.trim()}$`;
+      return m;
+    });
+}
 
 export default function InSpace() {
   const navigate = useNavigate();
@@ -990,13 +1013,41 @@ export default function InSpace() {
                   {chatMessages.map((msg, i) => (
                     <div
                       key={i}
-                      className={`p-2.5 rounded-lg max-w-[85%] ${
+                      className={`p-2.5 rounded-lg max-w-[92%] ${
                         msg.sender === "ai"
-                          ? "bg-surface-container text-on-surface mr-auto"
+                          ? "bg-surface-container text-on-surface mr-auto border border-outline-variant/10"
                           : "bg-[#bd9dff] text-background font-medium ml-auto"
                       }`}
                     >
-                      {msg.text}
+                      {msg.sender === "ai" ? (
+                        <div className="markdown-content text-[11px] leading-relaxed">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm, remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
+                            components={{
+                              h1: ({children}) => <h1 className="text-sm font-black text-secondary mt-3 mb-1 border-b border-secondary/10 pb-1">{children}</h1>,
+                              h2: ({children}) => <h2 className="text-xs font-bold text-on-surface mt-2 mb-1">{children}</h2>,
+                              p: ({children}) => <p className="my-1.5">{children}</p>,
+                              ul: ({children}) => <ul className="my-1.5 pl-4 list-disc space-y-0.5">{children}</ul>,
+                              ol: ({children}) => <ol className="my-1.5 pl-4 list-decimal space-y-0.5">{children}</ol>,
+                              code: ({inline, children}) => inline
+                                ? <code className="bg-secondary/10 px-1 rounded text-[10px] text-secondary font-mono">{children}</code>
+                                : <pre className="bg-black/20 rounded-lg p-2 overflow-x-auto my-2"><code className="text-[10px] text-secondary font-mono">{children}</code></pre>,
+                              table: ({children}) => (
+                                <div className="my-3 overflow-x-auto rounded-lg border border-outline-variant/10 bg-black/5">
+                                  <table className="w-full text-[10px] border-collapse">{children}</table>
+                                </div>
+                              ),
+                              th: ({children}) => <th className="px-2 py-1.5 text-left font-bold text-secondary border-b border-outline-variant/10">{children}</th>,
+                              td: ({children}) => <td className="px-2 py-1.5 border-b border-outline-variant/5 text-on-surface-variant">{children}</td>,
+                            }}
+                          >
+                            {preprocessMath(msg.text)}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        msg.text
+                      )}
                     </div>
                   ))}
                   {chatLoading && (

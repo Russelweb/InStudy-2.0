@@ -414,6 +414,8 @@ const Dashboard = () => {
   const [stats, setStats]     = useState({ total_documents: 0, total_courses: 0, study_hours: 0, quizzes_taken: 0, courses: [], recent_questions: [], daily_activity: {} });
   const [loading, setLoading] = useState(true);
   const [period, setPeriod]   = useState('1m');
+  const [coursesPage, setCoursesPage] = useState(1);
+  const coursesPerPage = 5;
   const navigate              = useNavigate();
   const { triggerAura }       = useAura();
   useAuraHelp('This is your Dashboard — track study hours, mastery progress, and recent activity. Start by creating a course in Knowledge Base.');
@@ -575,7 +577,31 @@ const Dashboard = () => {
 
           {/* Active Circuits List */}
           <div className="glass p-8 rounded-2xl">
-            <h2 className="text-xl font-bold text-on-surface mb-6">Active Courses</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-on-surface">Active Courses</h2>
+              {stats.courses.length > coursesPerPage && (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setCoursesPage(p => Math.max(1, p - 1))}
+                    disabled={coursesPage === 1}
+                    className="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center border border-outline-variant/10 text-on-surface-variant disabled:opacity-30 hover:text-primary transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-sm">chevron_left</span>
+                  </button>
+                  <span className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest">
+                    Page {coursesPage} of {Math.ceil(stats.courses.length / coursesPerPage)}
+                  </span>
+                  <button 
+                    onClick={() => setCoursesPage(p => Math.min(Math.ceil(stats.courses.length / coursesPerPage), p + 1))}
+                    disabled={coursesPage === Math.ceil(stats.courses.length / coursesPerPage)}
+                    className="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center border border-outline-variant/10 text-on-surface-variant disabled:opacity-30 hover:text-primary transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-sm">chevron_right</span>
+                  </button>
+                </div>
+              )}
+            </div>
+            
             <div className="space-y-4">
               {loading ? (
                 <div className="text-center py-8 text-on-surface-variant text-sm animate-pulse">Loading Courses...</div>
@@ -588,28 +614,30 @@ const Dashboard = () => {
                   </Link>
                 </div>
               ) : (
-                stats.courses.map((course, idx) => (
-                  <Link
-                    key={idx}
-                    to={`/workspace?id=${course.id}`}
-                    onClick={() => localStorage.setItem('activeCourse', course.id)}
-                    className="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/10 hover:border-primary/30 transition-all cursor-pointer group block"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                        <span className="material-symbols-outlined">{idx % 2 === 0 ? 'description' : 'quiz'}</span>
+                stats.courses
+                  .slice((coursesPage - 1) * coursesPerPage, coursesPage * coursesPerPage)
+                  .map((course, idx) => (
+                    <Link
+                      key={idx}
+                      to={`/workspace?id=${course.id}`}
+                      onClick={() => localStorage.setItem('activeCourse', course.id)}
+                      className="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/10 hover:border-primary/30 transition-all cursor-pointer group block"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                          <span className="material-symbols-outlined">{idx % 2 === 0 ? 'description' : 'quiz'}</span>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-on-surface">{course.name}</h4>
+                          <p className="text-[10px] text-on-surface-variant uppercase tracking-widest">{course.document_count} Documents Linked</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-sm text-on-surface">{course.name}</h4>
-                        <p className="text-[10px] text-on-surface-variant uppercase tracking-widest">{course.document_count} Documents Linked</p>
+                      <div className="text-right">
+                        <div className="text-sm font-black text-secondary">{course.mastery}%</div>
+                        <div className="text-[10px] text-on-surface-variant font-bold">MASTERY</div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-black text-secondary">{course.mastery}%</div>
-                      <div className="text-[10px] text-on-surface-variant font-bold">MASTERY</div>
-                    </div>
-                  </Link>
-                ))
+                    </Link>
+                  ))
               )}
             </div>
           </div>

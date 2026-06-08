@@ -45,14 +45,12 @@ const UserAvatar = ({ email, size = 'md' }) => {
   );
 };
 
-const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
+const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse, isStatic, extraHeader, children }) => {
   const location = useLocation();
   const currentUser = authService.getCurrentUser();
   const isAdmin = currentUser?.is_admin;
 
   const handleLogout = () => {
-    // Implement custom toast logic here
-    // For now, directly log out
     authService.logout();
   };
 
@@ -60,6 +58,7 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
     { icon: 'home', label: 'Dashboard', path: '/' },
     { icon: 'database', label: 'Knowledge Base', path: '/knowledge' },
     { icon: 'space_dashboard', label: 'InSpace', path: '/inspace' },
+    { icon: 'menu_book', label: 'Reader', path: '/workspace' },
     { icon: 'style', label: 'Flashcards', path: '/flashcards' },
     { icon: 'quiz', label: 'Smart Quiz', path: '/quiz' },
     { icon: 'auto_awesome', label: 'AI Summarizer', path: '/summary' },
@@ -77,7 +76,8 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
   return (
     <aside
       className={`
-        ${mobile ? 'w-full shadow-2xl' : isCollapsed ? 'fixed left-0 top-0 w-16' : 'fixed left-0 top-0 w-64'}
+        ${mobile ? 'w-full shadow-2xl' : isCollapsed ? 'w-16' : 'w-64'}
+        ${!isStatic && !mobile ? 'fixed left-0 top-0' : ''}
         h-full bg-[#141f16] flex flex-col z-50 transition-all duration-300
         shadow-[0px_20px_40px_rgba(189,157,255,0.04)]
         overflow-hidden
@@ -104,12 +104,26 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
         )}
       </div>
 
+      {/* Extra Header (e.g. Workspace info) */}
+      {!isCollapsed && extraHeader && (
+        <div className="px-4 mb-4">
+          {extraHeader}
+        </div>
+      )}
+
       {/* Nav - scrollable */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 space-y-1 custom-scrollbar">
         {menuItems.map((item, idx) => {
           const isActive = location.pathname === item.path;
           let targetPath = item.path;
-          if (['/flashcards', '/quiz', '/ai-tutor', '/summary', '/mastery'].includes(item.path)) {
+          
+          // For Reader, if we are in workspace, we use current URL or just keep /workspace
+          // But usually we need the ?id=...
+          if (item.path === '/workspace') {
+            const activeCourse = localStorage.getItem('activeCourse');
+            if (activeCourse) targetPath = `/workspace?id=${activeCourse}`;
+            else return null; // Don't show Reader if no active course
+          } else if (['/flashcards', '/quiz', '/ai-tutor', '/summary', '/mastery'].includes(item.path)) {
             const activeCourse = localStorage.getItem('activeCourse');
             if (activeCourse) targetPath = `${item.path}?id=${activeCourse}`;
           }
@@ -146,6 +160,13 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
           );
         })}
       </nav>
+
+      {/* Children (e.g. New Research button) */}
+      {children && (
+        <div className="px-3 mb-4 shrink-0">
+          {children}
+        </div>
+      )}
 
       {/* User footer */}
       <div className={`mt-auto shrink-0 border-t border-outline-variant/10 pt-4 pb-6 px-3 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
