@@ -220,8 +220,8 @@ const KnowledgeBase = () => {
               onClick={() => setFilter(tab.value)}
               className={`px-4 md:px-6 py-2 rounded-full font-medium text-xs md:text-sm whitespace-nowrap transition-colors ${
                 filter === tab.value
-                  ? 'bg-secondary-low text-on-secondary font-bold shadow-lg shadow-secondary/10'
-                  : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant border border-outline-variant/10'
+                  ? 'bg-secondary-low text-on-secondary font-bold shadow-lg shadow-secondary/10 hover:bg-secondary-dim/95'
+                  : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container hover:text-on-surface border border-outline-variant/10'
               }`}
             >
               {tab.label}

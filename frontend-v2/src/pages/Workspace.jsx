@@ -3,7 +3,6 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import DocumentViewer from '../components/DocumentViewer';
 import AITutorChat from '../components/AITutorChat';
-import NeuralControlDeck from '../components/NeuralControlDeck';
 import UploadZone from '../components/UploadZone';
 import { documentService, statService } from '../services/api';
 
@@ -236,9 +235,9 @@ const Workspace = () => {
           </div>
 
           {/* Split Pane — stacked on mobile (now tabbed), side-by-side on desktop */}
-          <main className="flex flex-1 flex-col md:flex-row overflow-hidden md:pb-[120px]">
+          <main className="flex flex-1 flex-col md:flex-row overflow-hidden">
             <div className={`${activeMobileTab === 'reader' ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-[55%] h-full min-w-0`}>
-              <DocumentViewer courseId={courseId} refreshTick={docRefreshTick} onAnnotationsLoaded={setActiveAnnotations}/>
+              <DocumentViewer courseId={courseId} refreshTick={docRefreshTick} onAnnotationsLoaded={setActiveAnnotations} onUploadClick={() => setIsUploadOpen(true)}/>
             </div>
             <div className={`${activeMobileTab === 'chat' ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-[45%] h-full min-w-0`}>
               <AITutorChat courseId={courseId} />
@@ -246,8 +245,6 @@ const Workspace = () => {
           </main>
         </div>
       </div>
-
-      <NeuralControlDeck annotations={activeAnnotations} />
       
       {/* Persistent AI Disclaimer */}
       <div className="fixed bottom-1 left-1/2 -translate-x-1/2 text-[11px] text-on-surface-variant/50 pointer-events-none z-[60] whitespace-nowrap hidden lg:block">

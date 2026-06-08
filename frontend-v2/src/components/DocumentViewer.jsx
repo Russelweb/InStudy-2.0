@@ -93,7 +93,7 @@ const DataTable = ({ data, filename }) => {
   );
 };
 
-const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
+const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUploadClick }) => {
   const [documents,    setDocuments]    = useState([]);
   const [selectedDoc,  setSelectedDoc]  = useState(null);
   const [docContent,   setDocContent]   = useState(null);   // for docx/txt
@@ -344,7 +344,16 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
             {loading ? 'Loading...' : error ? 'Error' : documents.length > 0 ? 'Reader Active' : 'Awaiting Input'}
           </span>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          {courseId && onUploadClick && (
+            <button
+              onClick={onUploadClick}
+              className="px-3 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-primary/20 transition-colors flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-sm">upload_file</span>
+              <span className="hidden sm:inline">Upload</span>
+            </button>
+          )}
           {selectedDoc && (
             <button
               onClick={() => { setActiveParaIndex(-1); setAnnotationText(''); }}
@@ -540,9 +549,18 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded }) => {
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4 text-center p-8">
             <span className="material-symbols-outlined text-5xl text-on-surface-variant opacity-30">menu_book</span>
-            <p className="text-on-surface-variant text-sm font-bold uppercase tracking-widest">
+            <p className="text-on-surface-variant text-sm font-bold uppercase tracking-widest mb-2">
               {courseId ? 'Upload a document to begin.' : 'Select a course to load documents.'}
             </p>
+            {courseId && onUploadClick && (
+              <button
+                onClick={onUploadClick}
+                className="px-6 py-3 bg-secondary/10 text-secondary border border-secondary/20 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-secondary/20 transition-all flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">upload_file</span>
+                Upload Material
+              </button>
+            )}
           </div>
         )}
       </div>

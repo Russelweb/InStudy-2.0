@@ -25,8 +25,14 @@ import SavedAssets from './pages/SavedAssets'
 import InSpace from './pages/InSpace'
 
 const ProtectedRoute = () => {
-  const token = localStorage.getItem('auth_token');
-  return token ? <Outlet /> : <Navigate to="/login" replace />;
+  const userRaw = localStorage.getItem('user_info');
+  let user = null;
+  try {
+    user = userRaw ? JSON.parse(userRaw) : null;
+  } catch (e) {
+    user = null;
+  }
+  return user ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 const ScrollToTop = () => {
@@ -99,6 +105,12 @@ function MainLayout() {
 }
 
 function App() {
+  // Clean up legacy sensitive data from localStorage if left over from previous version
+  useEffect(() => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('groq_api_key');
+  }, []);
+
   return (
     <AuraProvider>
       <Router>

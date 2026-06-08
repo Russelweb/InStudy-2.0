@@ -58,6 +58,10 @@ const Settings = () => {
 
   const handleSave = async () => {
     if (!key.trim()) return;
+    if (key.includes('•')) {
+      setStatus({ type: 'error', msg: 'Please enter a new key. The current key is already saved.' });
+      return;
+    }
     if (!key.trim().startsWith('gsk_')) {
       setStatus({ type: 'error', msg: 'That doesn\'t look like a valid Groq key. It should start with "gsk_".' });
       return;
@@ -66,8 +70,7 @@ const Settings = () => {
     setStatus(null);
     try {
       await authService.saveGroqKey(key.trim());
-      // Also cache in localStorage so it's sent on every request immediately
-      localStorage.setItem('groq_api_key', key.trim());
+      // The key is now saved on the server-side database
       setHasKey(true);
       setStatus({ type: 'success', msg: 'Key saved and encrypted successfully. InStudy will now use your personal Groq account.' });
     } catch {
@@ -82,7 +85,6 @@ const Settings = () => {
     setStatus(null);
     try {
       await authService.deleteGroqKey();
-      localStorage.removeItem('groq_api_key');
       setKey('');
       setHasKey(false);
       setStatus({ type: 'success', msg: 'Key removed. InStudy will fall back to the shared model.' });

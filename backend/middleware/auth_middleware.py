@@ -66,18 +66,22 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     request.state.user = user
                     request.state.user_id = user.id
                     
-                    # Extract Groq API Key if provided in header, otherwise fetch from DB
-                    header_key = request.headers.get("X-Groq-API-Key")
-                    if header_key:
-                        request.state.groq_api_key = header_key
-                        logger.info(f"🔑 Found Groq Key in Header for user {user.id}")
+                    # Groq API Key logic: 
+                    # 1. Prioritize server-side .env (settings.GROQ_API_KEY)
+                    # 2. Fallback to database key for this user
+                    # 3. NEVER accept from request headers (for security)
+                    from config import settings
+                    
+                    if settings.GROQ_API_KEY:
+                        request.state.groq_api_key = settings.GROQ_API_KEY
+                        logger.info(f"🔑 Using global Groq Key from .env for user {user.id}")
                     else:
                         db_key = auth_service.get_groq_key(user.id)
                         request.state.groq_api_key = db_key
                         if db_key:
                             logger.info(f"🔑 Using stored Groq Key from DB for user {user.id}")
                         else:
-                            logger.warning(f"⚠️ No Groq Key found for user {user.id} (Header or DB)")
+                            logger.warning(f"⚠️ No Groq Key found for user {user.id} (.env or DB)")
                     
                     logger.debug(f"Authenticated request for user {user.id}: {request.url.path}")
                     
@@ -126,7 +130,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
     
     def extract_token(self, request: Request) -> str:
         """Extract authentication token from request"""
-        # Try Authorization header first
+        # Try HttpOnly cookie first (most secure)
+        session_token = request.cookies.get("session_token")
+        if session_token:
+            return session_token
+            
+        # Try Authorization header (fallback for non-browser clients)
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             return auth_header[7:]  # Remove "Bearer " prefix

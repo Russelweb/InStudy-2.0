@@ -130,7 +130,7 @@ const WelcomeModal = ({ onClose }) => {
         setSaving(true);
         try {
           await authService.saveGroqKey(key.trim());
-          localStorage.setItem('groq_api_key', key.trim());
+          // Key is now saved server-side
         } catch {
           setError('Could not save key right now. You can add it later in Settings.');
         } finally {

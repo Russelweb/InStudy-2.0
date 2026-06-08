@@ -59,13 +59,14 @@ const Sidebar = ({ mobile, onLinkClick, collapsed, onToggleCollapse }) => {
   const menuItems = [
     { icon: 'home', label: 'Dashboard', path: '/' },
     { icon: 'database', label: 'Knowledge Base', path: '/knowledge' },
+    { icon: 'space_dashboard', label: 'InSpace', path: '/inspace' },
     { icon: 'style', label: 'Flashcards', path: '/flashcards' },
     { icon: 'quiz', label: 'Smart Quiz', path: '/quiz' },
     { icon: 'auto_awesome', label: 'AI Summarizer', path: '/summary' },
     { icon: 'event_note', label: 'Study Planner', path: '/planner' },
     { icon: 'psychology', label: 'Mastery Tracker', path: '/mastery' },
-    { icon: 'space_dashboard', label: 'InSpace Canvas', path: '/inspace' },
     { icon: 'smart_toy', label: 'AI Tutor', path: '/ai-tutor' },
+    { label: 'saved assets', path: '/saved-assets' }
   ];
 
   if (isAdmin) menuItems.push({ icon: 'admin_panel_settings', label: 'Admin Hub', path: '/admin' });

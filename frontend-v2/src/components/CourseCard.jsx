@@ -8,7 +8,7 @@ const CourseCard = ({ id, title, lastAccessed, materialCount, mastery, image, on
       initial={{ opacity: 0, scale: 0.95 }}
       whileInView={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -5 }}
-      onClick={() => onSelect && onSelect(id)}
+      onClick={onOpen}
       className={`group bg-surface-container-low rounded-2xl p-6 ghost-border transition-all duration-500 relative flex flex-col aura-glow overflow-hidden cursor-pointer ${
         isActive 
           ? 'ring-2 ring-secondary bg-secondary/5 border-secondary/40' 

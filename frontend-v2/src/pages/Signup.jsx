@@ -28,11 +28,9 @@ const Signup = () => {
     try {
       const res = await authService.signup(formData);
       // Auto-login after signup so we can redirect straight to onboarding
-      if (res.data?.success && res.data?.session_token) {
-        localStorage.setItem('auth_token', res.data.session_token);
-        if (res.data.user) localStorage.setItem('user_info', JSON.stringify(res.data.user));
-      } else {
-        // Fallback: log them in manually
+      // The session_token cookie is now set by the backend
+      if (!res.data?.success) {
+        // Fallback: log them in manually if signup succeeded but no session
         await authService.login(formData.email, formData.password);
       }
       // Mark as new user so Dashboard shows the welcome modal

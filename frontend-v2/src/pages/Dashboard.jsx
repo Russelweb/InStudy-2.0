@@ -390,18 +390,20 @@ const OnboardingChecklist = ({ stats, loading }) => {
 // ---------------------------------------------------------------------------
 // Stat Card
 // ---------------------------------------------------------------------------
-const StatCard = ({ icon, title, value, change, accentColor }) => (
-  <motion.div
-    whileHover={{ y: -5 }}
-    className="glass p-4 sm:p-6 rounded-xl group hover:bg-surface-variant/40 transition-all duration-300"
-  >
-    <div className="flex justify-between items-start mb-3 sm:mb-4">
-      <span className={`material-symbols-outlined text-${accentColor} text-2xl sm:text-3xl`}>{icon}</span>
-      <span className={`text-[9px] sm:text-[10px] font-bold text-${accentColor} tracking-widest`}>{change}</span>
-    </div>
-    <h3 className="text-on-surface-variant text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-1">{title}</h3>
-    <p className="text-xl sm:text-2xl font-black text-on-surface">{value}</p>
-  </motion.div>
+const StatCard = ({ icon, title, value, change, accentColor, path }) => (
+  <Link to={path} className="block h-full">
+    <motion.div
+      whileHover={{ y: -5 }}
+      className="glass p-4 sm:p-6 rounded-xl group hover:bg-surface-variant/40 transition-all duration-300 cursor-pointer h-full"
+    >
+      <div className="flex justify-between items-start mb-3 sm:mb-4">
+        <span className={`material-symbols-outlined text-${accentColor} text-2xl sm:text-3xl`}>{icon}</span>
+        <span className={`text-[9px] sm:text-[10px] font-bold text-${accentColor} tracking-widest`}>{change}</span>
+      </div>
+      <h3 className="text-on-surface-variant text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-1">{title}</h3>
+      <p className="text-xl sm:text-2xl font-black text-on-surface">{value}</p>
+    </motion.div>
+  </Link>
 );
 
 // ---------------------------------------------------------------------------
@@ -472,11 +474,22 @@ const Dashboard = () => {
   // Build chart rows from raw daily_activity
   const allRows = useMemo(() => buildDailyRows(stats.daily_activity), [stats.daily_activity]);
 
+  // Resolve last active course
+  const lastActiveCourse = useMemo(() => {
+    if (loading || !stats.courses || stats.courses.length === 0) return null;
+    const activeId = localStorage.getItem('activeCourse');
+    if (activeId) {
+      const found = stats.courses.find(c => c.id === activeId);
+      if (found) return found;
+    }
+    return stats.courses[0];
+  }, [loading, stats.courses]);
+
   const statsCards = [
-    { label: 'Active Courses', value: stats.total_courses,     icon: 'school',     color: 'primary',   badge: 'COURSES'   },
-    { label: 'Documents',      value: stats.total_documents,   icon: 'psychology', color: 'secondary', badge: 'UPLOADED'  },
-    { label: 'Study Hours',    value: `${stats.study_hours}h`, icon: 'timer',      color: 'primary',   badge: 'LOGGED'    },
-    { label: 'Evaluations',    value: stats.quizzes_taken,     icon: 'analytics',  color: 'secondary', badge: 'COMPLETED' },
+    { label: 'Active Courses', value: stats.total_courses,     icon: 'school',     color: 'primary',   badge: 'COURSES',   path: '/knowledge' },
+    { label: 'Documents',      value: stats.total_documents,   icon: 'psychology', color: 'secondary', badge: 'UPLOADED',  path: '/saved-assets' },
+    { label: 'Study Hours',    value: `${stats.study_hours}h`, icon: 'timer',      color: 'primary',   badge: 'LOGGED',    path: '/mastery' },
+    { label: 'Evaluations',    value: stats.quizzes_taken,     icon: 'analytics',  color: 'secondary', badge: 'COMPLETED', path: '/quiz' },
   ];
 
   const topCourse    = stats.courses.length > 0 ? stats.courses.reduce((a, b) => a.mastery > b.mastery ? a : b) : null;
@@ -515,10 +528,39 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
+      {/* Last Course Interaction */}
+      {!loading && lastActiveCourse && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 p-6 bg-surface-container-low border border-secondary/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden group hover:border-secondary/40 transition-colors"
+        >
+          <div className="absolute -left-12 -bottom-12 w-36 h-36 bg-secondary/5 blur-[50px] rounded-full pointer-events-none" />
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-xl bg-secondary/15 flex items-center justify-center text-secondary shrink-0 group-hover:scale-105 transition-transform">
+              <span className="material-symbols-outlined text-2xl">history</span>
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-secondary/70">Last Interacted Course</span>
+              <h3 className="text-lg font-black text-on-surface truncate mt-0.5">{lastActiveCourse.name}</h3>
+              <p className="text-xs text-on-surface-variant/80 mt-1">{lastActiveCourse.document_count} Documents · {lastActiveCourse.mastery}% Mastered</p>
+            </div>
+          </div>
+          <Link
+            to={`/workspace?id=${lastActiveCourse.id}`}
+            onClick={() => localStorage.setItem('activeCourse', lastActiveCourse.id)}
+            className="w-full sm:w-auto px-6 py-3 bg-secondary text-on-secondary font-black text-xs uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-transform flex items-center justify-center gap-2 animate-pulse"
+          >
+            <span className="material-symbols-outlined text-sm">rocket_launch</span>
+            Resume Study
+          </Link>
+        </motion.div>
+      )}
+
       {/* Stat Grid */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8 sm:mb-12">
         {statsCards.map((card, i) => (
-          <StatCard key={i} icon={card.icon} title={card.label} value={loading ? '—' : card.value} change={card.badge} accentColor={card.color} />
+          <StatCard key={i} icon={card.icon} title={card.label} value={loading ? '—' : card.value} change={card.badge} accentColor={card.color} path={card.path} />
         ))}
       </div>
 
@@ -580,9 +622,14 @@ const Dashboard = () => {
             <h2 className="text-xl font-bold text-on-surface mb-6">Top Courses</h2>
             <div className="space-y-6">
               {topConcepts.length > 0 ? topConcepts.map((course, i) => (
-                <div key={i}>
+                <Link
+                  key={i}
+                  to={`/workspace?id=${course.id}`}
+                  onClick={() => localStorage.setItem('activeCourse', course.id)}
+                  className="block group cursor-pointer hover:bg-surface-variant/20 p-2 rounded-lg transition-all"
+                >
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="font-bold truncate pr-2">{course.name}</span>
+                    <span className="font-bold truncate pr-2 group-hover:text-primary transition-colors">{course.name}</span>
                     <span className="text-secondary shrink-0">{course.mastery}%</span>
                   </div>
                   <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -593,7 +640,7 @@ const Dashboard = () => {
                       className="h-full bg-primary rounded-full"
                     ></motion.div>
                   </div>
-                </div>
+                </Link>
               )) : (
                 <p className="text-xs text-on-surface-variant text-center py-4">Take quizzes to see mastery scores.</p>
               )}
@@ -610,10 +657,17 @@ const Dashboard = () => {
             <h2 className="text-xl font-bold text-on-surface mb-6">Recent Questions</h2>
             <div className="space-y-4">
               {recentQueries.length > 0 ? recentQueries.map((q, i) => (
-                <div key={i} className={`p-3 rounded-lg bg-surface-container-highest/50 border-l-2 ${i % 2 === 0 ? 'border-primary' : 'border-secondary'} hover:bg-surface-container-highest transition-all`}>
-                  <p className="text-xs text-on-surface mb-1 line-clamp-2">{q.question}</p>
-                  <span className="text-[10px] text-on-surface-variant font-mono uppercase tracking-widest">{q.course || 'General'}</span>
-                </div>
+                <Link
+                  key={i}
+                  to={q.course ? `/ai-tutor?id=${q.course}` : '/ai-tutor'}
+                  onClick={() => q.course && localStorage.setItem('activeCourse', q.course)}
+                  className="block"
+                >
+                  <div className={`p-3 rounded-lg bg-surface-container-highest/50 border-l-2 ${i % 2 === 0 ? 'border-primary' : 'border-secondary'} hover:bg-surface-container-highest transition-all cursor-pointer`}>
+                    <p className="text-xs text-on-surface mb-1 line-clamp-2">{q.question}</p>
+                    <span className="text-[10px] text-on-surface-variant font-mono uppercase tracking-widest">{q.course || 'General'}</span>
+                  </div>
+                </Link>
               )) : (
                 <p className="text-xs text-on-surface-variant text-center py-4">Ask the AI Tutor questions to see them here.</p>
               )}

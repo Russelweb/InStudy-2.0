@@ -14,19 +14,17 @@ const getBaseURL = () => {
 // Create base instance
 const API = axios.create({
   baseURL: getBaseURL(),
+  withCredentials: true, // Send cookies with requests
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request Interceptor — attach auth token and Groq key to every request
+// Request Interceptor — sensitive info (tokens, keys) are handled via cookies and server-side env
 API.interceptors.request.use((config) => {
-  const groqKey = localStorage.getItem('groq_api_key');
-  const token = localStorage.getItem('auth_token');
-
-  if (groqKey) config.headers['X-Groq-API-Key'] = groqKey;
-  if (token)   config.headers['Authorization'] = `Bearer ${token}`;
-
+  // We no longer manually attach auth token or groq key headers
+  // auth_token is handled by HttpOnly cookie (session_token)
+  // groq_api_key is handled strictly server-side
   return config;
 }, (error) => Promise.reject(error));
 
@@ -35,104 +33,92 @@ API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token');
       localStorage.removeItem('user_info');
-      window.location.href = '/login';
+      // If we're not already on login/signup, redirect
+      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/signup')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
 );
 
 // ---------------------------------------------------------------------------
-// Auto-Save Timer - Saves unsaved work 10 minutes after logout
+// Auto-Save - Saves unsaved work synchronously before logout
 // ---------------------------------------------------------------------------
-let autoSaveTimer = null;
-
-const startAutoSaveTimer = async () => {
-  // Clear any existing timer
-  if (autoSaveTimer) clearTimeout(autoSaveTimer);
-  
-  console.log('Auto-save timer started (10 minutes)...');
-  
-  // Set 10-minute timer
-  autoSaveTimer = setTimeout(async () => {
-    console.log('Auto-saving session data...');
-    
-    try {
-      // Check for unsaved flashcards
-      const flashcardCards = localStorage.getItem('flashcards_cards');
-      const flashcardDeck = localStorage.getItem('flashcards_deck_id');
-      if (flashcardCards && flashcardDeck) {
-        try {
-          const cards = JSON.parse(flashcardCards);
-          if (cards.length > 0) {
-            const settings = JSON.parse(localStorage.getItem('flashcards_settings') || '{}');
-            await assetService.save(
-              flashcardDeck,
-              'flashcards',
-              `Auto-saved ${new Date().toLocaleString()}`,
-              { cards, settings, auto_saved: true },
-              { card_count: cards.length }
-            );
-            console.log('✅ Auto-saved flashcards');
-          }
-        } catch (e) {
-          console.error('Auto-save flashcards failed:', e);
-        }
-      }
-      
-      // Check for unsaved quiz
-      const quizQuestions = localStorage.getItem('quiz_questions');
-      const quizCourse = localStorage.getItem('quiz_selected_course');
-      const quizResults = localStorage.getItem('quiz_results');
-      if (quizQuestions && quizCourse) {
-        try {
-          const questions = JSON.parse(quizQuestions);
-          const results = quizResults ? JSON.parse(quizResults) : null;
-          if (questions.length > 0) {
-            await assetService.save(
-              quizCourse,
-              'quiz',
-              `Auto-saved ${new Date().toLocaleString()}`,
-              { questions, results, auto_saved: true },
-              { total_questions: questions.length }
-            );
-            console.log('✅ Auto-saved quiz');
-          }
-        } catch (e) {
-          console.error('Auto-save quiz failed:', e);
-        }
-      }
-      
-      // Check for unsaved study plan
-      const planData = localStorage.getItem('planner_plan');
-      const planCourse = localStorage.getItem('planner_course');
-      if (planData && planCourse) {
-        try {
-          const plan = JSON.parse(planData);
-          const examDate = localStorage.getItem('planner_date');
-          const topics = JSON.parse(localStorage.getItem('planner_topics') || '[]');
-          const completedTasks = JSON.parse(localStorage.getItem('planner_completed_tasks') || '{}');
-          
+const performImmediateAutoSave = async () => {
+  console.log('Auto-saving session data before logout...');
+  try {
+    // Check for unsaved flashcards
+    const flashcardCards = localStorage.getItem('flashcards_cards');
+    const flashcardDeck = localStorage.getItem('flashcards_deck_id');
+    if (flashcardCards && flashcardDeck) {
+      try {
+        const cards = JSON.parse(flashcardCards);
+        if (cards.length > 0) {
+          const settings = JSON.parse(localStorage.getItem('flashcards_settings') || '{}');
           await assetService.save(
-            planCourse,
-            'study_plan',
+            flashcardDeck,
+            'flashcards',
             `Auto-saved ${new Date().toLocaleString()}`,
-            { plan, examDate, topics, completedTasks, auto_saved: true },
-            { exam_date: examDate }
+            { cards, settings, auto_saved: true },
+            { card_count: cards.length }
           );
-          console.log('✅ Auto-saved study plan');
-        } catch (e) {
-          console.error('Auto-save plan failed:', e);
+          console.log('✅ Auto-saved flashcards');
         }
+      } catch (e) {
+        console.error('Auto-save flashcards failed:', e);
       }
-      
-      console.log('Auto-save complete. Clearing localStorage...');
-      localStorage.clear();
-    } catch (error) {
-      console.error('Auto-save error:', error);
     }
-  }, 10 * 60 * 1000); // 10 minutes
+    
+    // Check for unsaved quiz
+    const quizQuestions = localStorage.getItem('quiz_questions');
+    const quizCourse = localStorage.getItem('quiz_selected_course');
+    const quizResults = localStorage.getItem('quiz_results');
+    if (quizQuestions && quizCourse) {
+      try {
+        const questions = JSON.parse(quizQuestions);
+        const results = quizResults ? JSON.parse(quizResults) : null;
+        if (questions.length > 0) {
+          await assetService.save(
+            quizCourse,
+            'quiz',
+            `Auto-saved ${new Date().toLocaleString()}`,
+            { questions, results, auto_saved: true },
+            { total_questions: questions.length }
+          );
+          console.log('✅ Auto-saved quiz');
+        }
+      } catch (e) {
+        console.error('Auto-save quiz failed:', e);
+      }
+    }
+    
+    // Check for unsaved study plan
+    const planData = localStorage.getItem('planner_plan');
+    const planCourse = localStorage.getItem('planner_course');
+    if (planData && planCourse) {
+      try {
+        const plan = JSON.parse(planData);
+        const examDate = localStorage.getItem('planner_date');
+        const topics = JSON.parse(localStorage.getItem('planner_topics') || '[]');
+        const completedTasks = JSON.parse(localStorage.getItem('planner_completed_tasks') || '{}');
+        
+        await assetService.save(
+          planCourse,
+          'study_plan',
+          `Auto-saved ${new Date().toLocaleString()}`,
+          { plan, examDate, topics, completedTasks, auto_saved: true },
+          { exam_date: examDate }
+        );
+        console.log('✅ Auto-saved study plan');
+      } catch (e) {
+        console.error('Auto-save plan failed:', e);
+      }
+    }
+  } catch (error) {
+    console.error('Auto-save error:', error);
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -141,7 +127,7 @@ const startAutoSaveTimer = async () => {
 export const authService = {
   login: async (email, password) => {
     const response = await API.post('/auth/login', { email, password });
-    if (response.data.success && response.data.session_token) {
+    if (response.data.success) {
       const newUser = response.data.user;
       const oldUserRaw = localStorage.getItem('user_info');
       
@@ -157,7 +143,7 @@ export const authService = {
         }
       }
 
-      localStorage.setItem('auth_token', response.data.session_token);
+      // auth_token is now in an HttpOnly cookie
       if (newUser) {
         localStorage.setItem('user_info', JSON.stringify(newUser));
       }
@@ -173,16 +159,31 @@ export const authService = {
       password: userData.password,
       confirm_password: userData.confirm_password || userData.password,
     };
-    return API.post('/auth/register', payload);
+    const response = await API.post('/auth/register', payload);
+    
+    // Also handle automatic login after signup if backend sets cookie
+    if (response.data.success && response.data.user) {
+      localStorage.setItem('user_info', JSON.stringify(response.data.user));
+    }
+    
+    return response;
   },
 
   getMe: () => API.get('/auth/me'),
 
-  logout: () => {
-    console.log('Logout initiated. Starting auto-save timer...');
-    startAutoSaveTimer(); // Start the 10-minute timer
-    API.post('/auth/logout').catch(() => {});
-    // Redirect immediately but don't clear localStorage yet (auto-save will do it)
+  logout: async () => {
+    console.log('Logout initiated. Performing immediate auto-save...');
+    await performImmediateAutoSave();
+    
+    // Clear localStorage immediately to remove all session information and keys
+    localStorage.clear();
+    
+    try {
+      await API.post('/auth/logout');
+    } catch (e) {
+      console.error('Logout request failed:', e);
+    }
+    
     window.location.href = '/login';
   },
 
@@ -263,16 +264,14 @@ export const chatService = {
 
   // Streaming — returns a native fetch Response so the caller can iterate SSE chunks
   streamMessage: async (message, courseId, useEli12 = false, personality = 'strict') => {
-    const token = localStorage.getItem('auth_token');
-    const groqKey = localStorage.getItem('groq_api_key');
-
+    // We no longer manually attach auth token or groq key. 
+    // fetch will send the session_token cookie automatically with credentials: 'include'
     const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    if (groqKey) headers['X-Groq-API-Key'] = groqKey;
 
     return fetch(`/api/chat/ask-stream`, {
       method: 'POST',
       headers,
+      credentials: 'include', // Important for sending HttpOnly cookies
       body: JSON.stringify({ course_id: courseId, question: message, use_eli12: useEli12, personality }),
     });
   },

@@ -15,7 +15,7 @@ router = APIRouter()
 security = HTTPBearer(auto_error=False)
 
 @router.post("/register", response_model=AuthResult)
-async def register(request: RegisterRequest):
+async def register(request: RegisterRequest, response: Response):
     """Register a new user account"""
     try:
         result = auth_service.register_user(
@@ -27,6 +27,16 @@ async def register(request: RegisterRequest):
         if not result.success:
             raise HTTPException(status_code=400, detail=result.error_message)
         
+        # Set session token in HttpOnly cookie
+        response.set_cookie(
+            key="session_token",
+            value=result.session_token,
+            httponly=True,
+            max_age=90 * 24 * 60 * 60,  # 90 days
+            samesite="lax",
+            secure=False,  # Set to True in production with HTTPS
+        )
+        
         return result
         
     except HTTPException:
@@ -36,7 +46,7 @@ async def register(request: RegisterRequest):
         raise HTTPException(status_code=500, detail="Registration failed")
 
 @router.post("/login", response_model=AuthResult)
-async def login(request: LoginRequest):
+async def login(request: LoginRequest, response: Response):
     """Authenticate user and create session"""
     try:
         result = auth_service.login_user(
@@ -47,6 +57,16 @@ async def login(request: LoginRequest):
         if not result.success:
             raise HTTPException(status_code=401, detail=result.error_message)
         
+        # Set session token in HttpOnly cookie
+        response.set_cookie(
+            key="session_token",
+            value=result.session_token,
+            httponly=True,
+            max_age=90 * 24 * 60 * 60,  # 90 days
+            samesite="lax",
+            secure=False,  # Set to True in production with HTTPS
+        )
+        
         return result
         
     except HTTPException:
@@ -56,14 +76,23 @@ async def login(request: LoginRequest):
         raise HTTPException(status_code=500, detail="Login failed")
 
 @router.post("/logout")
-async def logout(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+async def logout(response: Response, credentials: Optional[HTTPAuthorizationCredentials] = Depends(security), request: Request = None):
     """Logout user by deleting session"""
     try:
-        if not credentials:
+        # Try to get token from cookie first, then header
+        token = None
+        if request and "session_token" in request.cookies:
+            token = request.cookies.get("session_token")
+        elif credentials:
+            token = credentials.credentials
+            
+        if not token:
             raise HTTPException(status_code=401, detail="No token provided")
         
-        token = credentials.credentials
         success = auth_service.logout_user(token)
+        
+        # Always clear the cookie regardless of success
+        response.delete_cookie(key="session_token")
         
         if not success:
             raise HTTPException(status_code=400, detail="Logout failed")
@@ -77,13 +106,19 @@ async def logout(credentials: Optional[HTTPAuthorizationCredentials] = Depends(s
         raise HTTPException(status_code=500, detail="Logout failed")
 
 @router.get("/me", response_model=User)
-async def get_me(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+async def get_me(request: Request, credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
     """Get current user information"""
     try:
-        if not credentials:
+        # Try to get token from cookie first, then header
+        token = None
+        if "session_token" in request.cookies:
+            token = request.cookies.get("session_token")
+        elif credentials:
+            token = credentials.credentials
+            
+        if not token:
             raise HTTPException(status_code=401, detail="No token provided")
         
-        token = credentials.credentials
         user = auth_service.get_current_user(token)
         
         if not user:
@@ -98,13 +133,19 @@ async def get_me(credentials: Optional[HTTPAuthorizationCredentials] = Depends(s
         raise HTTPException(status_code=500, detail="Failed to get user info")
 
 @router.post("/verify")
-async def verify_token(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+async def verify_token(request: Request, credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
     """Verify if token is valid"""
     try:
-        if not credentials:
+        # Try to get token from cookie first, then header
+        token = None
+        if "session_token" in request.cookies:
+            token = request.cookies.get("session_token")
+        elif credentials:
+            token = credentials.credentials
+            
+        if not token:
             return {"valid": False, "message": "No token provided"}
         
-        token = credentials.credentials
         user = auth_service.get_current_user(token)
         
         if user:
@@ -126,8 +167,11 @@ async def get_authenticated_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> User:
     """Dependency to get authenticated user for protected routes."""
+    # Try to get token from cookie first, then header
     token = None
-    if credentials:
+    if "session_token" in request.cookies:
+        token = request.cookies.get("session_token")
+    elif credentials:
         token = credentials.credentials
 
     if not token:
@@ -154,11 +198,18 @@ async def update_groq_key(
 async def get_groq_key(
     current_user: User = Depends(get_authenticated_user)
 ):
-    """Get current user's Groq API key (decrypted)"""
+    """Get current user's Groq API key (masked for privacy)"""
     key = auth_service.get_groq_key(current_user.id)
     if not key:
         raise HTTPException(status_code=404, detail="Groq API key not found")
-    return {"groq_api_key": key}
+    
+    # Mask the key so plaintext is not transmitted or exposed on the client side
+    if len(key) > 8:
+        masked_key = key[:4] + "•" * (len(key) - 8) + key[-4:]
+    else:
+        masked_key = "••••••••"
+        
+    return {"groq_api_key": masked_key}
 @router.post("/accept-policy")
 async def accept_policy(
     current_user: User = Depends(get_authenticated_user)

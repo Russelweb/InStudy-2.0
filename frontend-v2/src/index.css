@@ -4,19 +4,19 @@
 
 :root {
   color-scheme: dark;
-  /* Fluid typography base */
-  font-size: 14px;
+  /* Fluid typography base - scaled up for better readability */
+  font-size: 16px;
 }
 
 @media (min-width: 768px) {
   :root {
-    font-size: 15px;
+    font-size: 17px;
   }
 }
 
 @media (min-width: 1280px) {
   :root {
-    font-size: 16px;
+    font-size: 18px;
   }
 }
 
@@ -163,4 +163,9 @@ body {
 .overflow-wrap-anywhere {
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+/* Reduce button shadow intensity globally */
+button[class*="shadow-"], button.shadow-lg, button.shadow-xl, button.shadow-2xl {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
