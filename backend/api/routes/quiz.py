@@ -25,6 +25,7 @@ class QuizEvaluationRequest(BaseModel):
     course_id: str
     questions: List[Dict[str, Any]]
     user_answers: Dict[str, str]
+    difficulty: str = "medium"    # passed through for mastery XP calculation
 
 class QuizEvaluationResponse(BaseModel):
     """Quiz evaluation response"""
@@ -32,6 +33,7 @@ class QuizEvaluationResponse(BaseModel):
     correct_answers: int
     score_percentage: float
     question_results: List[Dict[str, Any]]
+    mastery_update: Optional[Dict[str, Any]] = None  # V2 XP data for frontend toast
 
 def get_user_from_request(request: Request) -> Optional[User]:
     """Extract and verify user from request"""
@@ -140,44 +142,142 @@ async def evaluate_quiz(
         
         # Log quiz completion and update mastery
         print("Step 8: Logging activity and updating mastery...")
+        mastery_result = None
         try:
-            from database.mastery_db import mastery_db
             log_activity(user_id, "quiz_completed", {
                 "course_id": request_data.course_id,
                 "score": results["score_percentage"],
                 "total_questions": results["total_questions"],
                 "correct_answers": results["correct_answers"]
             })
-            
-            # Incremental mastery updates from quiz performance
-            for q_res in results["question_results"]:
-                concept = q_res.get("concept")
-                is_correct = q_res.get("is_correct")
-                q_type = q_res.get("type", "multiple_choice")
-                
-                if concept:
-                    # HEAVIER WEIGHTS:
-                    # Structural answers prove deeper knowledge than MCQ
-                    if q_type in ["short_answer", "structural"]:
-                        familiarity_delta = 0.5 if is_correct else -0.7
-                    else:
-                        familiarity_delta = 0.4 if is_correct else -0.6
-                        
-                    mastery_db.update_mastery(
-                        user_id, 
-                        request_data.course_id, 
-                        concept, 
-                        familiarity_delta,
-                        action='quiz_answer'
-                    )
-                    
+
+            # ── Mastery V2: batch event through MasteryEngine ────────────────
+            # Load all subtopics once for name-matching (handles pre-extraction questions)
+            from database.mastery_v2_db import mastery_v2_db as mv2
+            all_subtopics = mv2.get_subtopics_for_course(user_id, request_data.course_id)
+            subtopic_by_name = {}
+            for s in all_subtopics:
+                subtopic_by_name[s["concept_name"].lower()] = s
+
+            print(f"Step 8a: Loaded {len(all_subtopics)} subtopics for course {request_data.course_id}")
+
+            def _resolve_subtopic(q_result, question_list):
+                """Resolve subtopic_id + doc_id for a question result."""
+                # 1. Try explicit tag on result
+                sid = q_result.get("subtopic_id")
+                did = q_result.get("doc_id")
+                if sid and did:
+                    return sid, did
+                # 2. Try explicit tag on original question
+                matched_q = next(
+                    (q for q in question_list if q.get("question") == q_result.get("question")), None
+                )
+                if matched_q:
+                    sid = matched_q.get("subtopic_id")
+                    did = matched_q.get("doc_id")
+                    if sid and did:
+                        return sid, did
+                # 3. Name-match via concept label
+                concept = (q_result.get("concept") or "").lower().strip()
+                if not concept or not subtopic_by_name:
+                    return None, None
+
+                # Exact match
+                if concept in subtopic_by_name:
+                    s = subtopic_by_name[concept]
+                    return s["concept_id"], s["doc_id"]
+
+                # Substring match
+                for name, s in subtopic_by_name.items():
+                    if concept in name or name in concept:
+                        return s["concept_id"], s["doc_id"]
+
+                # Word-level overlap (at least one meaningful word in common)
+                c_words = set(w for w in concept.split() if len(w) > 3)
+                if c_words:
+                    for name, s in subtopic_by_name.items():
+                        n_words = set(w for w in name.split() if len(w) > 3)
+                        if c_words & n_words:
+                            return s["concept_id"], s["doc_id"]
+
+                return None, None
+
+            v2_events = []
+            for idx, q_res in enumerate(results["question_results"]):
+                # Get concept from the ORIGINAL question by index (q_res may not have it)
+                original_q = request_data.questions[idx] if idx < len(request_data.questions) else {}
+                concept_label = (
+                    q_res.get("concept")
+                    or original_q.get("concept")
+                    or ""
+                )
+                # Fix: None or "None" string → empty
+                if not concept_label or str(concept_label).lower() in ("none", "null", ""):
+                    concept_label = ""
+
+                # Also check subtopic tags from original question
+                q_res["concept"] = concept_label  # ensure result has it too
+
+                subtopic_id, doc_id = _resolve_subtopic(
+                    {**q_res, "concept": concept_label},
+                    request_data.questions
+                )
+                if subtopic_id and doc_id:
+                    print(f"Step 8b: Matched concept='{concept_label}' → subtopic={subtopic_id[:8]}")
+                    v2_events.append({
+                        "doc_id": doc_id,
+                        "concept_id": subtopic_id,
+                        "correct": q_res.get("is_correct", False),
+                        "difficulty": request_data.difficulty if hasattr(request_data, "difficulty") else "medium",
+                        "question_text": q_res.get("question", "")[:200],
+                    })
+                else:
+                    print(f"Step 8b: No match for concept='{concept_label}' (available: {list(subtopic_by_name.keys())[:4]})")
+
+            if v2_events:
+                from services.mastery_engine import mastery_engine
+                mastery_result = mastery_engine.log_quiz_batch(
+                    user_id=user_id,
+                    course_id=request_data.course_id,
+                    results=v2_events,
+                )
+                print(f"Step 8a: V2 mastery updated — +{mastery_result['total_xp']} XP, "
+                      f"course={mastery_result['course_mastery_pct']:.1f}%")
+            else:
+                # ── Legacy fallback ──────────────────────────────────────────
+                from database.mastery_db import mastery_db
+                for q_res in results["question_results"]:
+                    concept = q_res.get("concept")
+                    is_correct = q_res.get("is_correct")
+                    q_type = q_res.get("type", "multiple_choice")
+                    if concept:
+                        if q_type in ["short_answer", "structural"]:
+                            familiarity_delta = 0.5 if is_correct else -0.7
+                        else:
+                            familiarity_delta = 0.4 if is_correct else -0.6
+                        mastery_db.update_mastery(
+                            user_id, request_data.course_id, concept,
+                            familiarity_delta, action='quiz_answer'
+                        )
+            # ─────────────────────────────────────────────────────────────────
+
             print("Step 9: Activity and mastery logged successfully")
         except Exception as log_error:
             print(f"Step 9: Failed to log activity/mastery (non-critical): {log_error}")
-            
+
+        # Attach mastery result to response for frontend XP toast
+        response_data = results.copy()
+        if mastery_result:
+            response_data["mastery_update"] = {
+                "total_xp": mastery_result["total_xp"],
+                "course_mastery_pct": mastery_result["course_mastery_pct"],
+            }
+        else:
+            response_data["mastery_update"] = None
+
         print("Step 10: Returning results...")
         print("=" * 50)
-        return QuizEvaluationResponse(**results)
+        return QuizEvaluationResponse(**response_data)
     
     except HTTPException as he:
         print(f"HTTPException raised: {he.status_code} - {he.detail}")

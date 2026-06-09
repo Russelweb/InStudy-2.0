@@ -1,5 +1,5 @@
 from config import settings
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
 from services.document_processor import DocumentProcessor
 from services.concept_service import concept_service
 from models.global_models import get_llm, get_embeddings
@@ -10,6 +10,40 @@ from sklearn.metrics.pairwise import cosine_similarity
 from database.auth_db import auth_db
 
 logger = logging.getLogger(__name__)
+
+
+def _get_adaptive_quiz_subtopics(user_id: str, course_id: str,
+                                  num_questions: int) -> Tuple[List[Dict], str]:
+    """
+    Build an adaptive subtopic selection for quiz generation.
+
+    Priority order:
+      1. Subtopics with zero quiz XP (never quizzed) — guaranteed slot
+      2. Subtopics with lowest mastery % — weighted more questions
+      3. Core weight subtopics before peripheral
+
+    Returns (subtopics_list, search_query_string)
+    """
+    try:
+        from database.mastery_v2_db import mastery_v2_db
+        subtopics = mastery_v2_db.get_weakest_subtopics(
+            user_id, course_id, limit=num_questions * 4
+        )
+        if not subtopics:
+            return [], ""
+
+        # Guaranteed: subtopics never quizzed
+        never_quizzed = [s for s in subtopics if s.get("quiz_xp", 0) == 0]
+        weak = [s for s in subtopics if s.get("quiz_xp", 0) > 0]
+
+        # Build search query from top weak subtopics
+        query_terms = [s["concept_name"] for s in (never_quizzed + weak)[:6]]
+        search_query = " ".join(query_terms)
+
+        return subtopics, search_query
+    except Exception as e:
+        logger.warning(f"Adaptive quiz subtopics failed: {e}")
+        return [], ""
 
 
 class QuizService:
@@ -28,31 +62,68 @@ class QuizService:
         """Generate quiz from study materials using local LLM"""
         logger.info(f"Generating {num_questions} {difficulty} {quiz_type} questions with mastery awareness{f' for topic: {topic}' if topic else ''}")
         
-        # Get appropriate LLM
         llm = get_llm(api_key)
-        
         vector_store = self.doc_processor.get_vector_store(user_id, course_id)
-        
         if not vector_store:
             raise ValueError("No documents found for this course. Please upload study materials first.")
-            
-        # Get mastery context
-        mastery_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
-        
-        # Target search query - prioritize topic if specified
+
+        # ── Mastery V2: adaptive subtopic selection ──────────────────────────
+        adaptive_subtopics, adaptive_query = [], ""
+        subtopic_lookup: Dict[str, Dict] = {}
+
+        if not topic:
+            adaptive_subtopics, adaptive_query = _get_adaptive_quiz_subtopics(
+                user_id, course_id, num_questions
+            )
+            if adaptive_subtopics:
+                for st in adaptive_subtopics:
+                    subtopic_lookup[st["concept_name"].lower()] = {
+                        "concept_id": st["concept_id"],
+                        "doc_id": st["doc_id"],
+                    }
+
+                # Build mastery context for prompt
+                never_quizzed = [s["concept_name"] for s in adaptive_subtopics
+                                 if s.get("quiz_xp", 0) == 0][:8]
+                weak_names = [s["concept_name"] for s in adaptive_subtopics
+                              if s.get("mastery_pct", 0) < 40 and s.get("quiz_xp", 0) > 0][:8]
+                mastery_context = ""
+                if never_quizzed:
+                    mastery_context += f"NEVER QUIZZED (must include): {', '.join(never_quizzed)}\n"
+                if weak_names:
+                    mastery_context += f"WEAK CONCEPTS (prioritize): {', '.join(weak_names)}\n"
+                logger.info(f"Adaptive quiz: {len(never_quizzed)} never-quizzed, {len(weak_names)} weak")
+            else:
+                mastery_context = ""
+        else:
+            mastery_context = ""
+        # ────────────────────────────────────────────────────────────────────
+
+        # ── Legacy mastery fallback ──────────────────────────────────────────
+        if not mastery_context and not topic:
+            legacy_context = concept_service.get_summary_context_for_mastery(user_id, course_id)
+            mastery_context = legacy_context if legacy_context else ""
+        # ────────────────────────────────────────────────────────────────────
+
+        # Search query
         if topic:
             search_query = topic
-            logger.info(f"Focusing quiz on specific topic: {topic}")
+        elif adaptive_query:
+            search_query = adaptive_query
         else:
             search_query = ""
             if "WEAK IN" in mastery_context:
                 try:
                     search_query = mastery_context.split("WEAK IN (Expand these):")[1].split("\n")[0].strip()
                 except: pass
-        
-        # Get diverse content samples emphasizing weak areas (optimized for speed)
+
         docs = vector_store.similarity_search(search_query, k=min(5, max(3, num_questions // 2)))
         context = "\n\n".join([doc.page_content for doc in docs[:3]])
+        
+        # Get preferred language
+        preferred_language = "English"
+        if user_id.isdigit():
+            preferred_language = auth_db.get_preferred_language(int(user_id))
         
         type_instruction = {
             "multiple_choice": "multiple choice questions with 4 options",
@@ -60,22 +131,15 @@ class QuizService:
             "short_answer": "short answer questions",
             "mixed": "a mix of multiple choice, true/false, and short answer questions"
         }
-        
-        # Get preferred language
-        preferred_language = "English"
-        if user_id.isdigit():
-            preferred_language = auth_db.get_preferred_language(int(user_id))
-            
-        # Build prompt prefix with topic focus and mastery awareness
+
         prompt_prefix = ""
         if topic:
             prompt_prefix = f"TOPIC FOCUS: Generate quiz questions EXCLUSIVELY about '{topic}'. All questions must be directly related to this specific topic.\n\n"
-        if mastery_context and not topic:
-            prompt_prefix += f"USER MASTERY DATA:\n{mastery_context}\nPlease prioritize generating questions that test the user's 'WEAK' concepts.\n\n"
-        
-        prompt_prefix += f"LANGUAGE INSTRUCTION (MANDATORY): The user's preferred language is: {preferred_language}. Generate ALL quiz content (Questions, Options, Correct Answers, Explanations, and Concepts) entirely in {preferred_language}. If the study material is in a different language, act as an expert translator.\n\n"
+        if mastery_context:
+            prompt_prefix += f"USER MASTERY DATA:\n{mastery_context}\nPrioritize concepts listed as NEVER QUIZZED and WEAK above.\n\n"
 
-        
+        prompt_prefix += f"LANGUAGE INSTRUCTION (MANDATORY): The user's preferred language is: {preferred_language}. Generate ALL quiz content entirely in {preferred_language}.\n\n"
+
         prompt = f"""{prompt_prefix}You are creating a quiz for a student. Generate exactly {num_questions} questions.
 
 Study Material:
@@ -86,78 +150,73 @@ Difficulty: {difficulty.lower()}
 
 CRITICAL INSTRUCTIONS:
 1. Return ONLY a valid JSON object, nothing else. No markdown or explanations outside the JSON.
-2. DO NOT add trailing commas. This causes JSON parse errors.
-3. For structural/short answer questions: provide concise, 1-sentence answers.
-4. For EVERY explanation, provide a detailed, highly educational note (3-4 sentences). Explain why the answer is correct, provide additional context or an analogy, and mention common pitfalls. This is the Tutor Note.
+2. DO NOT add trailing commas.
+3. For EVERY question, include a "concept" field that identifies the 1-2 word main topic (match exactly to the NEVER QUIZZED/WEAK concepts listed above when possible).
+4. For EVERY explanation, provide a detailed educational note (3-4 sentences).
 5. For multiple choice: exactly 4 options. For true/false: ["True", "False"].
-6. For EVERY question, include a "concept" field that identifies the 1-2 word main topic.
-7. For mixed type: ensure a balanced variety of multiple_choice, true_false, and short_answer.
+6. For mixed type: ensure a balanced variety.
 
 Format:
-{{"questions": [{{"question": "Q?", "type": "multiple_choice", "options": ["A","B","C","D"], "correct_answer": "A", "explanation": "Detailed explanation why this is correct", "concept": "Topic"}}]}}
-
-EXAMPLES:
-Multiple Choice:
-{{"question": "What is photosynthesis?", "type": "multiple_choice", "options": ["Process of making food using sunlight", "Process of breathing", "Process of digestion", "Process of reproduction"], "correct_answer": "Process of making food using sunlight", "explanation": "Photosynthesis is the process by which plants convert sunlight, carbon dioxide, and water into glucose and oxygen.", "concept": "Photosynthesis"}}
-
-Short Answer:
-{{"question": "Explain the water cycle", "type": "short_answer", "options": [], "correct_answer": "The water cycle involves evaporation of water from oceans and lakes, condensation into clouds, precipitation as rain or snow, and collection back into water bodies. This continuous process is driven by solar energy.", "explanation": "The water cycle is a continuous process that recycles water through evaporation, condensation, precipitation, and collection phases.", "concept": "Water Cycle"}}
+{{"questions": [{{"question": "Q?", "type": "multiple_choice", "options": ["A","B","C","D"], "correct_answer": "A", "explanation": "Detailed explanation", "concept": "Topic"}}]}}
 
 Generate {num_questions} questions now:"""
-        
+
         logger.info("Generating quiz with LLM...")
         response = llm.invoke(prompt)
-        
-        # Extract text content (handles both strings from Ollama and objects from Groq)
         response_text = response if isinstance(response, str) else getattr(response, 'content', str(response))
 
         if not response_text:
-            logger.error(f"LLM returned empty response: {type(response).__name__}")
             return self._parse_quiz_fallback(num_questions, quiz_type)
 
         try:
-            # Extract JSON from response (handle extra text)
             response_text = response_text.strip()
-            
-            # Remove markdown code blocks
             if "```json" in response_text:
                 response_text = response_text.split("```json")[1].split("```")[0]
             elif "```" in response_text:
                 response_text = response_text.split("```")[1].split("```")[0]
-            
-            # Find JSON object boundaries
+
             start_idx = response_text.find("{")
             end_idx = response_text.rfind("}")
-            
             if start_idx != -1 and end_idx != -1:
                 response_text = response_text[start_idx:end_idx+1]
-            
-            response_text = response_text.strip()
-            # Clean common LLM trailing comma JSON errors
+
             import re
             response_text = re.sub(r',\s*}', '}', response_text)
             response_text = re.sub(r',\s*]', ']', response_text)
-            
-            # Try to parse
-            result = json.loads(response_text)
-            
+
+            result = json.loads(response_text.strip())
+
             if "questions" in result and isinstance(result["questions"], list):
-                # Validate and fix questions
                 fixed_questions = self._validate_and_fix_questions(result["questions"])
-                # Add disclaimer
+
+                # ── Tag each question with subtopic_id from V2 concept graph ──
+                for q in fixed_questions:
+                    concept_label = q.get("concept", "").lower().strip()
+                    matched = subtopic_lookup.get(concept_label)
+                    if not matched:
+                        for name, meta in subtopic_lookup.items():
+                            if concept_label in name or name in concept_label:
+                                matched = meta
+                                break
+                    if matched:
+                        q["subtopic_id"] = matched["concept_id"]
+                        q["doc_id"] = matched["doc_id"]
+                    else:
+                        q["subtopic_id"] = None
+                        q["doc_id"] = None
+                # ─────────────────────────────────────────────────────────────
+
                 for q in fixed_questions:
                     q["explanation"] = q.get("explanation", "") + "\n\n*(Note: InStudy AI can make mistakes. Please verify.)*"
-                
+
                 logger.info(f"Successfully generated {len(fixed_questions)} questions")
+                logger.info(f"Sample concepts: {[q.get('concept') for q in fixed_questions[:3]]}")
                 return fixed_questions
             else:
-                logger.error("Response missing 'questions' key or not a list")
                 return self._parse_quiz_fallback(num_questions, quiz_type)
-                
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse quiz JSON: {e}")
-            logger.error(f"Response was: {response[:500]}")
-            # Try to extract questions manually
             extracted = self._extract_questions_from_text(response, num_questions, quiz_type)
             return self._validate_and_fix_questions(extracted)
         except Exception as e:

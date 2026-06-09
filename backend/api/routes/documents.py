@@ -19,9 +19,45 @@ from functools import lru_cache
 from pydantic import BaseModel
 from typing import Optional, List
 
+# Mastery V2 — concept extraction
+from database.mastery_v2_db import mastery_v2_db
+from services.concept_extraction import extract_and_store_concepts
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 doc_processor = DocumentProcessor()
+
+
+# ---------------------------------------------------------------------------
+# Concept extraction background runner
+# ---------------------------------------------------------------------------
+
+async def _run_concept_extraction(file_path: str, user_id: str, course_id: str,
+                                   doc_id: str, filename: str, api_key: str = None):
+    """
+    Background task: extract text from the uploaded file and run concept
+    extraction via the LLM. Completely non-blocking — upload response has
+    already been returned before this runs.
+    """
+    try:
+        logger.info(f"[ConceptExtraction] Extracting text from {filename}...")
+        document_text = doc_processor.extract_text(file_path)
+        if not document_text or not document_text.strip():
+            logger.warning(f"[ConceptExtraction] No text extracted from {filename}, skipping.")
+            mastery_v2_db.set_extraction_status(user_id, course_id, doc_id, "failed")
+            return
+
+        await extract_and_store_concepts(
+            user_id=user_id,
+            course_id=course_id,
+            doc_id=doc_id,
+            filename=filename,
+            document_text=document_text,
+            api_key=api_key,
+        )
+    except Exception as e:
+        logger.error(f"[ConceptExtraction] Background task error for {filename}: {e}")
+        mastery_v2_db.set_extraction_status(user_id, course_id, doc_id, "failed")
 
 
 # ---------------------------------------------------------------------------
@@ -294,16 +330,30 @@ async def upload_document(
             api_key = auth_service.get_groq_key(user_id)
             if api_key:
                 logger.info(f"Retrieved Groq key from database for user {user_id}")
-        
+
+        # Register document in mastery_v2 and schedule concept extraction
+        # Skip image files — no extractable concept text
+        doc_id = mastery_v2_db.register_document(user_id, course_id, sanitized_filename)
+
         background_tasks.add_task(
             doc_processor.process_document, 
             file_path, user_id, course_id, sanitized_filename,
             api_key=api_key
         )
 
+        # Async concept extraction — skip images (no text to extract concepts from)
+        if file_ext not in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
+            background_tasks.add_task(
+                _run_concept_extraction,
+                file_path, user_id, course_id, doc_id, sanitized_filename, api_key
+            )
+        else:
+            mastery_v2_db.set_extraction_status(user_id, course_id, doc_id, "failed")
+
         return {
             "message": "Upload successful! We are processing your document in the background. It will be ready for chat and quizzes in a few moments.", 
-            "filename": sanitized_filename
+            "filename": sanitized_filename,
+            "doc_id": doc_id,
         }
 
     except HTTPException:

@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { chatService } from '../services/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { chatService, masteryService } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { ConfirmModal } from './Modal';
 import { useAura } from '../context/AuraContext';
+import { showToast } from './Toast';
 
 /**
  * Best-effort converter: wraps common plain-text math patterns in LaTeX delimiters
@@ -37,15 +38,144 @@ function preprocessMath(text) {
     });
 }
 
-const AITutorChat = ({ courseId }) => {
-  const { personality } = useAura();
+// ---------------------------------------------------------------------------
+// MicroAssessmentCard — Phase 3, Task 3.7 + 3.8
+// Checkpoint card that appears at the bottom of the chat after a tutor
+// session to confirm/deny pending XP. Option C: orb pulse + chat card.
+// ---------------------------------------------------------------------------
+const MicroAssessmentCard = ({ assessment, courseId, onDismiss }) => {
+  const [answer, setAnswer] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null); // null | 'correct' | 'incorrect' | 'skipped'
+
+  const handleSubmit = async (outcome) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await masteryService.v2.submitMicroAssessment(assessment.sessionId, outcome);
+      setResult(outcome);
+      const xp = res.data?.xp_earned ?? 0;
+      if (xp > 0) {
+        const label = res.data?.concept_name ? ` · ${res.data.concept_name}` : '';
+        showToast(`+${xp} XP${label}`, 'success');
+      } else if (outcome === 'incorrect') {
+        showToast('Keep studying — no XP this time.', 'info');
+      }
+      setTimeout(onDismiss, 2200);
+    } catch {
+      showToast('Could not submit assessment. Try again.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (result) {
+    const icons = { correct: '✅', incorrect: '❌', skipped: '⏭' };
+    const msgs  = {
+      correct:  'XP confirmed — great work.',
+      incorrect: 'No XP this time. Keep reviewing.',
+      skipped:   'Partial XP credited.',
+    };
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mx-4 mb-3 p-4 rounded-xl bg-surface-container border border-secondary/20 flex items-center gap-3"
+      >
+        <span className="text-xl">{icons[result]}</span>
+        <p className="text-xs text-on-surface-variant font-medium">{msgs[result]}</p>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-4 mb-3 rounded-xl bg-surface-container-highest border-2 border-primary/50 overflow-hidden shadow-lg shadow-primary/10"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-primary/15 border-b border-primary/25">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-[11px] font-black uppercase tracking-widest text-primary">
+            Quick Check · +{assessment.pendingXp} XP pending
+          </span>
+        </div>
+        <button
+          onClick={() => handleSubmit('skipped')}
+          className="text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"
+          title="Skip (partial XP)"
+        >
+          <span className="material-symbols-outlined text-base">close</span>
+        </button>
+      </div>
+
+      {/* Question */}
+      <div className="px-4 pt-3 pb-2">
+        {assessment.question ? (
+          <p className="text-sm text-on-surface font-medium leading-relaxed">
+            {assessment.question}
+          </p>
+        ) : (
+          <p className="text-sm text-on-surface-variant italic">
+            Loading question…
+          </p>
+        )}
+      </div>
+
+      {/* Answer input */}
+      <div className="px-4 pb-3 space-y-2">
+        <textarea
+          value={answer}
+          onChange={e => setAnswer(e.target.value)}
+          rows={2}
+          placeholder="Type your answer..."
+          className="w-full bg-surface-container-high border border-outline-variant/20 rounded-xl px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all resize-none"
+        />
+        <div className="flex gap-2">
+          <button
+            disabled={submitting || !answer.trim()}
+            onClick={() => handleSubmit('correct')}
+            className="flex-1 py-2 rounded-xl bg-secondary/15 text-secondary font-black text-[10px] uppercase tracking-widest hover:bg-secondary/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Submit Answer
+          </button>
+          <button
+            disabled={submitting}
+            onClick={() => handleSubmit('skipped')}
+            className="px-4 py-2 rounded-xl bg-surface-container-high text-on-surface-variant font-bold text-[10px] uppercase tracking-widest hover:bg-surface-variant transition-all disabled:opacity-40"
+          >
+            Skip
+          </button>
+        </div>
+        <p className="text-[9px] text-on-surface-variant/50 text-center">
+          Answering confirms your XP · Skipping credits 40%
+        </p>
+      </div>
+    </motion.div>
+  );
+};
+
+const AITutorChat = ({ courseId, onMessageSent }) => {
+  const { personality, triggerAura } = useAura();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [useEli12, setUseEli12] = useState(false);
+  const [pendingAssessment, setPendingAssessment] = useState(null); // micro-assessment data
   const scrollRef = useRef(null);
   const abortRef = useRef(null);
+
+  // Stable session ID — persists for the browser session per course
+  const sessionIdRef = useRef(
+    localStorage.getItem(`tutor_session_${courseId}`) || (() => {
+      const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      localStorage.setItem(`tutor_session_${courseId}`, id);
+      return id;
+    })()
+  );
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -109,12 +239,19 @@ const AITutorChat = ({ courseId }) => {
     setInput('');
     setMessages((prev) => [...prev, { type: 'user', text: question }]);
     setIsStreaming(true);
+    setPendingAssessment(null); // clear any previous assessment
+
+    // Fire heartbeat interaction
+    if (onMessageSent) onMessageSent();
 
     // Add a streaming placeholder
     setMessages((prev) => [...prev, { type: 'ai', text: '', streaming: true, sources: [] }]);
 
     try {
-      const fetchResponse = await chatService.streamMessage(question, courseId, useEli12, personality);
+      const fetchResponse = await chatService.streamMessage(
+        question, courseId, useEli12, personality,
+        sessionIdRef.current,   // pass session_id
+      );
 
       if (!fetchResponse.ok) {
         throw new Error(`Server error: ${fetchResponse.status}`);
@@ -133,7 +270,7 @@ const AITutorChat = ({ courseId }) => {
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
-        buffer = lines.pop(); // Keep incomplete line in buffer
+        buffer = lines.pop();
 
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
@@ -145,6 +282,28 @@ const AITutorChat = ({ courseId }) => {
               appendChunkToLast(data.text);
             } else if (data.type === 'done') {
               finalizeLastMessage(collectedSources);
+            } else if (data.type === 'assessment_check') {
+              // Micro-assessment is ready — show checkpoint card in chat
+              finalizeLastMessage(collectedSources);
+              console.log('[Assessment] assessment_check received:', JSON.stringify(data));
+              if (data.assessment_ready && data.micro_assessment?.question) {
+                const micro = data.micro_assessment;
+                console.log('[Assessment] micro_assessment object:', JSON.stringify(micro));
+                setPendingAssessment({
+                  sessionId: data.session_id,
+                  question: micro.question || '',
+                  answer: micro.answer || '',
+                  pendingXp: data.pending_xp || 0,
+                  trajectory: data.trajectory,
+                });
+                triggerAura('pointing',
+                  `Quick check below — answer one question to confirm your XP.`,
+                  null, 6000
+                );
+              }
+              // Always finalize — even if no assessment (stream is done)
+            } else if (data.type === 'done') {
+              finalizeLastMessage(collectedSources);
             } else if (data.type === 'error') {
               appendChunkToLast(`\n\n⚠️ ${data.message}`);
               finalizeLastMessage([]);
@@ -152,7 +311,17 @@ const AITutorChat = ({ courseId }) => {
           } catch { /* Ignore malformed JSON */ }
         }
       }
-      finalizeLastMessage(collectedSources);
+      // Only finalize if stream ended without an explicit done/assessment_check event
+      // (safety net for abrupt closes)
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.streaming) {
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...last, streaming: false, sources: collectedSources };
+          return updated;
+        }
+        return prev;
+      });
     } catch (error) {
       if (error.name !== 'AbortError') {
         setMessages((prev) => {
@@ -294,6 +463,25 @@ const AITutorChat = ({ courseId }) => {
           </motion.div>
         ))}
       </div>
+
+      {/* Micro-Assessment Checkpoint Card — sits between thread and input */}
+      <AnimatePresence>
+        {pendingAssessment && pendingAssessment.question && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="shrink-0 overflow-hidden"
+          >
+            <MicroAssessmentCard
+              assessment={pendingAssessment}
+              courseId={courseId}
+              onDismiss={() => setPendingAssessment(null)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Input Area */}
       <div className="p-4 bg-surface-container-low border-t border-outline-variant/10 shrink-0 space-y-2">

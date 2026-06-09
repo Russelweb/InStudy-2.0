@@ -415,6 +415,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod]   = useState('1m');
   const [coursesPage, setCoursesPage] = useState(1);
+  const [todayXp, setTodayXp] = useState([]); // [{ course_name, total_xp_today, mastery_gained_today }]
   const coursesPerPage = 5;
   const navigate              = useNavigate();
   const { triggerAura }       = useAura();
@@ -430,7 +431,32 @@ const Dashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Aura stale nudge — fires once per session if user hasn't studied in 3+ days
+  // Fetch today's V2 XP for each course (non-blocking)
+  useEffect(() => {
+    if (loading || !stats.courses?.length) return;
+    const fetchTodayXp = async () => {
+      try {
+        const results = await Promise.allSettled(
+          stats.courses.slice(0, 5).map(c =>
+            masteryService.v2.getDaily(c.id).then(r => ({
+              course_id: c.id,
+              course_name: c.name,
+              total_xp_today: r.data.total_xp_today || 0,
+              mastery_gained_today: r.data.mastery_gained_today || 0,
+            }))
+          )
+        );
+        setTodayXp(
+          results
+            .filter(r => r.status === 'fulfilled' && r.value.total_xp_today > 0)
+            .map(r => r.value)
+        );
+      } catch { /* non-fatal */ }
+    };
+    fetchTodayXp();
+  }, [loading, stats.courses]);
+
+  // Aura stale nudge — fires once per session checking V2 stale subtopics
   useEffect(() => {
     if (loading) return;
     const nudgeSeen = sessionStorage.getItem('aura_nudge_shown');
@@ -439,21 +465,57 @@ const Dashboard = () => {
     const activeCourse = stats.courses?.[0];
     if (!activeCourse) return;
 
-    masteryService.getStale(activeCourse.id, 3)
+    // Try V2 stale subtopics first (more precise — actual decaying concepts)
+    masteryService.v2.getStale(activeCourse.id, 3)
       .then(res => {
-        const stale = res.data?.stale_concepts || [];
+        const stale = res.data?.stale_subtopics || [];
         if (stale.length > 0) {
           sessionStorage.setItem('aura_nudge_shown', 'true');
-          const concept = stale[0]?.concept_id || 'some concepts';
+          const top = stale[0];
+          const decay = top.decay_amount ? ` (–${top.decay_amount.toFixed(0)}%)` : '';
           triggerAura(
             'nudge',
-            `Your mastery of "${concept}" has started to decay. A quick review will lock it in.`,
+            `"${top.concept_name}" is decaying${decay}. A quick review will lock it in.`,
             { label: 'Review Flashcards', onClick: () => navigate(`/flashcards?id=${activeCourse.id}`) },
             9000
           );
+        } else {
+          // Fallback to legacy stale check
+          masteryService.getStale(activeCourse.id, 3)
+            .then(res2 => {
+              const legacyStale = res2.data?.stale_concepts || [];
+              if (legacyStale.length > 0) {
+                sessionStorage.setItem('aura_nudge_shown', 'true');
+                const concept = legacyStale[0]?.concept_id || 'some concepts';
+                triggerAura(
+                  'nudge',
+                  `Your mastery of "${concept}" has started to decay. A quick review will lock it in.`,
+                  { label: 'Review Flashcards', onClick: () => navigate(`/flashcards?id=${activeCourse.id}`) },
+                  9000
+                );
+              }
+            })
+            .catch(() => {});
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // V2 not available — use legacy
+        masteryService.getStale(activeCourse.id, 3)
+          .then(res => {
+            const stale = res.data?.stale_concepts || [];
+            if (stale.length > 0) {
+              sessionStorage.setItem('aura_nudge_shown', 'true');
+              const concept = stale[0]?.concept_id || 'some concepts';
+              triggerAura(
+                'nudge',
+                `Your mastery of "${concept}" has started to decay. A quick review will lock it in.`,
+                { label: 'Review Flashcards', onClick: () => navigate(`/flashcards?id=${activeCourse.id}`) },
+                9000
+              );
+            }
+          })
+          .catch(() => {});
+      });
   }, [loading, stats.courses]);
 
   // Aura guide — fires once for new users with no courses
@@ -565,6 +627,44 @@ const Dashboard = () => {
           <StatCard key={i} icon={card.icon} title={card.label} value={loading ? '—' : card.value} change={card.badge} accentColor={card.color} path={card.path} />
         ))}
       </div>
+
+      {/* Today's Mastery XP — only shown when student has earned XP today */}
+      <AnimatePresence>
+        {todayXp.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mb-8 p-5 bg-secondary/8 border border-secondary/20 rounded-2xl"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-secondary text-lg">bolt</span>
+                <span className="text-xs font-black uppercase tracking-widest text-secondary">Today's Progress</span>
+              </div>
+              <Link to="/mastery?tab=progress" className="text-[10px] font-black text-secondary/70 hover:text-secondary uppercase tracking-widest transition-colors">
+                Full breakdown →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {todayXp.map((item, i) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-surface-container-low/60 rounded-xl border border-secondary/10">
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-on-surface truncate">{item.course_name}</p>
+                    {item.mastery_gained_today > 0 && (
+                      <p className="text-[9px] text-on-surface-variant">+{item.mastery_gained_today.toFixed(1)}% mastery</p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0 ml-3">
+                    <p className="text-base font-black text-secondary">+{item.total_xp_today}</p>
+                    <p className="text-[9px] text-on-surface-variant">XP</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-4 sm:gap-8">
         {/* Left (70%) */}

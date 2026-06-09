@@ -229,13 +229,17 @@ class RAGService:
                 section_docs.append(doc)
         
         return section_docs[:k] if section_docs else docs[:k]
-    def answer_question_stream(self, user_id: str, course_id: str, question: str, use_eli12: bool = False, api_key: Optional[str] = None, personality: Optional[str] = None):
+    def answer_question_stream(self, user_id: str, course_id: str, question: str, use_eli12: bool = False, api_key: Optional[str] = None, personality: Optional[str] = None, session_id: Optional[str] = None):
         """
         Stream answer word by word with page-aware retrieval and memory.
         Yields Server-Sent Events format.
         """
         logger.info(f"Streaming answer for user {user_id}, course {course_id}")
-        
+
+        # Store for post-stream mastery hook
+        self._pending_session_id = session_id
+        self._pending_api_key = api_key
+
         personality_instruction = self._get_personality_instruction(personality)
         
         # Get appropriate LLM

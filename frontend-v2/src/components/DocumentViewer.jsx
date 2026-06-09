@@ -93,7 +93,7 @@ const DataTable = ({ data, filename }) => {
   );
 };
 
-const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUploadClick }) => {
+const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUploadClick, onPageChange }) => {
   const [documents,    setDocuments]    = useState([]);
   const [selectedDoc,  setSelectedDoc]  = useState(null);
   const [docContent,   setDocContent]   = useState(null);   // for docx/txt
@@ -193,6 +193,8 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUplo
               next[i] = url;
               return next;
             });
+            // Fire heartbeat: each page load counts as reading interaction
+            if (onPageChange) onPageChange();
             if (i === 0) setLoading(false); // show first page immediately
           }
 

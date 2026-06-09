@@ -5,7 +5,9 @@ import DocumentViewer from "../components/DocumentViewer";
 import AITutorChat from "../components/AITutorChat";
 import UploadZone from "../components/UploadZone";
 import Sidebar from "../components/Sidebar";
-import { documentService, statService } from "../services/api";
+import { documentService, statService, masteryService } from "../services/api";
+import { useHeartbeat } from "../hooks/useHeartbeat";
+import { useAura } from "../context/AuraContext";
 
 const Workspace = () => {
   const [searchParams] = useSearchParams();
@@ -24,6 +26,45 @@ const Workspace = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 768);
   const [activeMobileTab, setActiveMobileTab]   = useState('reader'); // 'reader' or 'chat'
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // ── Productive study time tracking ───────────────────────────────────────
+  const { recordInteraction: recordTutorInteraction }   = useHeartbeat(courseId, 'tutor');
+  const { recordInteraction: recordReadingInteraction } = useHeartbeat(courseId, 'reading');
+
+  // ── Proactive Aura suggestion (Task 6.7) ─────────────────────────────────
+  // When the workspace opens, check for weak/decaying subtopics and suggest one
+  const { triggerAura, openQuickChatWithQuery } = useAura();
+  useEffect(() => {
+    if (!courseId) return;
+    const nudgeKey = `aura_workspace_nudge_${courseId}`;
+    if (sessionStorage.getItem(nudgeKey)) return;
+
+    masteryService.v2.getWeakest(courseId, 3)
+      .then(res => {
+        const subtopics = res.data?.subtopics || [];
+        // Only suggest if there are genuinely weak subtopics (< 40% mastery)
+        const weak = subtopics.filter(s => (s.mastery_pct || 0) < 40);
+        if (weak.length > 0) {
+          sessionStorage.setItem(nudgeKey, 'true');
+          const top = weak[0];
+          const label = top.concept_name;
+          setTimeout(() => {
+            triggerAura(
+              'pointing',
+              `You haven't fully covered "${label}" yet. Want to work through it now?`,
+              {
+                label: `Ask about ${label.split(' ').slice(0, 2).join(' ')}`,
+                onClick: () => openQuickChatWithQuery(
+                  `Explain "${label}" to me in detail with examples.`
+                )
+              },
+              10000
+            );
+          }, 3000); // wait 3s after page load
+        }
+      })
+      .catch(() => {}); // non-fatal
+  }, [courseId]);
 
   // Resolve human-readable course name & fetch all courses
   useEffect(() => {
@@ -378,12 +419,13 @@ const Workspace = () => {
                 refreshTick={docRefreshTick}
                 onAnnotationsLoaded={setActiveAnnotations}
                 onUploadClick={() => setIsUploadOpen(true)}
+                onPageChange={recordReadingInteraction}
               />
             </div>
             <div
               className={`${activeMobileTab === "chat" ? "flex" : "hidden"} md:flex flex-col w-full md:w-[45%] h-full min-w-0`}
             >
-              <AITutorChat courseId={courseId} />
+              <AITutorChat courseId={courseId} onMessageSent={recordTutorInteraction} />
             </div>
           </main>
         </div>

@@ -22,6 +22,7 @@ import logging
 from pathlib import Path
 
 from api.routes import documents, chat, quiz, flashcards, summary, planner, stats, auth, admin, mastery, assets, inspace
+from api.routes import mastery_v2
 from services.auth_service import verify_token
 from models.global_models import preload_models
 from middleware.auth_middleware import AuthMiddleware
@@ -86,6 +87,7 @@ app.include_router(summary.router, prefix="/api/summary", tags=["summary"])
 app.include_router(planner.router, prefix="/api/planner", tags=["planner"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(mastery.router, prefix="/api/mastery", tags=["mastery"])
+app.include_router(mastery_v2.router, prefix="/api/mastery/v2", tags=["mastery-v2"])
 app.include_router(assets.router, prefix="/api/assets", tags=["assets"])
 app.include_router(inspace.router, prefix="/api/inspace", tags=["inspace"])
 

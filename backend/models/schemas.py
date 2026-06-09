@@ -30,6 +30,9 @@ class QuizQuestion(BaseModel):
     correct_answer: str
     explanation: str
     type: str
+    concept: Optional[str] = None       # topic label for mastery matching
+    subtopic_id: Optional[str] = None   # V2 concept graph ID (if extraction ran)
+    doc_id: Optional[str] = None        # V2 document ID
 
 class QuizResponse(BaseModel):
     questions: List[QuizQuestion]
@@ -42,6 +45,9 @@ class FlashcardRequest(BaseModel):
 class Flashcard(BaseModel):
     front: str
     back: str
+    concept: Optional[str] = None       # topic label for mastery matching
+    subtopic_id: Optional[str] = None   # V2 concept graph ID
+    doc_id: Optional[str] = None        # V2 document ID
     image_url: Optional[str] = None
     image_type: Optional[str] = None
     alt_text: Optional[str] = None

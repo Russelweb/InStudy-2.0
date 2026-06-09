@@ -7,6 +7,7 @@ import { showToast } from '../components/Toast';
 import { useAura, useAuraHelp } from '../context/AuraContext';
 import EmptyState from '../components/EmptyState';
 import ScrollToTopButton from '../components/ScrollToTopButton';
+import { useHeartbeat } from '../hooks/useHeartbeat';
 
 // ── Helper Components for Quiz Setup ──
 
@@ -545,6 +546,11 @@ const Quiz = () => {
   useAuraHelp('Choose your course, set difficulty and question count, then click Generate Quiz. Your results update your Mastery score.');
   const isInitialized = useRef(false);
 
+  // ── Productive study time tracking ───────────────────────────────────────
+  const { recordInteraction } = useHeartbeat(selectedCourse, 'quiz');
+  // Store difficulty so handleCompleteQuiz can pass it to the backend
+  const [currentDifficulty, setCurrentDifficulty] = useState('medium');
+
   useEffect(() => {
     const fetchCourses = async () => {
       try {
@@ -607,6 +613,7 @@ const Quiz = () => {
   const handleStartQuiz = async (courseId, difficulty, count, quizType, topic, timed = true) => {
     setSelectedCourse(courseId);
     setTimedMode(timed);
+    setCurrentDifficulty(difficulty.toLowerCase()); // store for evaluate step
     setIsGenerating(true);
     try {
       const response = await quizService.generate(courseId, count, difficulty.toLowerCase(), quizType, topic);
@@ -623,8 +630,11 @@ const Quiz = () => {
 
   const handleCompleteQuiz = async (userAnswersMap) => {
     setIsGenerating(true);
+
+    // ── Record productive interaction for heartbeat ───────────────────────
+    recordInteraction();
+
     try {
-      // Backend evaluate_quiz expects keys to be stringified indices corresponding to the questions array
       const answersDict = {};
       currentQuestions.forEach((q, idx) => {
         answersDict[idx.toString()] = userAnswersMap[idx];
@@ -632,13 +642,20 @@ const Quiz = () => {
 
       const response = await quizService.submit({
         course_id: selectedCourse,
-        questions: currentQuestions,
-        user_answers: answersDict
+        questions: currentQuestions,   // includes subtopic_id/doc_id tags if present
+        user_answers: answersDict,
+        difficulty: currentDifficulty, // needed for XP rate calculation
       });
 
       setEvaluationResults(response.data);
       setPhase('evaluation');
-      // Aura celebration
+
+      // ── XP toast from mastery engine response ─────────────────────────
+      const masteryUpdate = response.data?.mastery_update;
+      if (masteryUpdate?.total_xp > 0) {
+        showToast(`+${masteryUpdate.total_xp} XP earned this quiz`, 'success');
+      }
+
       const score = response.data?.score_percentage || 0;
       const msg = score >= 80
         ? `Strong result — ${Math.round(score)}%. Your mastery scores have been updated.`

@@ -8,6 +8,7 @@ import { showToast } from '../components/Toast';
 import { useAura, useAuraHelp } from '../context/AuraContext';
 import { flashcardService, masteryService, documentService, assetService } from '../services/api';
 import ScrollToTopButton from '../components/ScrollToTopButton';
+import { useHeartbeat } from '../hooks/useHeartbeat';
 
 const TUTORIAL_KEY = 'instudy_flashcard_tutorial_seen';
 const setupSteps = [
@@ -85,6 +86,9 @@ const Flashcards = () => {
   const [decks, setDecks] = useState([]);
   const [currentDeckId, setCurrentDeckId] = useState(urlCourseId || localStorage.getItem('activeCourse') || null);
   const [courseDocuments, setCourseDocuments] = useState([]);
+
+  // ── Productive study time tracking ─────────────────────────────────────
+  const { recordInteraction } = useHeartbeat(currentDeckId, 'flashcard');
   
   const [cards, setCards] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -299,26 +303,42 @@ const Flashcards = () => {
     const card = cards[currentIndex];
     if (!card) return;
 
+    // ── Record productive interaction for heartbeat ─────────────────────
+    recordInteraction();
+
+    // ── Rating label mapping ─────────────────────────────────────────────
+    const ratingMap = { 1: 'mastered', 0: 'familiar', '-1': 'unfamiliar', [-1]: 'unfamiliar' };
+    const rating = ratingMap[value] ?? 'familiar';
+
     try {
-      // Prioritize the concept field, fallback to extracting from front
-      let conceptId = card.concept;
-      
-      // If no concept field, try to extract a short concept from the question
-      if (!conceptId) {
-        // Extract first few meaningful words from the question
-        const question = card.front || card.question || '';
-        const words = question.replace(/[?.,!]/g, '').split(' ').filter(w => w.length > 3);
-        conceptId = words.slice(0, 3).join(' ') || 'unknown_concept';
+      // Use card.concept (LLM-assigned topic label like "Photosynthesis")
+      // Never use words from the question — they won't match subtopic names
+      const conceptId  = card.concept || card.topic || null;
+      const subtopicId = card.subtopic_id || null;
+      const docId      = card.doc_id      || null;
+
+      // Only call V2 if we have a real concept label to work with
+      if (conceptId) {
+        const res = await masteryService.v2.rateFlashcard(
+          currentDeckId, rating, conceptId, subtopicId, docId
+        );
+        if (res.data?.xp_earned > 0) {
+          const conceptLabel = res.data.concept_name || conceptId;
+          showToast(`+${res.data.xp_earned} XP · ${conceptLabel}`, 'success');
+        }
+      } else {
+        // No concept label at all — use legacy
+        await masteryService.update(currentDeckId, 'general', value);
       }
-      
-      console.log(`Updating mastery for concept: "${conceptId}" with value: ${value}`);
-      await masteryService.update(currentDeckId, conceptId, value);
     } catch (error) {
-      console.error('Mastery update failed:', error);
+      // Non-fatal fallback
+      try {
+        await masteryService.update(currentDeckId, card.concept || 'general', value);
+      } catch { /* ignore */ }
     }
 
     // Update session stats
-    const isCorrect = value >= 0; // 0 (Familiar) or 1 (Mastered) count as correct
+    const isCorrect = value >= 0;
     setSessionStats((prev) => ({
       ...prev,
       learned: prev.learned + 1,
@@ -329,7 +349,6 @@ const Flashcards = () => {
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
-      // Deck complete — show completion card
       setCurrentIndex(cards.length);
       triggerAura('celebrating', `Session complete — ${accuracy}% accuracy across ${sessionStats.total + 1} cards.`);
     }

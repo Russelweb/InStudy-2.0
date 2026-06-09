@@ -263,7 +263,7 @@ export const chatService = {
   clearMemory: (courseId) => API.delete('/chat/memory/clear', { params: { course_id: courseId } }),
 
   // Streaming — returns a native fetch Response so the caller can iterate SSE chunks
-  streamMessage: async (message, courseId, useEli12 = false, personality = 'strict') => {
+  streamMessage: async (message, courseId, useEli12 = false, personality = 'strict', sessionId = null) => {
     // We no longer manually attach auth token or groq key. 
     // fetch will send the session_token cookie automatically with credentials: 'include'
     const headers = { 'Content-Type': 'application/json' };
@@ -272,7 +272,13 @@ export const chatService = {
       method: 'POST',
       headers,
       credentials: 'include', // Important for sending HttpOnly cookies
-      body: JSON.stringify({ course_id: courseId, question: message, use_eli12: useEli12, personality }),
+      body: JSON.stringify({
+        course_id: courseId,
+        question: message,
+        use_eli12: useEli12,
+        personality,
+        session_id: sessionId || '',
+      }),
     });
   },
 };
@@ -331,6 +337,28 @@ export const masteryService = {
   applyDecay: (courseId) => API.post(`/mastery/apply-decay/${courseId}`),
   
   reset: (courseId) => API.post(`/mastery/reset/${courseId}`),
+
+  // ── Mastery V2 endpoints ────────────────────────────────────────────────
+  v2: {
+    getCourseGraph:    (courseId)          => API.get(`/mastery/v2/course-graph/${courseId}`),
+    getDocumentGraph:  (courseId, docId)   => API.get(`/mastery/v2/document-graph/${courseId}/${docId}`),
+    getCourseMastery:  (courseId)          => API.get(`/mastery/v2/course-mastery/${courseId}`),
+    getDaily:          (courseId, date)    => API.get(`/mastery/v2/daily/${courseId}`, { params: date ? { date } : {} }),
+    getDailyBreakdown: (courseId, date)    => API.get(`/mastery/v2/daily-breakdown/${courseId}`, { params: date ? { date } : {} }),
+    getXpSummary:      (courseId, days=30) => API.get(`/mastery/v2/xp-summary/${courseId}`, { params: { days } }),
+    getStale:          (courseId, days=14) => API.get(`/mastery/v2/stale/${courseId}`, { params: { days } }),
+    getWeakest:        (courseId, limit=20, docId=null) => API.get(`/mastery/v2/weakest/${courseId}`, { params: { limit, ...(docId ? { doc_id: docId } : {}) } }),
+    getPendingAssessments: ()              => API.get('/mastery/v2/pending-assessments'),
+    submitMicroAssessment: (sessionId, outcome) => API.post(`/mastery/v2/micro-assessment/${sessionId}`, { outcome }),
+    heartbeat:         (courseId, tool, durationSeconds=30, docId=null) =>
+      API.post('/mastery/v2/heartbeat', { course_id: courseId, tool, duration_seconds: durationSeconds, ...(docId ? { doc_id: docId } : {}) }),
+    applyDecay:        (courseId)          => API.post(`/mastery/v2/apply-decay/${courseId}`),
+    reset:             (courseId)          => API.post(`/mastery/v2/reset/${courseId}`),
+    listDocuments:     (courseId)          => API.get(`/mastery/v2/documents/${courseId}`),
+    rateFlashcard:     (courseId, rating, concept, subtopicId=null, docId=null) =>
+      API.post('/flashcards/rate', { course_id: courseId, rating, concept, subtopic_id: subtopicId, doc_id: docId }),
+    triggerExtraction: (courseId)          => API.post(`/mastery/v2/trigger-extraction/${courseId}`),
+  },
 };
 
 // ---------------------------------------------------------------------------

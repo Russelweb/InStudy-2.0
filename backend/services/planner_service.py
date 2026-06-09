@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class PlannerService:
     """
     Study planner service using local LLM.
-    Supports smart plan generation and automated topic discovery.
+    Mastery-aware: weights the schedule toward weak/decaying subtopics.
     """
     
     def __init__(self):
@@ -26,42 +26,100 @@ class PlannerService:
     def _build_mastery_context(self, user_id: str, course_id: str) -> str:
         """
         Build a rich mastery context string for the LLM prompt.
-        Pulls real familiarity scores and categorises concepts into
-        urgent / review / solid tiers so the LLM can weight the plan.
+        Uses V2 mastery data (subtopic-level with weights + decay) if available,
+        falls back to legacy mastery_db.
         """
+        # ── Try V2 first (richer data) ───────────────────────────────────────
+        try:
+            from database.mastery_v2_db import mastery_v2_db
+
+            # Weakest subtopics — sorted by priority (never studied first, then lowest mastery)
+            weak = mastery_v2_db.get_weakest_subtopics(user_id, course_id, limit=20)
+            stale = mastery_v2_db.get_stale_subtopics(user_id, course_id, days_threshold=7)
+
+            if not weak and not stale:
+                raise ValueError("No V2 data")  # fall through to legacy
+
+            urgent   = []  # never studied OR mastery < 20% OR actively decaying
+            review   = []  # mastery 20–60%
+            solid    = []  # mastery > 60%
+
+            for s in weak:
+                pct  = s.get("mastery_pct", 0) or 0
+                name = s.get("concept_name", "")
+                weight = s.get("weight", "supporting")
+                label = f"{name} [{weight}]"
+                if pct == 0 or s.get("total_xp", 0) == 0:
+                    urgent.append(label)
+                elif pct < 20:
+                    urgent.append(label)
+                elif pct < 60:
+                    review.append(label)
+                else:
+                    solid.append(label)
+
+            # Add stale subtopics to urgent if high decay
+            for s in stale:
+                decay = s.get("decay_amount", 0)
+                name  = s.get("concept_name", "")
+                if decay > 10 and name and name + " [stale]" not in urgent:
+                    urgent.append(f"{name} [decaying, {s.get('days_since', 0)}d ago]")
+
+            # Also include per-document mastery for high-level weighting
+            course_data = mastery_v2_db.compute_course_mastery(user_id, course_id)
+            doc_lines = []
+            for doc in course_data.get("documents", []):
+                if doc["extraction_status"] == "complete":
+                    doc_lines.append(
+                        f"  {doc['filename']}: {doc['mastery_pct']:.0f}% mastered"
+                    )
+
+            lines = ["STUDENT MASTERY PROFILE — V2 (use to weight the study plan):"]
+            if urgent:
+                lines.append(f"  URGENT — allocate most days here: {', '.join(urgent[:10])}")
+            if review:
+                lines.append(f"  NEEDS REVIEW — allocate moderate time: {', '.join(review[:8])}")
+            if solid:
+                lines.append(f"  SOLID — brief revision only: {', '.join(solid[:5])}")
+            if doc_lines:
+                lines.append("  PER-DOCUMENT PROGRESS:")
+                lines.extend(doc_lines)
+            lines.append(
+                "  INSTRUCTION: Start the plan with URGENT subtopics. "
+                "Core-weight subtopics get priority slots. "
+                "Stale/decaying subtopics need review before new material."
+            )
+            return "\n".join(lines)
+
+        except Exception:
+            pass  # fall through to legacy
+
+        # ── Legacy fallback ──────────────────────────────────────────────────
         try:
             profile = mastery_db.get_user_mastery(user_id, course_id)
             if not profile:
                 return ""
 
-            urgent  = []  # familiarity_score < -0.2  → needs most time
-            review  = []  # -0.2 <= score <= 0.4      → needs some time
-            solid   = []  # score > 0.4               → brief review only
-
+            urgent, review, solid = [], [], []
             for item in profile:
                 score   = item.get('familiarity_score', 0)
                 concept = item.get('concept_id', '')
-                if not concept:
-                    continue
-                if score < -0.2:
-                    urgent.append(concept)
-                elif score <= 0.4:
-                    review.append(concept)
-                else:
-                    solid.append(concept)
+                if not concept: continue
+                if score < -0.2:   urgent.append(concept)
+                elif score <= 0.4: review.append(concept)
+                else:              solid.append(concept)
 
             if not urgent and not review and not solid:
                 return ""
 
             lines = ["STUDENT MASTERY PROFILE (use this to weight the study plan):"]
             if urgent:
-                lines.append(f"  URGENT — allocate the MOST study days to these (student is weakest here): {', '.join(urgent[:8])}")
+                lines.append(f"  URGENT — allocate the MOST study days: {', '.join(urgent[:8])}")
             if review:
                 lines.append(f"  NEEDS REVIEW — allocate moderate time: {', '.join(review[:8])}")
             if solid:
-                lines.append(f"  SOLID — brief revision only, do not over-allocate: {', '.join(solid[:6])}")
+                lines.append(f"  SOLID — brief revision only: {', '.join(solid[:6])}")
             lines.append("  INSTRUCTION: Distribute daily tasks so URGENT concepts appear earliest and most frequently.")
-
             return "\n".join(lines)
         except Exception as e:
             logger.warning(f"Could not build mastery context: {e}")

@@ -76,15 +76,34 @@ def get_user_stats(user_id: str):
 
     # Build final course stats with mastery
     total_docs = 0
+
+    # Load V2 mastery for all courses in one batch
+    from database.mastery_v2_db import mastery_v2_db
+    v2_mastery_cache = {}
+    try:
+        for course_dir in courses:
+            v2_data = mastery_v2_db.compute_course_mastery(user_id, course_dir.name)
+            v2_mastery_cache[course_dir.name] = v2_data.get("course_mastery_pct", 0.0)
+    except Exception:
+        pass  # V2 not available — fall back to legacy formula below
+
     for course_dir in courses:
         documents = [f for f in course_dir.iterdir() if f.is_file() and not f.name.endswith(".annotations.json")]
         total_docs += len(documents)
         
-        doc_score = min(len(documents) * 10, 100)
-        q_results = activity.get("quiz_results", [])
-        q_scores = [q.get("score", 0) for q in q_results if q.get("course_id") == course_dir.name]
-        avg_quiz = sum(q_scores) / len(q_scores) if q_scores else 0
-        mastery = (doc_score * 0.4) + (avg_quiz * 0.6) if q_scores else doc_score
+        # Use V2 mastery if available, else legacy formula
+        v2_pct = v2_mastery_cache.get(course_dir.name)
+        if v2_pct is not None and v2_pct > 0:
+            mastery = round(v2_pct, 1)
+            avg_quiz = None
+        else:
+            # Legacy fallback
+            doc_score = min(len(documents) * 10, 100)
+            q_results = activity.get("quiz_results", [])
+            q_scores = [q.get("score", 0) for q in q_results if q.get("course_id") == course_dir.name]
+            avg_quiz = sum(q_scores) / len(q_scores) if q_scores else 0
+            mastery = (doc_score * 0.4) + (avg_quiz * 0.6) if q_scores else doc_score
+            mastery = round(mastery, 1)
         
         # Get upload date from earliest file creation time
         upload_date = None
@@ -100,8 +119,8 @@ def get_user_stats(user_id: str):
             "id": course_dir.name,
             "document_count": len(documents),
             "documents": [f.name for f in documents],
-            "mastery": round(mastery, 1),
-            "avg_quiz_score": round(avg_quiz, 1) if q_scores else None,
+            "mastery": mastery,
+            "avg_quiz_score": round(avg_quiz, 1) if avg_quiz else None,
             "upload_date": upload_date,
         })
     stats["total_documents"] = total_docs
