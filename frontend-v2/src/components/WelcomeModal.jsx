@@ -25,10 +25,28 @@ const STEPS = [
   },
   {
     type: 'intro',
-    emoji: '🃏',
+    emoji: '🚀',
     accent: 'text-secondary',
     bg: 'from-secondary/10 to-transparent',
-    title: "Flashcards & Quizzes  auto-generated",
+    title: "Experience InSpace — Visual Mastery",
+    body: "The future of learning is here. Launch 'InSpace' to transform your documents into a living, interactive concept map. Connect the dots, visualize complex relationships, and architect your knowledge in a stunning visual workspace. It's absolute magic.",
+    cta: "Show me more magic →",
+  },
+  {
+    type: 'intro',
+    emoji: '🧠',
+    accent: 'text-primary',
+    bg: 'from-primary/10 to-transparent',
+    title: "Mastery 2.0 — Knowledge that sticks",
+    body: "Our new Mastery system tracks your memory decay in real-time. Aura monitors your progress and nudges you to review just before you forget. Lock concepts into your long-term memory with surgical precision.",
+    cta: "I'm ready to master →",
+  },
+  {
+    type: 'intro',
+    emoji: '🃏',
+    accent: 'text-orange-400',
+    bg: 'from-orange-400/10 to-transparent',
+    title: "Flashcards & Quizzes auto-generated",
     body: "Stop spending hours making study cards. InStudy reads your documents and generates flashcards and practice quizzes for you in seconds. You just study. We do the prep work.",
     cta: "Wait, seriously? →",
   },
@@ -244,16 +262,16 @@ const WelcomeModal = ({ onClose }) => {
           {current.type === 'intro' && step === 0 && (
             <div className="grid grid-cols-3 gap-3">
               {[
-                { icon: 'auto_stories', label: 'AI Tutor' },
-                { icon: 'style',        label: 'Flashcards' },
-                { icon: 'quiz',         label: 'Smart Quiz' },
-                { icon: 'summarize',    label: 'Summaries' },
-                { icon: 'event_note',   label: 'Planner' },
-                { icon: 'insights',     label: 'Progress' },
+                { icon: 'space_dashboard', label: 'InSpace' },
+                { icon: 'psychology',      label: 'Mastery 2.0' },
+                { icon: 'auto_stories',    label: 'AI Tutor' },
+                { icon: 'style',           label: 'Flashcards' },
+                { icon: 'summarize',       label: 'Summaries' },
+                { icon: 'event_note',      label: 'Planner' },
               ].map(f => (
                 <div key={f.label} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white/3 border border-white/5">
                   <span className="material-symbols-outlined text-secondary text-xl">{f.icon}</span>
-                  <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">{f.label}</span>
+                  <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest text-center">{f.label}</span>
                 </div>
               ))}
             </div>

@@ -52,6 +52,21 @@ export default function InSpace() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [canvasToDelete, setCanvasToDelete] = useState(null);
 
+  // ── Interactive Guide ────────────────────────────────────────────────────
+  const HIDE_INSPACE_GUIDE_KEY = "inspace_guide_never_show";
+  const [showGuide, setShowGuide] = useState(() => !localStorage.getItem(HIDE_INSPACE_GUIDE_KEY));
+  const [confirmNeverShowOpen, setConfirmNeverShowOpen] = useState(false);
+
+  const handleDismissGuide = (permanent = false) => {
+    if (permanent) {
+      localStorage.setItem(HIDE_INSPACE_GUIDE_KEY, "true");
+      setShowGuide(false);
+    } else {
+      setShowGuide(false);
+    }
+    setConfirmNeverShowOpen(false);
+  };
+
   // ── Quiz States ──────────────────────────────────────────────────────────
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(null);
@@ -931,67 +946,112 @@ export default function InSpace() {
 
               {/* Mini Quiz */}
               {nodeDetails.quiz?.length > 0 && (
-                <div className="p-4 border border-primary/20 bg-primary/5 rounded-xl space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-bold text-[#bd9dff] uppercase tracking-wider">
-                      Quick test
-                    </h4>
-                    <span className="text-[10px] text-on-surface-variant/40">
-                      {currentQuestionIndex + 1} / {nodeDetails.quiz.length}
-                    </span>
+                <div className="p-5 border border-primary/20 bg-primary/5 rounded-2xl space-y-4 relative overflow-hidden group/quiz">
+                  <div className="flex justify-between items-center relative z-10">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                      <h4 className="text-[10px] font-black text-[#bd9dff] uppercase tracking-[0.2em]">
+                        Quick Quiz
+                      </h4>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-12 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-500" 
+                          style={{ width: `${((currentQuestionIndex + 1) / nodeDetails.quiz.length) * 100}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-[10px] font-black text-on-surface-variant/40">
+                        {currentQuestionIndex + 1}/{nodeDetails.quiz.length}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-xs font-bold text-on-surface">
+
+                  <p className="text-xs font-bold text-on-surface leading-relaxed relative z-10">
                     {nodeDetails.quiz[currentQuestionIndex].question}
                   </p>
-                  <div className="space-y-2">
+
+                  <div className="space-y-2 relative z-10">
                     {nodeDetails.quiz[currentQuestionIndex].options.map(
-                      (opt, i) => (
-                        <div
-                          key={i}
-                          onClick={() =>
-                            !quizSubmitted && setSelectedOptionIndex(i)
-                          }
-                          className={`p-3 rounded-lg border text-xs cursor-pointer transition-all ${
-                            selectedOptionIndex === i
-                              ? "border-[#bd9dff] bg-[#bd9dff]/10 text-[#bd9dff]"
-                              : "border-outline-variant/10 hover:border-[#bd9dff]/40 text-on-surface-variant"
-                          }`}
-                        >
-                          {opt}
-                        </div>
-                      ),
+                      (opt, i) => {
+                        const isSelected = selectedOptionIndex === i;
+                        const isCorrect = i === nodeDetails.quiz[currentQuestionIndex].answer;
+                        const showResult = quizSubmitted;
+
+                        return (
+                          <div
+                            key={i}
+                            onClick={() => !quizSubmitted && setSelectedOptionIndex(i)}
+                            className={`p-3 rounded-xl border text-[11px] cursor-pointer transition-all relative overflow-hidden group/opt ${
+                              showResult
+                                ? isCorrect
+                                  ? "border-secondary bg-secondary/10 text-secondary"
+                                  : isSelected
+                                    ? "border-error bg-error/10 text-error"
+                                    : "border-outline-variant/10 opacity-50 text-on-surface-variant"
+                                : isSelected
+                                  ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10"
+                                  : "border-outline-variant/10 hover:border-primary/40 text-on-surface-variant hover:bg-surface-container/50"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="relative z-10">{opt}</span>
+                              {showResult && (isCorrect || isSelected) && (
+                                <span className="material-symbols-outlined text-sm font-bold relative z-10">
+                                  {isCorrect ? "check" : "close"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      },
                     )}
                   </div>
+
                   {quizSubmitted && (
-                    <div className="p-3 rounded-lg bg-surface-container/50 border border-outline-variant/10 text-[11px] text-on-surface-variant leading-relaxed">
-                      <p className="font-bold mb-1">
-                        {selectedOptionIndex ===
-                        nodeDetails.quiz[currentQuestionIndex].answer
-                          ? "✅ Correct"
-                          : "❌ Incorrect"}
-                      </p>
-                      <p>
+                    <motion.div 
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`p-3.5 rounded-xl border leading-relaxed text-[11px] ${
+                        selectedOptionIndex === nodeDetails.quiz[currentQuestionIndex].answer
+                          ? "bg-secondary/5 border-secondary/20 text-secondary/90"
+                          : "bg-error/5 border-error/20 text-error/90"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="material-symbols-outlined text-sm">
+                          {selectedOptionIndex === nodeDetails.quiz[currentQuestionIndex].answer ? 'check_circle' : 'info'}
+                        </span>
+                        <p className="font-black uppercase tracking-widest text-[9px]">
+                          {selectedOptionIndex === nodeDetails.quiz[currentQuestionIndex].answer
+                            ? "Correct"
+                            : "Incorrect"}
+                        </p>
+                      </div>
+                      <p className="font-medium opacity-80">
                         {nodeDetails.quiz[currentQuestionIndex].explanation}
                       </p>
-                    </div>
+                    </motion.div>
                   )}
-                  <div className="flex justify-end pt-1">
+
+                  <div className="flex justify-end pt-1 relative z-10">
                     {!quizSubmitted ? (
                       <button
                         onClick={handleAnswerSubmit}
                         disabled={selectedOptionIndex === null}
-                        className="px-4 py-2 bg-[#bd9dff] text-background font-bold text-xs rounded-lg hover:bg-[#bd9dff]/80 transition-colors disabled:opacity-40"
+                        className="w-full py-2.5 bg-[#bd9dff] text-background font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-[#bd9dff]/90 active:scale-[0.98] transition-all disabled:opacity-40 shadow-lg shadow-[#bd9dff]/20"
                       >
                         Submit Answer
                       </button>
                     ) : (
                       <button
                         onClick={handleNextQuizQuestion}
-                        className="px-4 py-2 bg-[#bd9dff] text-background font-bold text-xs rounded-lg hover:bg-[#bd9dff]/80 transition-colors"
+                        className="w-full py-2.5 bg-surface-container-highest text-on-surface font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-surface-variant active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                       >
                         {currentQuestionIndex >= nodeDetails.quiz.length - 1
                           ? "Finish Quiz"
                           : "Next Question"}
+                        <span className="material-symbols-outlined text-sm">arrow_forward</span>
                       </button>
                     )}
                   </div>
@@ -1126,6 +1186,108 @@ export default function InSpace() {
         }}
       />
 
+      {/* ── Guide Confirmation Modal ── */}
+      <ConfirmModal
+        open={confirmNeverShowOpen}
+        title="Never show this guide again?"
+        description="You can always bring it back later from the menu if you need it."
+        confirmLabel="Yes, never show"
+        cancelLabel="Dismiss for now"
+        danger={false}
+        onConfirm={() => handleDismissGuide(true)}
+        onCancel={() => handleDismissGuide(false)}
+      />
+
+      {/* ── Interactive InSpace Guide ── */}
+      <AnimatePresence>
+        {showGuide && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            className="mb-6 bg-surface-container-high border border-primary/30 rounded-2xl p-5 relative overflow-hidden"
+          >
+            {/* Background glow */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/10 blur-[60px] rounded-full pointer-events-none" />
+
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="material-symbols-outlined text-3xl text-primary">rocket_launch</span>
+                  <h2 className="text-lg font-black text-on-surface tracking-tight">Welcome to InSpace! 🚀</h2>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
+                  <div className="p-3 rounded-xl bg-surface-container/60 border border-outline-variant/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="material-symbols-outlined text-base text-secondary">folder_open</span>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-secondary">Step 1</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-on-surface mb-1">Pick Your Course (Optional)</h4>
+                    <p className="text-[11px] text-on-surface-variant/80">Select a course to ground the AI in your documents, or skip to use general knowledge.</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-surface-container/60 border border-outline-variant/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="material-symbols-outlined text-base text-secondary">edit_square</span>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-secondary">Step 2</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-on-surface mb-1">Enter Any Topic</h4>
+                    <p className="text-[11px] text-on-surface-variant/80">Tell InSpace what to learn—anything from "Quantum Physics" to "History of Art". No limits!</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-surface-container/60 border border-outline-variant/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="material-symbols-outlined text-base text-secondary">space_dashboard</span>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-secondary">Step 3</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-on-surface mb-1">Explore the Canvas</h4>
+                    <p className="text-[11px] text-on-surface-variant/80">Drag to pan, pinch to zoom, tap nodes to dive deeper into concepts.</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-surface-container/60 border border-outline-variant/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="material-symbols-outlined text-base text-secondary">psychology</span>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-secondary">Step 4</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-on-surface mb-1">Master the Topic</h4>
+                    <p className="text-[11px] text-on-surface-variant/80">Take quizzes, chat with the AI tutor, and build permanent mastery!</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <button
+                  onClick={() => setShowGuide(false)}
+                  className="text-on-surface-variant hover:text-on-surface-variant transition-colors"
+                  title="Close guide"
+                >
+                  <span className="material-symbols-outlined text-lg">close</span>
+                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => setConfirmNeverShowOpen(true)}
+                    className="text-[11px] font-semibold text-on-surface-variant/60 hover:text-error transition-colors"
+                  >
+                    Never show again
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Show Guide Button (only when guide is hidden, not permanently) ── */}
+      {!showGuide && !localStorage.getItem(HIDE_INSPACE_GUIDE_KEY) && (
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={() => setShowGuide(true)}
+            className="px-4 py-2 bg-primary/10 border border-primary/30 text-primary text-[11px] font-bold rounded-xl flex items-center gap-2 hover:bg-primary/15 transition-colors"
+          >
+            <span className="material-symbols-outlined text-base">help</span>
+            Show InSpace Guide
+          </button>
+        </div>
+      )}
+
       {/* ── DESKTOP (md+): 3-column side-by-side layout ── */}
       <div className="hidden md:flex flex-row h-[calc(100vh-120px)] min-h-[750px] gap-6 overflow-hidden select-none">
           {/* Left */}
@@ -1159,11 +1321,11 @@ export default function InSpace() {
 
       {/* ── MOBILE (< md): single-panel + bottom tab bar ── */}
       <div
-        className="flex md:hidden flex-col select-none"
+        className="flex md:hidden flex-col select-none relative pb-24"
         style={{ height: "calc(100dvh - 120px)" }}
       >
         {/* Active panel — fills all available space above tab bar */}
-        <div className="flex-1 overflow-hidden bg-[#141f16] border border-outline-variant/10 rounded-2xl mb-2">
+        <div className="flex-1 overflow-hidden bg-[#141f16] border border-outline-variant/10 rounded-2xl">
           <AnimatePresence mode="wait">
             <motion.div
               key={mobileTab}
@@ -1191,8 +1353,8 @@ export default function InSpace() {
           </AnimatePresence>
         </div>
 
-        {/* Bottom Tab Bar */}
-        <div className="shrink-0 flex items-center bg-[#141f16] border border-outline-variant/10 rounded-2xl px-2 py-2 gap-1">
+        {/* Bottom Tab Bar — Fixed at bottom of screen on mobile */}
+        <div className="fixed bottom-6 left-6 right-6 z-[100] flex items-center bg-surface-container/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl px-2 py-2 gap-1 shadow-2xl">
           {TABS.map((tab) => {
             const isActive = mobileTab === tab.id;
             const isDisabled = tab.disabled;
@@ -1201,7 +1363,7 @@ export default function InSpace() {
                 key={tab.id}
                 onClick={() => !isDisabled && setMobileTab(tab.id)}
                 disabled={isDisabled}
-                className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
+                className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-all relative ${
                   isActive
                     ? "bg-[#bd9dff]/10 text-primary"
                     : isDisabled

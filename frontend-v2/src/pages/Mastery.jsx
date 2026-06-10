@@ -801,7 +801,7 @@ const ProgressTab = ({ selectedCourseId, courses, onSelectCourse, xpSummary, dai
         {[
           { label: 'Productive time', value: `${totalStudyMins}m`, color: 'text-secondary', desc: 'Active interactions only' },
           { label: 'XP today', value: `+${dailySummary?.total_xp_today ?? 0}`, color: 'text-primary', desc: 'Across all tools' },
-          { label: 'Mastery gained', value: `+${(dailySummary?.mastery_gained_today ?? 0).toFixed(1)}%`, color: 'text-secondary', desc: 'Course % change' },
+          { label: 'Mastery gained', value: `+${(dailySummary?.mastery_gained_today ?? 0).toFixed(1)}%`, color: 'text-secondary', desc: 'Sub-Topic % change' },
           { label: 'Topics studied', value: todayConcepts.length, color: 'text-primary', desc: 'Subtopics touched' },
         ].map((stat, i) => (
           <div key={i} className="bg-surface-container-low border border-outline-variant/10 rounded-xl p-4">
@@ -921,7 +921,7 @@ const Mastery = () => {
   const navigate = useNavigate();
 
   useAuraHelp(
-    'Your mastery % shows real course completion — not just flashcard scores. Click a course card to see the full concept tree, or check Review Queue to see what needs attention.',
+    'Your mastery % shows real course completion not just flashcard scores. Click a course card to see the full concept tree, or check Review Queue to see what needs attention.',
     { label: 'Go to Flashcards', onClick: () => navigate('/flashcards') }
   );
 
@@ -1041,17 +1041,21 @@ const Mastery = () => {
     const loadProgress = async () => {
       setLoading(true);
       try {
-        const [xp, breakdown, time] = await Promise.all([
+        const [xp, breakdown, daily] = await Promise.all([
           masteryService.v2.getXpSummary(selectedCourse, 30),
           masteryService.v2.getDailyBreakdown(selectedCourse),
           masteryService.v2.getDaily(selectedCourse),
         ]);
         setXpSummary(xp.data);
-        setDailyBreakdown(breakdown.data);
-        setStudyTime(time.data.study_time);
-        // Also re-fetch daily for merged data
+        // Merge daily summary fields + today's subtopic breakdown into one object
+        setDailyBreakdown({
+          ...daily.data,                          // total_xp_today, mastery_gained_today
+          subtopics: breakdown.data?.subtopics ?? [], // per-subtopic activity feed
+        });
+        setStudyTime(daily.data?.study_time ?? null);
+        // Also update the overview banner daily summaries
         setDailySummaries(prev => prev.map(d =>
-          d.course_id === selectedCourse ? { ...d, ...time.data } : d
+          d.course_id === selectedCourse ? { ...d, ...daily.data } : d
         ));
       } catch (e) {
         console.error('Progress load error', e);
@@ -1063,6 +1067,8 @@ const Mastery = () => {
     if (activeTab === 'detail') loadDetail();
     else if (activeTab === 'review') loadReview();
     else if (activeTab === 'progress') loadProgress();
+    // Always pre-load progress data for the XP banner on overview
+    if (activeTab === 'overview') loadProgress();
   }, [activeTab, selectedCourse]);
 
   const handleReset = async (courseId) => {

@@ -16,6 +16,7 @@ def get_user_stats(user_id: str):
     stats = {
         "total_documents": 0,
         "total_courses": 0,
+        "total_canvases": 0,
         "courses": [],
         "recent_questions": [],
         "study_hours": 0.0,
@@ -24,7 +25,20 @@ def get_user_stats(user_id: str):
     }
 
     if not user_upload_dir.exists():
+        # Even if no upload dir, user might have canvases
+        from database.inspace_db import inspace_db
+        try:
+            canvases = inspace_db.get_user_canvases(user_id)
+            stats["total_canvases"] = len(canvases)
+        except: pass
         return stats
+
+    # Count canvases
+    from database.inspace_db import inspace_db
+    try:
+        canvases = inspace_db.get_user_canvases(user_id)
+        stats["total_canvases"] = len(canvases)
+    except: pass
 
     # Count courses and documents (exclude annotation sidecar files)
     courses = [d for d in user_upload_dir.iterdir() if d.is_dir()]

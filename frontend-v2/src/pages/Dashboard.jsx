@@ -251,11 +251,12 @@ const OnboardingChecklist = ({ stats, loading }) => {
 
   // Don't evaluate steps until stats have loaded
   const hasCourse   = !loading && stats.total_courses > 0;
-  const hasDocument = !loading && stats.total_documents > 0;
+  const hasInSpace  = !loading && stats.total_canvases > 0;
+  const hasFlashcards = !loading && Object.values(stats.daily_activity || {}).some(day => (day.flashcards || 0) > 0);
   const hasActivity = !loading && (stats.quizzes_taken > 0 || stats.study_hours > 0);
-  const allDone     = hasCourse && hasDocument && hasActivity;
+  const allDone     = hasCourse && hasInSpace && hasFlashcards && hasActivity;
 
-  // Auto-dismiss once all three steps are done
+  // Auto-dismiss once all steps are done
   useEffect(() => {
     if (!loading && allDone && !dismissed) {
       localStorage.setItem(ONBOARDING_KEY, 'true');
@@ -285,20 +286,28 @@ const OnboardingChecklist = ({ stats, loading }) => {
       actionLabel: 'Go to Knowledge Base',
     },
     {
-      done: hasDocument,
-      icon: 'upload_file',
-      title: 'Upload a document',
-      desc: 'PDF, DOCX, TXT — anything you study from.',
-      action: () => navigate('/knowledge'),
-      actionLabel: 'Upload Now',
+      done: hasInSpace,
+      icon: 'rocket_launch',
+      title: 'Experience InSpace — Visual Mastery',
+      desc: 'Architect your knowledge with visual concept maps. Turn flat text into a living 3D-like learning space.',
+      action: () => navigate('/inspace'),
+      actionLabel: 'Launch InSpace',
+    },
+    {
+      done: hasFlashcards,
+      icon: 'style',
+      title: 'Master your Flashcards',
+      desc: 'Lock concepts into your long-term memory. Aura creates smart decks from your documents automatically.',
+      action: () => navigate('/flashcards'),
+      actionLabel: 'Review Cards',
     },
     {
       done: hasActivity,
       icon: 'auto_awesome',
-      title: 'Generate flashcards or take a quiz',
-      desc: 'Let the AI turn your notes into study tools.',
-      action: () => navigate('/flashcards'),
-      actionLabel: 'Try Flashcards',
+      title: 'Test your knowledge',
+      desc: 'Take a quiz or practice flashcards to lock in what you\'ve learned.',
+      action: () => navigate('/quiz'),
+      actionLabel: 'Try a Quiz',
     },
   ];
 
@@ -318,10 +327,10 @@ const OnboardingChecklist = ({ stats, loading }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <h3 className="text-base font-black text-on-surface tracking-tight">
-            Get started — {completedCount}/{steps.length} done
+            Level up your workflow — {completedCount}/{steps.length} done
           </h3>
           <p className="text-xs text-on-surface-variant mt-0.5">
-            Complete these steps to unlock the full InStudy experience.
+            Master these core tools to unlock your full learning potential.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -347,7 +356,7 @@ const OnboardingChecklist = ({ stats, loading }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {steps.map((step, i) => (
           <div
             key={i}

@@ -354,176 +354,473 @@ const QuizAssessment = ({ questions, timedMode = true, onComplete, onAbort }) =>
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="w-full max-w-4xl space-y-8"
+      className="w-full max-w-4xl mx-auto space-y-8 px-4"
     >
-      <div className="flex justify-between items-end px-4">
-        <div className="space-y-1">
-          <span className="text-xs text-secondary font-bold uppercase tracking-[0.3em]">Smart Assessment</span>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-on-surface">Question {String(currentIndex + 1).padStart(2, '0')}<span className="text-on-surface-variant/40 ml-2 text-base sm:text-xl font-normal">/ {questions.length}</span></h2>
-        </div>
-        <div className="flex items-center gap-6">
-          {timedMode && (
-            <div className="text-right">
-              <div className={`text-[10px] uppercase tracking-widest font-bold ${timeLeft <= 60 ? 'text-error animate-pulse' : 'text-on-surface-variant'}`}>Timer</div>
-              <div className={`text-2xl font-mono tracking-tighter ${timeLeft <= 60 ? 'text-error animate-pulse' : 'text-primary'}`}>{formatTime(timeLeft)}</div>
+      {/* Top Header & Progress */}
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+              <span className="text-[10px] text-secondary font-black uppercase tracking-[0.3em]">Active Quiz</span>
             </div>
-          )}
-          <div className="w-12 h-12 rounded-full border-2 border-surface-container-highest flex items-center justify-center relative">
-            <svg className="absolute inset-0 w-full h-full -rotate-90">
-              <circle className="text-secondary/20" cx="24" cy="24" fill="transparent" r="20" stroke="currentColor" strokeWidth="2"></circle>
-              <circle className="text-secondary" cx="24" cy="24" fill="transparent" r="20" stroke="currentColor" strokeDasharray="125.6" strokeDashoffset={125.6 - (125.6 * (currentIndex / questions.length))} strokeWidth="2"></circle>
-            </svg>
-            <span className="text-[10px] font-black">{Math.round((currentIndex / questions.length) * 100)}%</span>
+            <h2 className="text-2xl sm:text-3xl font-black text-on-surface tracking-tighter">
+              Question {String(currentIndex + 1).padStart(2, '0')}
+              <span className="text-on-surface-variant/30 ml-2 font-normal">/ {questions.length}</span>
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-4 sm:gap-8 w-full sm:w-auto justify-between sm:justify-end">
+            {timedMode && (
+              <div className="text-right">
+                <div className={`text-[10px] uppercase tracking-[0.2em] font-bold ${timeLeft <= 60 ? 'text-error animate-pulse' : 'text-on-surface-variant/60'}`}>Time Left</div>
+                <div className={`text-2xl font-mono tracking-tighter tabular-nums ${timeLeft <= 60 ? 'text-error animate-pulse' : 'text-primary'}`}>{formatTime(timeLeft)}</div>
+              </div>
+            )}
+            <div className="relative group">
+              <div className="w-14 h-14 rounded-full border-2 border-surface-container-highest flex items-center justify-center relative bg-surface-container/30 backdrop-blur-sm">
+                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 56 56">
+                  <circle className="text-surface-container-highest" cx="28" cy="28" fill="transparent" r="24" stroke="currentColor" strokeWidth="3"></circle>
+                  <motion.circle 
+                    className="text-secondary" 
+                    cx="28" cy="28" 
+                    fill="transparent" r="24" 
+                    stroke="currentColor" 
+                    strokeDasharray="150.8" 
+                    initial={{ strokeDashoffset: 150.8 }}
+                    animate={{ strokeDashoffset: 150.8 - (150.8 * ((currentIndex + 1) / questions.length)) }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  ></motion.circle>
+                </svg>
+                <span className="text-[10px] font-black text-on-surface">{Math.round(((currentIndex + 1) / questions.length) * 100)}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Linear Progress bar at the top */}
+        <div className="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden flex gap-0.5">
+          {questions.map((_, i) => (
+            <div 
+              key={i} 
+              className={`h-full flex-1 transition-all duration-500 ${
+                i < currentIndex 
+                  ? 'bg-secondary' 
+                  : i === currentIndex 
+                    ? 'bg-primary' 
+                    : 'bg-surface-container-highest'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="relative">
+        <div className="glass-panel rounded-3xl overflow-hidden border border-outline-variant/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative z-10">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-primary opacity-30"></div>
+          
+          <AnimatePresence mode="wait">
+            <motion.div 
+              key={currentIndex}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="p-8 sm:p-12 md:p-16 space-y-10 sm:space-y-12"
+            >
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-[10px] text-secondary font-black uppercase tracking-widest">
+                      {currentQ.category || 'Topic'}
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] text-primary font-black uppercase tracking-widest">
+                      {currentQ.type?.replace('_', ' ') || 'Quiz'}
+                    </span>
+                  </div>
+                  {timedMode && timeLeft <= 60 && (
+                    <span className="flex items-center gap-1 text-error text-[10px] font-black uppercase tracking-widest animate-pulse">
+                      <span className="material-symbols-outlined text-xs">timer</span>
+                      Low Time
+                    </span>
+                  )}
+                </div>
+                
+                <div className="relative">
+                  <span className="absolute -left-8 sm:-left-12 top-0 text-4xl sm:text-6xl font-black text-primary/5 select-none leading-none">Q</span>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-medium leading-tight sm:leading-relaxed text-on-surface tracking-tight">
+                    {currentQ.question}
+                  </p>
+                </div>
+              </div>
+
+              <div className="w-full">
+                {(currentQ.type === 'multiple_choice' || currentQ.type === 'true_false') && currentQ.options?.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                    {currentQ.options.map((opt, i) => {
+                      const ids = ['A', 'B', 'C', 'D', 'E', 'F'];
+                      const isSelected = selected === opt;
+                      return (
+                        <motion.button 
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          key={ids[i] || i}
+                          onClick={() => setSelected(opt)}
+                          className={`group p-5 sm:p-6 rounded-2xl border text-left transition-all duration-300 relative overflow-hidden ${
+                            isSelected 
+                              ? 'bg-secondary/10 border-secondary ring-1 ring-secondary/30 shadow-[0_0_20px_rgba(105,246,184,0.1)]' 
+                              : 'bg-surface-container-low border-outline-variant/10 hover:bg-surface-container-high hover:border-secondary/40'
+                          }`}
+                        >
+                          <div className="flex items-start gap-4 relative z-10">
+                            <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-black transition-colors ${
+                              isSelected ? 'bg-secondary text-background' : 'bg-surface-container-highest text-on-surface-variant group-hover:bg-secondary/20 group-hover:text-secondary'
+                            }`}>
+                              {ids[i]}
+                            </span>
+                            <p className={`text-sm sm:text-base leading-snug flex-1 ${isSelected ? 'text-on-surface font-bold' : 'text-on-surface-variant group-hover:text-on-surface'}`}>
+                              {opt}
+                            </p>
+                            {isSelected && (
+                              <motion.span 
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="material-symbols-outlined text-secondary text-xl"
+                              >
+                                check_circle
+                              </motion.span>
+                            )}
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="w-full relative group">
+                    <textarea
+                      value={selected || ''}
+                      onChange={(e) => setSelected(e.target.value)}
+                      placeholder="Write your answer here..."
+                      className="w-full h-48 bg-surface-container-low border border-outline-variant/20 rounded-2xl p-6 text-on-surface text-base sm:text-lg focus:ring-1 focus:ring-secondary/50 focus:border-secondary transition-all resize-none custom-scrollbar relative z-10 placeholder:text-on-surface-variant/30"
+                    />
+                    <div className="absolute bottom-4 right-4 flex items-center gap-2 opacity-30 group-focus-within:opacity-100 transition-opacity z-10">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Typing...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Action Footer */}
+          <div className="px-8 sm:px-12 py-8 bg-surface-container/50 backdrop-blur-md flex flex-col sm:flex-row justify-between items-center gap-6 border-t border-outline-variant/10">
+            <div className="flex items-center gap-8 w-full sm:w-auto justify-center sm:justify-start">
+              <button 
+                onClick={onAbort}
+                className="group flex items-center gap-2 text-on-surface-variant hover:text-error transition-all"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Exit Quiz</span>
+              </button>
+              <div className="h-4 w-px bg-outline-variant/20"></div>
+              <button 
+                onClick={handleBack}
+                disabled={currentIndex === 0}
+                className="group flex items-center gap-2 text-on-surface-variant hover:text-primary transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+              >
+                <span className="material-symbols-outlined text-lg group-hover:-translate-x-1 transition-transform">arrow_back</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Previous</span>
+              </button>
+            </div>
+            
+            <button 
+              onClick={handleNext}
+              disabled={!selected}
+              className={`w-full sm:w-auto px-10 py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] shadow-xl transition-all relative overflow-hidden group ${
+                !selected 
+                  ? 'bg-surface-container-highest text-on-surface-variant opacity-50 cursor-not-allowed' 
+                  : 'bg-primary text-on-primary hover:scale-[1.02] active:scale-[0.98]'
+              }`}
+            >
+              <span className="relative z-10 flex items-center justify-center gap-3">
+                {currentIndex === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}
+                <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
+                  {currentIndex === questions.length - 1 ? 'check' : 'arrow_forward'}
+                </span>
+              </span>
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="glass-panel rounded-2xl overflow-hidden border border-outline-variant/10 shadow-2xl relative">
-        <div className="absolute top-0 left-0 w-full h-1 signature-gradient opacity-50"></div>
-        <div className="p-12 space-y-12">
-          <div className="space-y-6">
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded bg-secondary/10 text-[10px] text-secondary font-bold uppercase tracking-wider">{currentQ.category || 'Smart'}</span>
-              <span className="px-2 py-0.5 rounded bg-primary/10 text-[10px] text-primary font-bold uppercase tracking-wider">Focus</span>
-            </div>
-            <p className="text-2xl font-medium leading-relaxed text-on-surface">
-              {currentQ.question}
-            </p>
-          </div>
-          <div className="w-full">
-            {(currentQ.type === 'multiple_choice' || currentQ.type === 'true_false') && currentQ.options?.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {currentQ.options.map((opt, i) => {
-                  const ids = ['A', 'B', 'C', 'D', 'E', 'F'];
-                  return (
-                    <button 
-                      key={ids[i] || i}
-                      onClick={() => setSelected(opt)}
-                      className={`group p-6 rounded-xl border text-left transition-all duration-300 relative ${
-                        selected === opt 
-                          ? 'bg-secondary/10 border-secondary scale-[1.02] shadow-[0_0_20px_rgba(105,246,184,0.2)]' 
-                          : 'bg-surface-container-low border-outline-variant/10 hover:bg-surface-container-highest hover:border-secondary/50'
-                      }`}
-                    >
-                      <span className={`absolute top-4 right-4 text-[10px] font-mono ${selected === opt ? 'text-secondary' : 'text-on-surface-variant/20 group-hover:text-secondary/40'}`}>{ids[i]}</span>
-                      <p className={`${selected === opt ? 'text-on-surface font-bold' : 'text-on-surface-variant group-hover:text-on-surface'}`}>{opt}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="w-full relative">
-                <textarea
-                  value={selected || ''}
-                  onChange={(e) => setSelected(e.target.value)}
-                  placeholder="Answer here..."
-                  className="w-full h-40 bg-surface-container-low border border-outline-variant/20 rounded-xl p-6 text-on-surface focus:ring-1 focus:ring-secondary/50 focus:border-secondary transition-all resize-none custom-scrollbar"
-                />
-                <span className="absolute bottom-4 right-4 material-symbols-outlined text-secondary opacity-20 pointer-events-none">memory</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className=" px-12 py-6 flex justify-between items-center border-t border-outline-variant/5">
-          <div className="flex gap-6">
-            <button 
-              onClick={onAbort}
-              className="flex items-center gap-2 text-on-surface-variant hover:text-error transition-colors"
-            >
-              <span className="material-symbols-outlined text-sm">cancel</span>
-              <span className="text-xs font-bold uppercase tracking-widest">Abort Session</span>
-            </button>
-            <button 
-              onClick={handleBack}
-              disabled={currentIndex === 0}
-              className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <span className="material-symbols-outlined text-sm">arrow_back</span>
-              <span className="text-xs font-bold uppercase tracking-widest">Previous</span>
-            </button>
-          </div>
-          <button 
-            onClick={handleNext}
-            disabled={!selected}
-            className={`px-8 py-3 rounded-lg bg-[#551a8b] text-on-white font-black text-xs uppercase tracking-widest scale-100 active:scale-95 text-white opacity-100 transition-transform ${!selected ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {currentIndex === questions.length - 1 ? 'Finalize Submission' : 'Next Question'}
-          </button>
-        </div>
-      </div>
+      {/* Helper text */}
+      <p className="text-center text-[10px] text-on-surface-variant/40 font-medium uppercase tracking-[0.2em]">
+        Your progress is automatically saved.
+      </p>
     </motion.section>
   );
 };
 
 const QuizEvaluation = ({ results, onRestart, onSave, isSaving }) => (
   <motion.section 
-    initial={{ opacity: 0, scale: 0.95 }}
-    animate={{ opacity: 1, scale: 1 }}
-    className="w-full max-w-5xl"
+    initial={{ opacity: 0, scale: 0.98, y: 10 }}
+    animate={{ opacity: 1, scale: 1, y: 0 }}
+    className="w-full max-w-7xl mx-auto px-4 py-6 lg:py-10 h-full"
   >
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div className="lg:col-span-1 glass-panel rounded-2xl p-8 flex flex-col items-center text-center border border-outline-variant/10 shadow-2xl">
-        <h3 className="text-xs text-on-surface-variant font-black uppercase tracking-[0.4em] mb-12">Quiz Summary</h3>
-        <div className="relative w-48 h-48 mb-8">
-          <div className="absolute inset-0 rounded-full border-8 border-surface-container-highest"></div>
-          <div className="absolute inset-0 rounded-full border-8 border-primary border-t-transparent shadow-[0_0_30px_rgba(189,157,255,0.3)]" style={{ transform: `rotate(${Math.min(results?.score_percentage || 0, 100) * 3.6 - 90}deg)` }}></div>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-on-surface tracking-tighter">{Math.round(results?.score_percentage || 0)}<span className="text-xl sm:text-2xl text-primary">%</span></span>
-            <span className="text-[10px] text-on-surface-variant font-bold uppercase">Mastery percentage</span>
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 h-full">
+      {/* Left Sidebar: Summary - Desktop only */}
+      <div className="hidden lg:flex lg:w-1/3 lg:flex-col lg:h-full">
+        <div className="glass-panel rounded-3xl p-8 flex flex-col items-center text-center border border-outline-variant/10 shadow-2xl relative overflow-hidden group">
+          <h3 className="text-[10px] text-on-surface-variant font-black uppercase tracking-[0.4em] mb-12">Quiz Summary</h3>
+          
+          <div className="relative w-56 h-56 mb-10 flex items-center justify-center mx-auto">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 224 224">
+              <circle 
+                className="text-surface-container-highest" 
+                cx="112" 
+                cy="112" 
+                fill="transparent" 
+                r="90" 
+                stroke="currentColor" 
+                strokeWidth="12"
+              ></circle>
+              <motion.circle 
+                className={results?.score_percentage >= 80 ? 'text-secondary' : results?.score_percentage >= 50 ? 'text-primary' : 'text-error'}
+                cx="112" 
+                cy="112" 
+                fill="transparent" 
+                r="90" 
+                stroke="currentColor" 
+                strokeDasharray="565.5" 
+                initial={{ strokeDashoffset: 565.5 }}
+                animate={{ strokeDashoffset: 565.5 - (565.5 * (Math.min(results?.score_percentage || 0, 100) / 100)) }}
+                transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
+                strokeWidth="12"
+                strokeLinecap="round"
+              ></motion.circle>
+            </svg>
+            
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <motion.span 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="text-5xl font-black text-on-surface tracking-tighter"
+              >
+                {Math.round(results?.score_percentage || 0)}
+                <span className="text-2xl text-on-surface-variant/40 ml-1">%</span>
+              </motion.span>
+              <span className="text-[10px] text-on-surface-variant/60 font-bold uppercase tracking-widest">Score</span>
+            </div>
+          </div>
+
+          <div className="space-y-4 relative z-10 w-full">
+            <h4 className={`font-black text-xl uppercase tracking-tighter ${results?.score_percentage >= 80 ? 'text-secondary' : results?.score_percentage >= 50 ? 'text-primary' : 'text-error'}`}>
+              {results?.score_percentage >= 80 ? 'Excellent' : results?.score_percentage >= 50 ? 'Good' : 'Needs Practice'}
+            </h4>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-center gap-3 text-sm text-on-surface-variant">
+                <span className="material-symbols-outlined text-base">check_circle</span>
+                <span className="font-bold text-on-surface">{results?.correct_answers || 0}</span>
+                <span>Correct</span>
+              </div>
+              <div className="flex items-center justify-center gap-3 text-sm text-on-surface-variant">
+                <span className="material-symbols-outlined text-base">quiz</span>
+                <span className="font-bold text-on-surface">{results?.total_questions || 0}</span>
+                <span>Total</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="space-y-4">
-           <h4 className="text-secondary font-bold text-lg uppercase tracking-tighter">{results?.score_percentage >= 80 ? 'Elite Proficiency' : (results?.score_percentage >= 50 ? 'Standard Proficiency' : 'Requires Training')}</h4>
-           <p className="text-sm text-on-surface-variant font-medium">You correctly answered {results?.correct_answers || 0} out of {results?.total_questions || 0} questions.</p>
+        
+        {/* Evaluation Actions - Always at bottom on desktop */}
+        <div className="flex flex-col gap-3 mt-6">
+          <button onClick={onSave} disabled={isSaving} className="w-full py-4 bg-secondary/10 border border-secondary/20 text-secondary rounded-2xl font-black shadow-lg hover:bg-secondary/20 active:scale-[0.98] transition-all text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 group">
+            <span className="material-symbols-outlined text-lg">{isSaving ? 'sync' : 'bookmark'}</span>
+            {isSaving ? 'Saving...' : 'Save Quiz'}
+          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={onRestart} className="py-4 bg-surface-container-highest border border-outline-variant/10 text-on-surface rounded-2xl font-black hover:bg-surface-variant active:scale-[0.98] transition-all text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+              <span className="material-symbols-outlined text-lg">add</span>
+              New
+            </button>
+            <button onClick={onRestart} className="py-4 bg-primary text-on-primary rounded-2xl font-black shadow-xl hover:shadow-primary/20 active:scale-[0.98] transition-all text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 group">
+              <span className="material-symbols-outlined text-lg group-hover:rotate-180 transition-transform">restart_alt</span>
+              Retry
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="lg:col-span-2 space-y-4">
-        <h3 className="text-xl font-black text-on-surface mb-2">Quiz Evaluation and Correction</h3>
-        <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 h-[500px]">
-          {results?.question_results?.map((q, idx) => (
-            <div key={idx} className={`p-6 rounded-xl border ${q.is_correct ? 'border-secondary/30 bg-secondary/5' : 'border-error/30 bg-error/5'} relative`}>
-              <div className="absolute top-4 right-4 flex items-center gap-1">
-                <span className={`material-symbols-outlined text-xl ${q.is_correct ? 'text-secondary' : 'text-error'}`}>
-                  {q.is_correct ? 'check_circle' : 'cancel'}
-                </span>
-              </div>
-              <div className="space-y-3 pr-8">
-                <p className="text-xs font-bold uppercase tracking-widest opacity-60">Question {q.question_number} • {q.concept}</p>
-                <p className="text-sm font-medium text-on-surface">{q.question}</p>
+      {/* Right Content: Question Breakdown - Scrollable (both mobile & desktop) */}
+      <div className="lg:w-2/3 w-full flex flex-col h-full">
+        {/* Mobile-only: Summary at top for small screens */}
+        <div className="lg:hidden mb-6">
+           <div className="glass-panel rounded-2xl p-6 flex flex-col items-center text-center border border-outline-variant/10 shadow-2xl relative overflow-hidden group">
+              <h3 className="text-[10px] text-on-surface-variant font-black uppercase tracking-[0.4em] mb-6">Quiz Summary</h3>
+              
+              <div className="relative w-36 h-36 mb-6 flex items-center justify-center">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 224 224">
+                  <circle 
+                    className="text-surface-container-highest" 
+                    cx="112" 
+                    cy="112" 
+                    fill="transparent" 
+                    r="90" 
+                    stroke="currentColor" 
+                    strokeWidth="12"
+                  ></circle>
+                  <motion.circle 
+                    className={results?.score_percentage >= 80 ? 'text-secondary' : results?.score_percentage >= 50 ? 'text-primary' : 'text-error'}
+                    cx="112" 
+                    cy="112" 
+                    fill="transparent" 
+                    r="90" 
+                    stroke="currentColor" 
+                    strokeDasharray="565.5" 
+                    initial={{ strokeDashoffset: 565.5 }}
+                    animate={{ strokeDashoffset: 565.5 - (565.5 * (Math.min(results?.score_percentage || 0, 100) / 100)) }}
+                    transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
+                    strokeWidth="12"
+                    strokeLinecap="round"
+                  ></motion.circle>
+                </svg>
                 
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-start gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant w-16 shrink-0 mt-1">You:</span>
-                    <span className={`text-sm ${q.is_correct ? 'text-secondary' : 'text-error'} font-medium`}>{q.user_answer || '(No answer provided)'}</span>
-                  </div>
-                  {!q.is_correct && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant w-16 shrink-0 mt-1">Truth:</span>
-                      <span className="text-sm text-secondary font-medium">{q.correct_answer}</span>
-                    </div>
-                  )}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <motion.span 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="text-3xl font-black text-on-surface tracking-tighter"
+                  >
+                    {Math.round(results?.score_percentage || 0)}
+                    <span className="text-lg text-on-surface-variant/40 ml-1">%</span>
+                  </motion.span>
+                  <span className="text-[10px] text-on-surface-variant/60 font-bold uppercase tracking-widest">Score</span>
                 </div>
-                
-                <div className="mt-4 pt-4 border-t border-outline-variant/10 text-sm text-on-surface-variant leading-relaxed">
-                  <span className="font-bold text-primary mr-1">Tutor Insight:</span>
-                  {q.explanation}
+              </div>
+
+              <div className="space-y-3 relative z-10 w-full">
+                <h4 className={`font-black text-lg uppercase tracking-tighter ${results?.score_percentage >= 80 ? 'text-secondary' : results?.score_percentage >= 50 ? 'text-primary' : 'text-error'}`}>
+                  {results?.score_percentage >= 80 ? 'Excellent' : results?.score_percentage >= 50 ? 'Good' : 'Needs Practice'}
+                </h4>
+                <div className="flex justify-center gap-6">
+                   <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+                    <span className="material-symbols-outlined text-base">check_circle</span>
+                    <span className="font-bold text-on-surface">{results?.correct_answers || 0}</span>
+                    <span>Correct</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+                    <span className="material-symbols-outlined text-base">quiz</span>
+                    <span className="font-bold text-on-surface">{results?.total_questions || 0}</span>
+                    <span>Total</span>
+                  </div>
                 </div>
               </div>
             </div>
-          ))}
+        </div>
+
+        {/* Answers Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-black text-on-surface tracking-tight">Answers</h3>
+          <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/40">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-secondary"></span> Correct
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-error"></span> Incorrect
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable Answers */}
+        <div className="max-h-[calc(1.7*30rem)] lg:max-h-[calc(1.7*34rem)] overflow-y-auto custom-scrollbar pb-4">
+          <div className="flex flex-col gap-4">
+            {results?.question_results?.map((q, idx) => (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                key={idx} 
+                className={`group p-6 rounded-3xl border transition-all hover:shadow-xl ${
+                  q.is_correct 
+                    ? 'border-secondary/20 bg-secondary/[0.02] hover:bg-secondary/[0.04]' 
+                    : 'border-error/20 bg-error/[0.02] hover:bg-error/[0.04]'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">
+                      Question {q.question_number} • {q.concept}
+                    </p>
+                    <p className="text-base font-bold text-on-surface leading-snug">
+                      {q.question}
+                    </p>
+                  </div>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${q.is_correct ? 'bg-secondary/10 text-secondary' : 'bg-error/10 text-error'}`}>
+                    <span className="material-symbols-outlined text-2xl font-bold">
+                      {q.is_correct ? 'check' : 'close'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                  <div className={`p-4 rounded-2xl border ${q.is_correct ? 'bg-secondary/5 border-secondary/10' : 'bg-error/5 border-error/10'}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[9px] font-black uppercase tracking-widest opacity-40">Your Answer</span>
+                      {q.is_correct && <span className="text-[9px] font-black uppercase text-secondary">Correct</span>}
+                    </div>
+                    <p className={`text-sm font-bold ${q.is_correct ? 'text-secondary' : 'text-error'}`}>
+                      {q.user_answer || 'No answer'}
+                    </p>
+                  </div>
+
+                  {!q.is_correct && (
+                    <div className="p-4 rounded-2xl bg-secondary/5 border border-secondary/10">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest opacity-40 text-on-surface-variant">Correct Answer</span>
+                      </div>
+                      <p className="text-sm font-bold text-secondary">
+                        {q.correct_answer}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 p-5 rounded-2xl bg-surface-container-low border border-outline-variant/5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-primary text-sm">lightbulb</span>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">Insight</span>
+                  </div>
+                  <p className="text-sm text-on-surface-variant leading-relaxed font-medium">
+                    {q.explanation}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
         
-        <div className="flex gap-4 mt-4 w-full">
-          <button onClick={onSave} disabled={isSaving} className="flex-1 py-4 bg-secondary/10 border border-secondary/20 text-secondary rounded-xl font-bold shadow-lg hover:bg-secondary/20 active:scale-95 transition-all text-xs uppercase tracking-widest disabled:opacity-50">
+        {/* Evaluation Actions - Always at bottom on mobile */}
+        <div className="flex flex-col gap-3 pt-4 lg:hidden">
+          <button onClick={onSave} disabled={isSaving} className="w-full py-4 bg-secondary/10 border border-secondary/20 text-secondary rounded-2xl font-black shadow-lg hover:bg-secondary/20 active:scale-[0.98] transition-all text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 group">
+            <span className="material-symbols-outlined text-lg">{isSaving ? 'sync' : 'bookmark'}</span>
             {isSaving ? 'Saving...' : 'Save Quiz'}
           </button>
-          <button onClick={onRestart} className="flex-1 py-4 bg-surface-container-highest border border-outline-variant/20 text-on-surface rounded-xl font-bold shadow-lg hover:bg-surface-variant active:scale-95 transition-all text-xs uppercase tracking-widest">
-            New Quiz
-          </button>
-          <button onClick={onRestart} className="flex-1 py-4 rounded-xl bg-[#551a8b] text-on-white font-black shadow-lg hover:scale-[1.02] active:scale-95 transition-all text-xs uppercase tracking-widest text-white opacity-90">
-            Restart Quiz
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={onRestart} className="py-4 bg-surface-container-highest border border-outline-variant/10 text-on-surface rounded-2xl font-black hover:bg-surface-variant active:scale-[0.98] transition-all text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+              <span className="material-symbols-outlined text-lg">add</span>
+              New
+            </button>
+            <button onClick={onRestart} className="py-4 bg-primary text-on-primary rounded-2xl font-black shadow-xl hover:shadow-primary/20 active:scale-[0.98] transition-all text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 group">
+              <span className="material-symbols-outlined text-lg group-hover:rotate-180 transition-transform">restart_alt</span>
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -709,22 +1006,24 @@ const Quiz = () => {
   };
 
   return (
-    <div className="p-4 md:p-8 min-h-screen flex flex-col items-center justify-center relative bg-background overflow-hidden">
+    <div className="p-4 md:p-8 min-h-screen flex flex-col relative bg-background overflow-hidden">
       {isGenerating ? (
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex flex-col items-center gap-6"
+          className="flex flex-col items-center justify-center gap-6 h-full"
         >
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
           <p className="text-primary font-bold tracking-widest uppercase animate-pulse">Generating Quiz...</p>
         </motion.div>
       ) : (
-        <AnimatePresence mode="wait">
-          {phase === 'setup' && <QuizSetup key="setup" availableCourses={courses} onStart={handleStartQuiz} />}
-          {phase === 'assessment' && <QuizAssessment key="assessment" questions={currentQuestions} timedMode={timedMode} onComplete={handleCompleteQuiz} onAbort={handleAbortQuiz} />}
-          {phase === 'evaluation' && <QuizEvaluation key="evaluation" results={evaluationResults} onRestart={handleRestart} onSave={handleSaveQuiz} isSaving={isSaving} />}
-        </AnimatePresence>
+        <div className="h-full flex-1 flex flex-col">
+          <AnimatePresence mode="wait">
+            {phase === 'setup' && <QuizSetup key="setup" availableCourses={courses} onStart={handleStartQuiz} />}
+            {phase === 'assessment' && <QuizAssessment key="assessment" questions={currentQuestions} timedMode={timedMode} onComplete={handleCompleteQuiz} onAbort={handleAbortQuiz} />}
+            {phase === 'evaluation' && <QuizEvaluation key="evaluation" results={evaluationResults} onRestart={handleRestart} onSave={handleSaveQuiz} isSaving={isSaving} />}
+          </AnimatePresence>
+        </div>
       )}
 
       {/* Save quiz modal */}

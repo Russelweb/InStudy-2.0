@@ -1,8 +1,58 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
+import './AuthPages.css';
 
+/* ── Animation Variants ─────────────────────────────────────────────────── */
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.09, delayChildren: 0.15 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 24, filter: 'blur(6px)' },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: { duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94] },
+  },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 40, scale: 0.96 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] },
+  },
+};
+
+/* ── Particles Array ────────────────────────────────────────────────────── */
+const particles = Array.from({ length: 12 }, (_, i) => i + 1);
+
+/* ── Password Strength Helper ───────────────────────────────────────────── */
+function getPasswordStrength(pw) {
+  if (!pw) return { score: 0, label: '' };
+  let score = 0;
+  if (pw.length >= 6) score++;
+  if (pw.length >= 10) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+  if (score <= 1) return { score: 1, label: 'Weak', level: 'weak' };
+  if (score === 2) return { score: 2, label: 'Fair', level: 'fair' };
+  if (score === 3) return { score: 3, label: 'Good', level: 'good' };
+  return { score: 4, label: 'Strong', level: 'strong' };
+}
+
+/* ── Component ──────────────────────────────────────────────────────────── */
 const Signup = () => {
   const [formData, setFormData] = useState({
     email: '',
@@ -14,6 +64,11 @@ const Signup = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const strength = useMemo(
+    () => getPasswordStrength(formData.password),
+    [formData.password]
+  );
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -48,118 +103,190 @@ const Signup = () => {
     }
   };
 
-  const update = (field) => (e) => setFormData({ ...formData, [field]: e.target.value });
+  const update = (field) => (e) =>
+    setFormData({ ...formData, [field]: e.target.value });
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden p-4">
-      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse"></div>
-      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-secondary/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
+    <div className="auth-page">
+      {/* ── Animated Background ── */}
+      <div className="auth-bg-mesh">
+        <div className="auth-orb auth-orb--1" />
+        <div className="auth-orb auth-orb--2" />
+        <div className="auth-orb auth-orb--3" />
+      </div>
+      <div className="auth-grid-overlay" />
+      <div className="auth-particles">
+        {particles.map((n) => (
+          <div key={n} className={`auth-particle auth-particle--${n}`} />
+        ))}
+      </div>
 
+      {/* ── Card ── */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md px-4 z-10"
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+        className="auth-glass-card"
       >
-        <div className="glass-panel p-10 rounded-2xl border border-outline-variant/10 shadow-2xl relative">
-          <div className="absolute top-0 left-0 w-full h-1 bg-[#551a8b] opacity-50 rounded-t-2xl"></div>
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {/* Logo */}
+          <motion.div variants={itemVariants} className="auth-logo-ring">
+            <div className="auth-logo-inner">In</div>
+          </motion.div>
 
-          <div className="text-center mb-10">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-on-surface mb-2">Join InStudy</h1>
-            <p className="text-xs text-on-surface-variant uppercase tracking-[0.4em] font-bold">Forge Your Neural ID</p>
-          </div>
+          {/* Heading */}
+          <motion.h1 variants={itemVariants} className="auth-heading">
+            Create Your Account
+          </motion.h1>
+          <motion.p variants={itemVariants} className="auth-subtext">
+            Begin your learning journey
+          </motion.p>
 
-          <form onSubmit={handleSignup} className="space-y-6">
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="p-3 rounded bg-error/10 border border-error/20 text-error text-xs font-medium"
-              >
-                {error}
-              </motion.div>
-            )}
+          {/* Error */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="auth-error"
+              style={{ marginBottom: '1.25rem' }}
+            >
+              <span className="material-symbols-outlined auth-error-icon">error</span>
+              {error}
+            </motion.div>
+          )}
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60  ml-1">Email</label>
-              <input
-                required
-                type="email"
-                value={formData.email}
-                onChange={update('email')}
-                className="w-full bg-surface-container-high border-none rounded-xl py-4 px-4 text-sm text-on-surface focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-on-surface-variant/30"
-                placeholder="architect@instudy.ai"
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">Password</label>
-              <div className="relative">
+          {/* Form */}
+          <form onSubmit={handleSignup}>
+            {/* Email */}
+            <motion.div variants={itemVariants} style={{ marginBottom: '1.25rem' }}>
+              <label className="auth-field-label">Email</label>
+              <div className="auth-input-wrapper">
+                <span className="material-symbols-outlined auth-input-icon">mail</span>
                 <input
+                  id="signup-email"
                   required
-                  type={showPassword ? "text" : "password"}
+                  type="email"
+                  value={formData.email}
+                  onChange={update('email')}
+                  className="auth-input"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                />
+              </div>
+            </motion.div>
+
+            {/* Password */}
+            <motion.div variants={itemVariants} style={{ marginBottom: '0.25rem' }}>
+              <label className="auth-field-label">Password</label>
+              <div className="auth-input-wrapper">
+                <span className="material-symbols-outlined auth-input-icon">lock</span>
+                <input
+                  id="signup-password"
+                  required
+                  type={showPassword ? 'text' : 'password'}
                   value={formData.password}
                   onChange={update('password')}
-                  className="w-full bg-surface-container-high border-none rounded-xl py-4 pl-4 pr-12 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/30"
+                  className="auth-input"
                   placeholder="••••••••••••"
                   autoComplete="new-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 hover:text-secondary transition-colors"
+                  className="auth-toggle-pw"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  <span className="material-symbols-outlined text-xl">
+                  <span className="material-symbols-outlined" style={{ fontSize: '1.15rem' }}>
                     {showPassword ? 'visibility_off' : 'visibility'}
                   </span>
                 </button>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#bd9dff]/60 ml-1">Confirm Password</label>
-              <div className="relative">
+              {/* Password Strength */}
+              {formData.password && (
+                <div className="auth-strength-container">
+                  <div className="auth-strength-bar">
+                    {[1, 2, 3, 4].map((seg) => (
+                      <div
+                        key={seg}
+                        className={`auth-strength-segment ${
+                          seg <= strength.score
+                            ? `auth-strength-segment--active auth-strength--${strength.level}`
+                            : ''
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <div className={`auth-strength-label auth-strength-label--${strength.level}`}>
+                    {strength.label}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Confirm Password */}
+            <motion.div variants={itemVariants} style={{ marginBottom: '1.75rem', marginTop: '1.25rem' }}>
+              <label className="auth-field-label">Confirm Password</label>
+              <div className="auth-input-wrapper">
+                <span className="material-symbols-outlined auth-input-icon">lock_reset</span>
                 <input
+                  id="signup-confirm-password"
                   required
-                  type={showConfirmPassword ? "text" : "password"}
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={formData.confirm_password}
                   onChange={update('confirm_password')}
-                  className="w-full bg-surface-container-high border-none rounded-xl py-4 pl-4 pr-12 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/30"
+                  className="auth-input"
                   placeholder="••••••••••••"
                   autoComplete="new-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 hover:text-secondary transition-colors"
+                  className="auth-toggle-pw"
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                 >
-                  <span className="material-symbols-outlined text-xl">
+                  <span className="material-symbols-outlined" style={{ fontSize: '1.15rem' }}>
                     {showConfirmPassword ? 'visibility_off' : 'visibility'}
                   </span>
                 </button>
               </div>
-            </div>
+            </motion.div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 rounded-xl bg-[#551a8b] text-on-primary font-black text-sm uppercase tracking-widest shadow-lg scale-100 hover:scale-[1.02] active:scale-95 transition-transform relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed text-white opacity-90"
-            >
-              {loading
-                ? <span className="material-symbols-outlined animate-spin">sync</span>
-                : 'Create Account'}
-            </button>
+            {/* Submit */}
+            <motion.div variants={itemVariants}>
+              <button
+                id="signup-submit"
+                type="submit"
+                disabled={loading}
+                className="auth-btn"
+              >
+                {loading ? (
+                  <span className="material-symbols-outlined auth-spinner">sync</span>
+                ) : (
+                  'Create Account'
+                )}
+              </button>
+            </motion.div>
           </form>
 
-          <div className="mt-8 text-center">
-            <p className="text-xs text-on-surface-variant">
-              Already have an ID?{' '}
-              <Link to="/login" className="text-secondary font-bold hover:underline underline-offset-4">
-                Login Here
-              </Link>
+          {/* Divider + Login link */}
+          <motion.div variants={itemVariants}>
+            <div className="auth-divider">
+              <div className="auth-divider-line" />
+              <span className="auth-divider-text">or</span>
+              <div className="auth-divider-line" />
+            </div>
+
+            <p className="auth-footer">
+              Already have an account?{' '}
+              <Link to="/login">Log in</Link>
             </p>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </motion.div>
     </div>
   );
