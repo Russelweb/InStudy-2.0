@@ -4,19 +4,25 @@
 
 :root {
   color-scheme: dark;
-  /* Fluid typography base - scaled up for better readability */
-  font-size: 16px;
+  /* Base font size calibrated for 100% browser zoom on 1080p+ screens */
+  font-size: 12px;
 }
 
 @media (min-width: 768px) {
   :root {
-    font-size: 17px;
+    font-size: 12.5px;
   }
 }
 
 @media (min-width: 1280px) {
   :root {
-    font-size: 18px;
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 1920px) {
+  :root {
+    font-size: 14px;
   }
 }
 
