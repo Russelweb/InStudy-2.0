@@ -11,7 +11,6 @@ from database.auth_db import auth_db
 
 logger = logging.getLogger(__name__)
 
-
 def _get_adaptive_quiz_subtopics(user_id: str, course_id: str,
                                   num_questions: int) -> Tuple[List[Dict], str]:
     """

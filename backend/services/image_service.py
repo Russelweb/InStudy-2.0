@@ -15,6 +15,7 @@ class ImageService:
     Fast, reliable, and no external dependencies.
     """
     
+    
     def __init__(self):
         # Path to local images directory
         self.images_dir = Path(__file__).parent.parent / "static" / "images"

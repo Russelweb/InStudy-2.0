@@ -230,4 +230,4 @@ def get_current_user(token: str) -> Optional[User]:
 
 def verify_token(token: str) -> Optional[User]:
     """Verify session token and return user (for backward compatibility)"""
-    return auth_service.get_current_user(token)
+    return auth_service.get_current_user(token) 

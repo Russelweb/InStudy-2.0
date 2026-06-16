@@ -35,7 +35,7 @@ Usage (from rag_service / chat route):
     #   "assessment_ready": bool,
     # }
 """
-
+ 
 import uuid
 import logging
 import json

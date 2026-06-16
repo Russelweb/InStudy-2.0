@@ -149,7 +149,7 @@ const Workspace = () => {
             </span>
           </button>
           <span className="text-on-surface-variant/30 hidden sm:block">|</span>
-          {/* Breadcrumb trail & Course Switcher */}
+          {/* Breadcrumb trail & Course Switcher — desktop */}
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-on-surface-variant min-w-0">
             <Link
               to="/"
@@ -239,13 +239,71 @@ const Workspace = () => {
               </AnimatePresence>
             </div>
           </div>
-          {/* Mobile — just the brand */}
-          <Link
-            to="/"
-            className="text-lg font-black tracking-tighter text-[#bd9dff] sm:hidden shrink-0"
-          >
-            InStudy
-          </Link>
+          {/* Mobile — compact course selector */}
+          <div className="sm:hidden flex items-center min-w-0">
+            <div className="relative">
+              <button
+                onClick={() => setIsCourseSelectorOpen(!isCourseSelectorOpen)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 hover:border-primary/40 transition-all group max-w-[150px]"
+              >
+                <span className="material-symbols-outlined text-primary text-sm shrink-0">folder</span>
+                <span className="truncate text-xs font-black text-primary">
+                  {courseName || "Course"}
+                </span>
+                <span className={`material-symbols-outlined text-primary text-sm shrink-0 transition-transform duration-300 ${isCourseSelectorOpen ? "rotate-180" : ""}`}>
+                  expand_more
+                </span>
+              </button>
+
+              <AnimatePresence>
+                {isCourseSelectorOpen && (
+                  <>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-40"
+                      onClick={() => setIsCourseSelectorOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      className="absolute top-full left-0 mt-2 w-64 bg-surface-container-high border border-outline-variant/10 rounded-xl shadow-2xl z-50 overflow-hidden py-2"
+                    >
+                      <p className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-on-surface-variant/40 border-b border-outline-variant/10 mb-1">
+                        Switch Course
+                      </p>
+                      <div className="max-h-[280px] overflow-y-auto custom-scrollbar">
+                        {courses.map((course) => (
+                          <button
+                            key={course.id}
+                            onClick={() => switchCourse(course.id)}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-primary/10 transition-colors ${String(course.id) === String(courseId) ? "bg-primary/5" : ""}`}
+                          >
+                            <span className={`material-symbols-outlined text-sm ${String(course.id) === String(courseId) ? "text-primary" : "text-on-surface-variant/40"}`}>
+                              {String(course.id) === String(courseId) ? "check_circle" : "folder"}
+                            </span>
+                            <p className={`text-xs font-bold truncate ${String(course.id) === String(courseId) ? "text-primary" : "text-on-surface"}`}>
+                              {course.name}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                      <Link
+                        to="/knowledge"
+                        onClick={() => setIsCourseSelectorOpen(false)}
+                        className="flex items-center gap-2 px-4 py-3 mt-1 border-t border-outline-variant/10 text-secondary hover:bg-secondary/10 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-sm">add_circle</span>
+                        <span className="text-xs font-bold">New Course</span>
+                      </Link>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
 
         {/* Center — nav links (desktop) */}

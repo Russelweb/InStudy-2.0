@@ -4,25 +4,31 @@
 
 :root {
   color-scheme: dark;
-  /* Base font size calibrated for 100% browser zoom on 1080p+ screens */
-  font-size: 12px;
+  /* Sweet spot: readable on desktop at 100% zoom, larger on mobile */
+  font-size: 15.5px;
+}
+
+@media (min-width: 480px) {
+  :root {
+    font-size: 14.5px;   /* small tablets / large phones — comfortably readable */
+  }
 }
 
 @media (min-width: 768px) {
   :root {
-    font-size: 12.5px;
+    font-size: 13.5px;   /* tablet/small desktop — fits without scrolling */
   }
 }
 
 @media (min-width: 1280px) {
   :root {
-    font-size: 13px;
+    font-size: 14px; /* standard desktop 1080p */
   }
 }
 
 @media (min-width: 1920px) {
   :root {
-    font-size: 14px;
+    font-size: 15.5px;   /* large/4K displays */
   }
 }
 

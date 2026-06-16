@@ -13,7 +13,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 class PlannerService:
     """
     Study planner service using local LLM.

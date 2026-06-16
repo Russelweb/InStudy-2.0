@@ -387,7 +387,7 @@ INSTRUCTIONS:
 2. Do NOT use a formal academic structure (no "Exam Questions" or "Step-by-Step Definitions" unless explicitly asked).
 3. Focus on describing details, spatial relationships, or trends seen in the image.
 4. If it's a house plan, help the user visualize the layout.
-5. Keep the conversation flowing like a collaborative exploration.
+5. Keep the conversation flowing like a collaborative exploration. 
 
 LANGUAGE INSTRUCTION (MANDATORY):
 You MUST respond entirely in {detected_lang}.

@@ -45,7 +45,7 @@ class SummaryService:
             "detailed": "comprehensive structured summary with in-depth explanations and examples",
             "exam": "highly focused summary targeting likely exam topics and key terminology"
         }
-        
+         
         # Get preferred language
         preferred_language = "English"
         if user_id.isdigit():

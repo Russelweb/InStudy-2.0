@@ -808,22 +808,22 @@ export default function InSpace() {
                       e.preventDefault();
                       handleSelectNode(node);
                     }}
-                    className={`absolute px-4 py-2.5 rounded-xl border-2 cursor-pointer pointer-events-auto transition-all select-none w-44 h-14 flex flex-col justify-center items-center text-center ${
+                    className={`absolute px-3 py-2 rounded-xl border-2 cursor-pointer pointer-events-auto transition-all select-none flex flex-col justify-center items-center text-center overflow-hidden ${
                       isSelected
                         ? "border-[#bd9dff] bg-[#bd9dff]/15 text-white shadow-[0_0_20px_rgba(189,157,255,0.35)]"
                         : getNodeColorClass(node.mastery)
                     }`}
-                    style={{ left: `${pos.x}px`, top: `${pos.y}px` }}
+                    style={{ left: `${pos.x}px`, top: `${pos.y}px`, width: '160px', minHeight: '52px', maxHeight: '72px' }}
                   >
-                    <p className="text-xs font-bold leading-tight line-clamp-2">
+                    <p className="text-[10px] font-bold leading-tight line-clamp-2 w-full text-center break-words">
                       {node.label}
                     </p>
-                    <div className="flex items-center gap-1.5 mt-1 opacity-60">
-                      <span className="text-[7px] uppercase tracking-wider font-semibold">
+                    <div className="flex items-center gap-1 mt-0.5 opacity-60 shrink-0">
+                      <span className="text-[7px] uppercase tracking-wider font-semibold truncate max-w-[80px]">
                         {node.difficulty}
                       </span>
                       {node.mastery > 0 && (
-                        <span className="text-[7px] px-1 rounded bg-surface text-white">
+                        <span className="text-[7px] px-1 rounded bg-surface text-white shrink-0">
                           {Math.round(node.mastery * 100)}%
                         </span>
                       )}
