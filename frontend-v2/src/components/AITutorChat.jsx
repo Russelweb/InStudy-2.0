@@ -46,22 +46,42 @@ function preprocessMath(text) {
 const MicroAssessmentCard = ({ assessment, courseId, onDismiss }) => {
   const [answer, setAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null); // null | 'correct' | 'incorrect' | 'skipped'
+  const [result, setResult] = useState(null);
+  const [feedback, setFeedback] = useState('');
 
-  const handleSubmit = async (outcome) => {
-    if (submitting) return;
+  // Evaluate the student's answer against the model answer using word overlap
+  // This is a lightweight client-side check — the real XP decision is server-side
+  const evaluateAnswer = (studentAnswer, modelAnswer) => {
+    if (!studentAnswer.trim()) return 'skipped';
+    const normalize = s => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const studentWords = new Set(normalize(studentAnswer).split(/\s+/).filter(w => w.length > 3));
+    const modelWords   = new Set(normalize(modelAnswer).split(/\s+/).filter(w => w.length > 3));
+    if (studentWords.size === 0) return 'skipped';
+    const overlap = [...studentWords].filter(w => modelWords.has(w)).length;
+    const score = overlap / Math.max(modelWords.size, 1);
+    // >30% keyword overlap = correct; otherwise incorrect
+    return score >= 0.3 ? 'correct' : 'incorrect';
+  };
+
+  const handleSubmitAnswer = async () => {
+    if (submitting || !answer.trim()) return;
     setSubmitting(true);
     try {
+      const outcome = evaluateAnswer(answer, assessment.answer || '');
       const res = await masteryService.v2.submitMicroAssessment(assessment.sessionId, outcome);
       setResult(outcome);
       const xp = res.data?.xp_earned ?? 0;
-      if (xp > 0) {
-        const label = res.data?.concept_name ? ` · ${res.data.concept_name}` : '';
-        showToast(`+${xp} XP${label}`, 'success');
-      } else if (outcome === 'incorrect') {
+      if (outcome === 'correct') {
+        setFeedback(`Correct. ${assessment.answer}`);
+        if (xp > 0) {
+          const label = res.data?.concept_name ? ` · ${res.data.concept_name}` : '';
+          showToast(`+${xp} XP${label}`, 'success');
+        }
+      } else {
+        setFeedback(`Not quite. Model answer: ${assessment.answer}`);
         showToast('Keep studying — no XP this time.', 'info');
       }
-      setTimeout(onDismiss, 2200);
+      setTimeout(onDismiss, 3500);
     } catch {
       showToast('Could not submit assessment. Try again.', 'error');
     } finally {
@@ -69,21 +89,39 @@ const MicroAssessmentCard = ({ assessment, courseId, onDismiss }) => {
     }
   };
 
+  const handleSkip = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await masteryService.v2.submitMicroAssessment(assessment.sessionId, 'skipped');
+      setResult('skipped');
+      const xp = res.data?.xp_earned ?? 0;
+      if (xp > 0) showToast(`+${xp} XP (partial credit)`, 'success');
+      setTimeout(onDismiss, 2000);
+    } catch {
+      onDismiss();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (result) {
     const icons = { correct: '✅', incorrect: '❌', skipped: '⏭' };
-    const msgs  = {
-      correct:  'XP confirmed — great work.',
-      incorrect: 'No XP this time. Keep reviewing.',
-      skipped:   'Partial XP credited.',
-    };
     return (
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mx-4 mb-3 p-4 rounded-xl bg-surface-container border border-secondary/20 flex items-center gap-3"
+        className="mx-4 mb-3 p-4 rounded-xl bg-surface-container-highest border border-secondary/20 space-y-2"
       >
-        <span className="text-xl">{icons[result]}</span>
-        <p className="text-xs text-on-surface-variant font-medium">{msgs[result]}</p>
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{icons[result]}</span>
+          <p className="text-xs font-black text-on-surface">
+            {result === 'correct' ? 'Correct — XP awarded.' : result === 'skipped' ? 'Skipped — partial XP.' : 'Incorrect — no XP.'}
+          </p>
+        </div>
+        {feedback && (
+          <p className="text-xs text-on-surface-variant leading-relaxed">{feedback}</p>
+        )}
       </motion.div>
     );
   }
@@ -129,28 +167,29 @@ const MicroAssessmentCard = ({ assessment, courseId, onDismiss }) => {
         <textarea
           value={answer}
           onChange={e => setAnswer(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmitAnswer(); } }}
           rows={2}
-          placeholder="Type your answer..."
+          placeholder="Type your answer... (Enter to submit)"
           className="w-full bg-surface-container-high border border-outline-variant/20 rounded-xl px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 transition-all resize-none"
         />
         <div className="flex gap-2">
           <button
             disabled={submitting || !answer.trim()}
-            onClick={() => handleSubmit('correct')}
+            onClick={handleSubmitAnswer}
             className="flex-1 py-2 rounded-xl bg-secondary/15 text-secondary font-black text-[10px] uppercase tracking-widest hover:bg-secondary/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Submit Answer
+            {submitting ? 'Checking…' : 'Submit Answer'}
           </button>
           <button
             disabled={submitting}
-            onClick={() => handleSubmit('skipped')}
+            onClick={handleSkip}
             className="px-4 py-2 rounded-xl bg-surface-container-high text-on-surface-variant font-bold text-[10px] uppercase tracking-widest hover:bg-surface-variant transition-all disabled:opacity-40"
           >
             Skip
           </button>
         </div>
         <p className="text-[9px] text-on-surface-variant/50 text-center">
-          Answering confirms your XP · Skipping credits 40%
+          Your answer is compared to the model answer · Skipping gives 40% XP
         </p>
       </div>
     </motion.div>
@@ -168,14 +207,22 @@ const AITutorChat = ({ courseId, onMessageSent }) => {
   const scrollRef = useRef(null);
   const abortRef = useRef(null);
 
-  // Stable session ID — persists for the browser session per course
+  // Stable session ID — resets when an assessment is completed or dismissed
+  // This ensures each concept thread gets its own assessment opportunity
   const sessionIdRef = useRef(
-    localStorage.getItem(`tutor_session_${courseId}`) || (() => {
+    sessionStorage.getItem(`tutor_session_${courseId}`) || (() => {
       const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-      localStorage.setItem(`tutor_session_${courseId}`, id);
+      sessionStorage.setItem(`tutor_session_${courseId}`, id);
       return id;
     })()
   );
+
+  // Call this after completing or dismissing an assessment to start a fresh thread
+  const resetSessionId = () => {
+    const newId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    sessionStorage.setItem(`tutor_session_${courseId}`, newId);
+    sessionIdRef.current = newId;
+  };
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -477,7 +524,10 @@ const AITutorChat = ({ courseId, onMessageSent }) => {
             <MicroAssessmentCard
               assessment={pendingAssessment}
               courseId={courseId}
-              onDismiss={() => setPendingAssessment(null)}
+              onDismiss={() => {
+                setPendingAssessment(null);
+                resetSessionId(); // fresh ID for next concept thread
+              }}
             />
           </motion.div>
         )}

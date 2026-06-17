@@ -50,8 +50,12 @@ logger = logging.getLogger(__name__)
 PENDING_XP_CONVERGING = 12   # full credit if micro-assessment correct
 PENDING_XP_DIVERGING = 6     # partial credit — student tried but struggled
 
-# Minimum exchanges before we classify trajectory (avoid single-Q sessions)
-MIN_EXCHANGES_FOR_ASSESSMENT = 2
+# Minimum exchanges on the SAME subtopic before triggering assessment
+# This prevents triggering on single-question sessions or topic-hopping
+MIN_EXCHANGES_FOR_ASSESSMENT = 3   # raised from 2 — needs at least 3 back-and-forths
+
+# Minimum consecutive exchanges on the SAME subtopic
+MIN_SAME_SUBTOPIC_EXCHANGES = 2
 
 
 class TutorMasteryService:
@@ -121,6 +125,7 @@ class TutorMasteryService:
 
             # 3. Only create pending XP if we have enough conversation
             #    AND the trajectory is not off_concept
+            #    AND we have a matched subtopic
             if (
                 len(conversation_history) < MIN_EXCHANGES_FOR_ASSESSMENT
                 or trajectory == "off_concept"
@@ -129,11 +134,44 @@ class TutorMasteryService:
                 return {**default, "trajectory": trajectory,
                         "subtopic_id": subtopic_id, "doc_id": doc_id}
 
+            # 3b. Extra guard: only trigger if the last N questions all relate
+            #     to the same subtopic (prevents triggering on topic-hopping)
+            if len(conversation_history) >= MIN_SAME_SUBTOPIC_EXCHANGES:
+                # Quick check: do the last MIN_SAME_SUBTOPIC_EXCHANGES questions
+                # mention keywords from the subtopic name?
+                subtopic_words = set(
+                    w.lower() for w in subtopic_name.split()
+                    if len(w) > 3
+                )
+                if subtopic_words:
+                    recent_qs = " ".join(
+                        ex["question"].lower()
+                        for ex in conversation_history[-MIN_SAME_SUBTOPIC_EXCHANGES:]
+                    )
+                    keyword_hits = sum(1 for w in subtopic_words if w in recent_qs)
+                    # Less than 1 keyword hit across recent questions → likely off-topic
+                    if keyword_hits == 0:
+                        logger.info(
+                            f"[TutorMastery] No keyword overlap for '{subtopic_name}' "
+                            f"in recent questions — skipping assessment"
+                        )
+                        return {**default, "trajectory": trajectory,
+                                "subtopic_id": subtopic_id, "doc_id": doc_id}
+
             # 4. Check if pending XP already exists for this session
             from database.mastery_v2_db import mastery_v2_db
             existing = mastery_v2_db.get_pending_tutor_xp(user_id, session_id)
             if existing:
-                # Already created — just return current state
+                # If the existing record is for a DIFFERENT subtopic, it's a new
+                # concept thread — don't resurface the old card
+                if existing.get("concept_id") != subtopic_id:
+                    logger.info(
+                        f"[TutorMastery] New subtopic detected (was '{existing.get('concept_id', '')[:8]}', "
+                        f"now '{subtopic_id[:8]}') — skipping old pending record"
+                    )
+                    return {**default, "trajectory": trajectory,
+                            "subtopic_id": subtopic_id, "doc_id": doc_id}
+                # Same subtopic — return existing assessment (already created)
                 return {
                     "subtopic_id": subtopic_id,
                     "doc_id": doc_id,
