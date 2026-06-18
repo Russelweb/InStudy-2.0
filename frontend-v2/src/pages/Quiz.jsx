@@ -8,6 +8,25 @@ import { useAura, useAuraHelp } from '../context/AuraContext';
 import EmptyState from '../components/EmptyState';
 import ScrollToTopButton from '../components/ScrollToTopButton';
 import { useHeartbeat } from '../hooks/useHeartbeat';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+
+function preprocessMath(text) {
+  if (!text) return text;
+  if (/\$/.test(text)) return text;
+  return text
+    .replace(/\b(d\/d[a-z]|[a-z]\/[a-z]|\d+\/\d+)\b/g, (m) => `$${m}$`)
+    .replace(/([a-zA-Z\d]+)\^(\{[^}]+\}|[a-zA-Z\d]+)/g, (m) => `$${m}$`)
+    .replace(/\b(sin|cos|tan|cot|sec|csc|ln|log|exp|sqrt|lim|sum|int)\s*\(([^)]+)\)/g, (m) => `$${m}$`)
+    .replace(/\b([a-zA-Z])'+'?\s*\([^)]+\)/g, (m) => `$${m}$`)
+    .replace(/\b(alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|sigma|omega|phi|psi)\b/g, (m) => `$\\${m}$`)
+    .replace(/([a-zA-Z][a-zA-Z0-9'_^()*/+\-\s]*=[a-zA-Z0-9'_^()*/+\-\s]+)/g, (m) => {
+      if (/[\^*]|sin|cos|tan|ln|sqrt|d\/d/.test(m)) return `$${m.trim()}$`;
+      return m;
+    });
+}
 
 // ── Helper Components for Quiz Setup ──
 
@@ -783,7 +802,15 @@ const QuizEvaluation = ({ results, onRestart, onSave, isSaving }) => (
                         <span className="text-[9px] font-black uppercase tracking-widest opacity-40 text-on-surface-variant">Correct Answer</span>
                       </div>
                       <p className="text-sm font-bold text-secondary">
-                        {q.correct_answer}
+                        {/* Resolve single-letter answers to full option text if possible */}
+                        {(() => {
+                          const ca = q.correct_answer || '';
+                          if (ca.length <= 2 && /^[A-Fa-f]$/.test(ca) && q.options?.length > 0) {
+                            const idx = ca.toUpperCase().charCodeAt(0) - 65;
+                            return q.options[idx] ? `${ca.toUpperCase()}. ${q.options[idx]}` : ca;
+                          }
+                          return ca;
+                        })()}
                       </p>
                     </div>
                   )}
@@ -796,9 +823,44 @@ const QuizEvaluation = ({ results, onRestart, onSave, isSaving }) => (
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-primary">Insight</span>
                   </div>
-                  <p className="text-sm text-on-surface-variant leading-relaxed font-medium">
-                    {q.explanation}
-                  </p>
+                  <div className="text-sm text-on-surface-variant leading-relaxed font-medium markdown-content">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
+                      components={{
+                        h1: ({children}) => <h1 className="text-base font-black text-secondary mt-4 mb-2 pb-1 border-b border-secondary/20">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-sm font-bold text-on-surface mt-3 mb-2">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-xs font-bold text-secondary/80 mt-2 mb-1">{children}</h3>,
+                        p: ({children}) => <p className="my-2 leading-relaxed text-on-surface-variant/90">{children}</p>,
+                        ul: ({children}) => <ul className="my-2 pl-4 space-y-1 list-disc text-on-surface-variant">{children}</ul>,
+                        ol: ({children}) => <ol className="my-2 pl-4 space-y-1 list-decimal text-on-surface-variant">{children}</ol>,
+                        li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                        strong: ({children}) => <strong className="font-bold text-secondary">{children}</strong>,
+                        em: ({children}) => <em className="italic text-on-surface-variant">{children}</em>,
+                        code: ({inline, children}) => inline
+                          ? <code className="bg-secondary/10 px-1 py-0.5 rounded text-[12px] text-secondary font-mono font-medium">{children}</code>
+                          : <div className="relative group my-3">
+                              <pre className="bg-surface-container-highest/50 rounded-xl p-3 overflow-x-auto border border-outline-variant/10 shadow-inner">
+                                <code className="text-xs text-secondary font-mono leading-normal">{children}</code>
+                              </pre>
+                            </div>,
+                        pre: ({children}) => <>{children}</>,
+                        blockquote: ({children}) => <blockquote className="border-l-4 border-secondary/30 bg-secondary/5 pl-3 py-1.5 my-3 text-on-surface-variant italic rounded-r-lg">{children}</blockquote>,
+                        table: ({children}) => (
+                          <div className="my-4 overflow-x-auto rounded-xl border border-outline-variant/20 shadow-sm bg-surface-container-low/50">
+                            <table className="w-full text-xs border-collapse">{children}</table>
+                          </div>
+                        ),
+                        thead: ({children}) => <thead className="bg-secondary/10">{children}</thead>,
+                        th: ({children}) => <th className="px-3 py-2 text-left font-black text-secondary border-b border-outline-variant/20 uppercase tracking-wider text-[10px]">{children}</th>,
+                        td: ({children}) => <td className="px-3 py-2 border-b border-outline-variant/10 text-on-surface-variant leading-relaxed">{children}</td>,
+                        a: ({href, children}) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-secondary underline decoration-secondary/30 underline-offset-2 hover:text-secondary-fixed transition-colors font-medium">{children}</a>,
+                        hr: () => <hr className="border-outline-variant/10 my-4" />,
+                      }}
+                    >
+                      {preprocessMath(q.explanation)}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </motion.div>
             ))}

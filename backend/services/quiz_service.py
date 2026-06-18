@@ -152,11 +152,32 @@ CRITICAL INSTRUCTIONS:
 2. DO NOT add trailing commas.
 3. For EVERY question, include a "concept" field that identifies the 1-2 word main topic (match exactly to the NEVER QUIZZED/WEAK concepts listed above when possible).
 4. For EVERY explanation, provide a detailed educational note (3-4 sentences).
-5. For multiple choice: exactly 4 options. For true/false: ["True", "False"].
-6. For mixed type: ensure a balanced variety.
+5. For multiple choice: exactly 4 options, and correct_answer must be one of the option values.
+6. For true/false: options must be ["True", "False"], and correct_answer must be "True" or "False".
+7. For short_answer: options must be [] (empty list), and correct_answer MUST be a complete, detailed, exemplary correct answer (1-3 sentences) derived from the study material. Do not use placeholders or generic statements.
+8. For mixed type: ensure a balanced variety.
 
-Format:
-{{"questions": [{{"question": "Q?", "type": "multiple_choice", "options": ["A","B","C","D"], "correct_answer": "A", "explanation": "Detailed explanation", "concept": "Topic"}}]}}
+JSON Format Template:
+{{
+  "questions": [
+    {{
+      "question": "What is the capital of France?",
+      "type": "multiple_choice",
+      "options": ["London", "Paris", "Berlin", "Rome"],
+      "correct_answer": "Paris",
+      "explanation": "Paris is the capital and most populous city of France...",
+      "concept": "Capital Cities"
+    }},
+    {{
+      "question": "What is photosynthesis?",
+      "type": "short_answer",
+      "options": [],
+      "correct_answer": "Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize nutrients from carbon dioxide and water.",
+      "explanation": "Photosynthesis is crucial for life on Earth as it converts solar energy into chemical energy and produces oxygen...",
+      "concept": "Photosynthesis"
+    }}
+  ]
+}}
 
 Generate {num_questions} questions now:"""
 
@@ -222,7 +243,7 @@ Generate {num_questions} questions now:"""
             logger.error(f"Unexpected error parsing quiz: {e}")
             return self._parse_quiz_fallback(num_questions, quiz_type)
     
-    def evaluate_quiz(self, questions: list, user_answers: dict) -> dict:
+    def evaluate_quiz(self, questions: list, user_answers: dict, api_key: Optional[str] = None) -> dict:
         """
         Evaluate quiz answers with semantic understanding for structural questions.
         Returns detailed results with explanations.
@@ -236,49 +257,84 @@ Generate {num_questions} questions now:"""
             "question_results": []
         }
         
+        # Instantiate LLM once for evaluations
+        llm = get_llm(api_key)
+        
         for idx, question in enumerate(questions):
             user_answer = user_answers.get(str(idx), "").strip()
-            correct_answer = question.get("correct_answer", "").strip()
+            raw_correct = question.get("correct_answer", "").strip()
+            options = question.get("options", [])
             question_type = question.get("type", "multiple_choice")
+            
+            # ── Resolve letter answers to full option text ────────────────────
+            # LLM sometimes returns "C" instead of the actual option text.
+            # Resolve it so both display AND evaluation use the full text.
+            correct_answer = raw_correct
+            if (
+                options
+                and len(raw_correct) <= 2
+                and raw_correct.upper() in ['A', 'B', 'C', 'D', 'E', 'F']
+            ):
+                letter_index = ord(raw_correct.upper()) - ord('A')
+                if 0 <= letter_index < len(options):
+                    correct_answer = options[letter_index]
+                    logger.info(f"Resolved letter answer '{raw_correct}' → '{correct_answer}'")
+            # ─────────────────────────────────────────────────────────────────
             
             # Evaluate based on question type
             is_correct = False
             feedback = ""
+            explanation = question.get("explanation", "No explanation provided")
             
             if question_type in ["multiple_choice", "true_false"]:
-                # Exact match for MCQ and True/False
                 is_correct = self._exact_match_evaluation(user_answer, correct_answer)
+                # Also try matching against the raw letter in case user sent letter
+                if not is_correct and raw_correct != correct_answer:
+                    is_correct = self._exact_match_evaluation(user_answer, raw_correct)
                 feedback = "Exact match evaluation"
                 
             elif question_type in ["short_answer", "structural"]:
-                # Semantic similarity for structural questions
-                is_correct, similarity_score = self._semantic_evaluation(user_answer, correct_answer)
-                feedback = f"Semantic similarity: {similarity_score:.2f}"
+                ai_success = False
+                try:
+                    is_correct, similarity_score, ai_feedback = self._ai_evaluation(
+                        question=question.get("question", ""),
+                        user_answer=user_answer,
+                        correct_answer=correct_answer,
+                        llm=llm
+                    )
+                    feedback = f"AI Evaluated ({similarity_score:.2f}): {ai_feedback}"
+                    if ai_feedback:
+                        explanation = f"**AI Grading Feedback:** {ai_feedback}\n\n{explanation}"
+                    ai_success = True
+                except Exception as e:
+                    logger.warning(f"AI evaluation failed, falling back to local semantic evaluation: {e}")
+                    
+                if not ai_success:
+                    is_correct, similarity_score = self._semantic_evaluation(user_answer, correct_answer)
+                    feedback = f"Semantic similarity fallback: {similarity_score:.2f}"
                 
             else:
-                # Default to exact match
                 is_correct = self._exact_match_evaluation(user_answer, correct_answer)
                 feedback = "Default exact match evaluation"
             
             if is_correct:
                 results["correct_answers"] += 1
             
-            # Build question result
             question_result = {
                 "question_number": idx + 1,
                 "question": question.get("question", ""),
                 "user_answer": user_answer,
-                "correct_answer": correct_answer,
-                "is_correct": bool(is_correct),  # Ensure Python boolean
-                "explanation": question.get("explanation", "No explanation provided"),
+                "correct_answer": correct_answer,   # always the full text now
+                "is_correct": bool(is_correct),
+                "explanation": explanation,
                 "feedback": feedback,
                 "type": question_type,
-                "concept": question.get("concept")
+                "concept": question.get("concept"),
+                "options": options,
             }
             
             results["question_results"].append(question_result)
         
-        # Calculate percentage
         if results["total_questions"] > 0:
             results["score_percentage"] = round(
                 (results["correct_answers"] / results["total_questions"]) * 100, 1
@@ -286,6 +342,61 @@ Generate {num_questions} questions now:"""
         
         logger.info(f"Quiz evaluation complete: {results['correct_answers']}/{results['total_questions']} ({results['score_percentage']}%)")
         return results
+
+    def _ai_evaluation(self, question: str, user_answer: str, correct_answer: str, llm) -> tuple:
+        """
+        Evaluate short answer using the AI model.
+        Returns (is_correct, score, feedback)
+        """
+        if not user_answer or not user_answer.strip():
+            return False, 0.0, "No answer was provided."
+            
+        prompt = f"""You are an expert grading assistant. Evaluate the user's answer to a short answer question against the correct reference answer.
+Be flexible: the user does not need to match the reference answer word-for-word. They should be marked correct if their answer is semantically accurate, shows a correct understanding, and captures the core concept(s), even if they use different vocabulary, phrasing, or have minor spelling/grammar mistakes.
+
+Question: {question}
+Reference Answer: {correct_answer}
+User's Answer: {user_answer}
+
+Return ONLY a valid JSON object with the following fields:
+- "is_correct": boolean (true if the user's answer is correct/acceptable, false otherwise)
+- "score": number between 0.0 and 1.0 (where 1.0 is perfect agreement and 0.0 is completely wrong/irrelevant)
+- "feedback": string (1-2 sentences explaining why the answer was marked correct or incorrect, pointing out what was correct or missing)
+
+Do not include any other text, markdown formatting (like ```json), or explanations outside the JSON object."""
+
+        try:
+            logger.info("Evaluating short answer with LLM...")
+            response = llm.invoke(prompt)
+            response_text = response if isinstance(response, str) else getattr(response, 'content', str(response))
+            
+            if not response_text:
+                raise ValueError("Empty response from LLM")
+                
+            response_text = response_text.strip()
+            if "```json" in response_text:
+                response_text = response_text.split("```json")[1].split("```")[0]
+            elif "```" in response_text:
+                response_text = response_text.split("```")[1].split("```")[0]
+
+            start_idx = response_text.find("{")
+            end_idx = response_text.rfind("}")
+            if start_idx != -1 and end_idx != -1:
+                response_text = response_text[start_idx:end_idx+1]
+                
+            import re
+            response_text = re.sub(r',\s*}', '}', response_text)
+            
+            result = json.loads(response_text.strip())
+            is_correct = bool(result.get("is_correct", False))
+            score = float(result.get("score", 0.0))
+            feedback = str(result.get("feedback", ""))
+            
+            logger.info(f"AI evaluation complete: is_correct={is_correct}, score={score}, feedback='{feedback}'")
+            return is_correct, score, feedback
+        except Exception as e:
+            logger.error(f"Error in AI quiz evaluation: {e}")
+            raise e
     
     def _exact_match_evaluation(self, user_answer: str, correct_answer: str) -> bool:
         """Exact match evaluation for MCQ and True/False questions"""
@@ -313,51 +424,64 @@ Generate {num_questions} questions now:"""
         
         return False
     
-    def _semantic_evaluation(self, user_answer: str, correct_answer: str, threshold: float = 0.57) -> tuple:
+    def _semantic_evaluation(self, user_answer: str, correct_answer: str, threshold: float = 0.42) -> tuple:
         """
-        Semantic similarity evaluation for structural questions.
+        Multi-strategy evaluation for short answer questions.
+        Tries three approaches in order:
+          1. Embedding cosine similarity (lowered threshold to 0.42)
+          2. Keyword overlap (if embeddings produce low score)
+          3. Substring containment (for very short correct answers)
         Returns (is_correct, similarity_score)
         """
         if not user_answer or not correct_answer:
             return False, 0.0
-        
         if not user_answer.strip() or not correct_answer.strip():
             return False, 0.0
-        
+
+        user_clean   = user_answer.strip().lower()
+        correct_clean = correct_answer.strip().lower()
+
+        # ── Strategy 3: substring containment (fast, handles concise answers) ──
+        # If the correct answer is short and the user's answer contains it verbatim
+        if len(correct_clean) < 80 and correct_clean in user_clean:
+            logger.info("Short answer evaluation: substring match → correct")
+            return True, 1.0
+
+        # ── Strategy 2: keyword overlap ────────────────────────────────────────
+        def meaningful_words(text):
+            stop = {"the","a","an","is","are","was","were","be","been","being",
+                    "have","has","had","do","does","did","will","would","shall",
+                    "should","may","might","must","can","could","to","of","in",
+                    "on","at","by","for","with","about","as","into","through",
+                    "and","or","but","if","because","so","that","this","it","its"}
+            return set(w.strip('.,;:!?') for w in text.split() if len(w) > 2 and w not in stop)
+
+        user_words    = meaningful_words(user_clean)
+        correct_words = meaningful_words(correct_clean)
+
+        if correct_words:
+            overlap_ratio = len(user_words & correct_words) / len(correct_words)
+            if overlap_ratio >= 0.45:
+                logger.info(f"Short answer evaluation: keyword overlap {overlap_ratio:.2f} → correct")
+                return True, overlap_ratio
+
+        # ── Strategy 1: embedding cosine similarity ────────────────────────────
         try:
-            # Get embeddings for both answers using HuggingFaceEmbeddings
-            user_embedding = self.embedding_model.embed_query(user_answer.strip())
+            user_embedding    = self.embedding_model.embed_query(user_answer.strip())
             correct_embedding = self.embedding_model.embed_query(correct_answer.strip())
-            
-            # Convert to numpy arrays and reshape for cosine similarity
-            user_vec = np.array(user_embedding).reshape(1, -1)
+            user_vec    = np.array(user_embedding).reshape(1, -1)
             correct_vec = np.array(correct_embedding).reshape(1, -1)
-            
-            # Calculate cosine similarity
-            similarity = cosine_similarity(user_vec, correct_vec)[0][0]
-            
-            # Convert numpy types to Python types for serialization
-            similarity_score = float(similarity)
-            is_correct = bool(similarity_score >= threshold)
-            
-            logger.info(f"Semantic evaluation: similarity={similarity_score:.3f}, threshold={threshold}, correct={is_correct}")
-            return is_correct, similarity_score
-            
+            similarity  = float(cosine_similarity(user_vec, correct_vec)[0][0])
+            is_correct  = bool(similarity >= threshold)
+            logger.info(f"Short answer evaluation: cosine={similarity:.3f}, threshold={threshold}, correct={is_correct}")
+            return is_correct, similarity
         except Exception as e:
-            logger.error(f"Error in semantic evaluation: {e}")
-            # Fallback to simple text comparison
-            user_words = set(user_answer.lower().split())
-            correct_words = set(correct_answer.lower().split())
-            
-            if not user_words or not correct_words:
-                return False, 0.0
-            
-            # Jaccard similarity as fallback
-            intersection = len(user_words.intersection(correct_words))
-            union = len(user_words.union(correct_words))
-            jaccard_sim = intersection / union if union > 0 else 0.0
-            
-            return bool(jaccard_sim >= 0.5), float(jaccard_sim)
+            logger.error(f"Embedding evaluation error: {e}")
+            # Final fallback: Jaccard similarity
+            if user_words and correct_words:
+                jaccard = len(user_words & correct_words) / len(user_words | correct_words)
+                return bool(jaccard >= 0.3), float(jaccard)
+            return False, 0.0
     
     def _extract_questions_from_text(self, text: str, num_questions: int, quiz_type: str):
         """Try to extract questions from malformed JSON"""
@@ -418,13 +542,13 @@ Generate {num_questions} questions now:"""
                 default_answer = "True"
             else:  # short_answer, structural
                 default_options = []
-                default_answer = "Please provide a complete answer based on the study material."
+                default_answer = ""
             
             fixed_q = {
                 "question": str(q.get("question", f"Question {i+1}")),
                 "type": question_type,
                 "options": q.get("options", default_options),
-                "correct_answer": str(q.get("correct_answer", default_answer)),
+                "correct_answer": str(q.get("correct_answer", default_answer)).strip(),
                 "explanation": str(q.get("explanation", "No explanation provided")),
                 "concept": str(q.get("concept", "General"))
             }
@@ -437,27 +561,36 @@ Generate {num_questions} questions now:"""
             if not isinstance(fixed_q["options"], list):
                 fixed_q["options"] = default_options
             
-            # Fix structural questions that have MCQ-style answers
+            # Fix structural/short answer questions that have MCQ-style answers or placeholders
             if question_type in ["short_answer", "structural"]:
-                # Check if correct_answer looks like MCQ option
-                correct_answer = fixed_q["correct_answer"].strip()
-                if (len(correct_answer) <= 3 and correct_answer.upper() in ["A", "B", "C", "D"]) or \
-                   correct_answer.lower() in ["a,b,c,or d", "a, b, c, or d"]:
-                    # This is a structural question with MCQ-style answer, fix it
-                    fixed_q["correct_answer"] = "Please provide a detailed answer based on the study material and concepts discussed."
-                    fixed_q["explanation"] = "This question requires a comprehensive written response demonstrating understanding of the concepts."
+                correct_answer = fixed_q["correct_answer"]
+                if (
+                    not correct_answer
+                    or (len(correct_answer) <= 3 and correct_answer.upper() in ["A", "B", "C", "D", "TRUE", "FALSE"])
+                    or correct_answer.lower() in ["a,b,c,or d", "a, b, c, or d"]
+                    or "please provide a" in correct_answer.lower()
+                    or "complete answer" in correct_answer.lower()
+                ):
+                    # Use explanation as a fallback correct answer
+                    if fixed_q["explanation"] and fixed_q["explanation"] != "No explanation provided" and len(fixed_q["explanation"]) > 10:
+                        fixed_q["correct_answer"] = fixed_q["explanation"]
+                    else:
+                        fixed_q["correct_answer"] = "Please provide a detailed response describing the main concept."
                 
                 # Ensure options is empty for structural questions
                 fixed_q["options"] = []
             
-            # Ensure correct_answer exists and is meaningful
+            # Ensure correct_answer exists and is meaningful for all types
             if not fixed_q["correct_answer"] or fixed_q["correct_answer"].strip() == "":
                 if question_type == "multiple_choice":
-                    fixed_q["correct_answer"] = fixed_q["options"][0] if fixed_q["options"] else "A"
+                    fixed_q["correct_answer"] = fixed_q["options"][0] if fixed_q["options"] else "Option A"
                 elif question_type == "true_false":
                     fixed_q["correct_answer"] = "True"
                 else:
-                    fixed_q["correct_answer"] = "Please provide a complete answer."
+                    if fixed_q["explanation"] and fixed_q["explanation"] != "No explanation provided" and len(fixed_q["explanation"]) > 10:
+                        fixed_q["correct_answer"] = fixed_q["explanation"]
+                    else:
+                        fixed_q["correct_answer"] = "Please provide a detailed response describing the main concept."
             
             # Ensure explanation exists and is meaningful
             if not fixed_q["explanation"] or fixed_q["explanation"].strip() == "" or fixed_q["explanation"] == "Why":

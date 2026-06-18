@@ -2,6 +2,25 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAura } from '../context/AuraContext';
 import { chatService } from '../services/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+
+function preprocessMath(text) {
+  if (!text) return text;
+  if (/\$/.test(text)) return text;
+  return text
+    .replace(/\b(d\/d[a-z]|[a-z]\/[a-z]|\d+\/\d+)\b/g, (m) => `$${m}$`)
+    .replace(/([a-zA-Z\d]+)\^(\{[^}]+\}|[a-zA-Z\d]+)/g, (m) => `$${m}$`)
+    .replace(/\b(sin|cos|tan|cot|sec|csc|ln|log|exp|sqrt|lim|sum|int)\s*\(([^)]+)\)/g, (m) => `$${m}$`)
+    .replace(/\b([a-zA-Z])'+'?\s*\([^)]+\)/g, (m) => `$${m}$`)
+    .replace(/\b(alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|sigma|omega|phi|psi)\b/g, (m) => `$\\${m}$`)
+    .replace(/([a-zA-Z][a-zA-Z0-9'_^()*/+\-\s]*=[a-zA-Z0-9'_^()*/+\-\s]+)/g, (m) => {
+      if (/[\^*]|sin|cos|tan|ln|sqrt|d\/d/.test(m)) return `$${m.trim()}$`;
+      return m;
+    });
+}
 
 const AuraQuickChat = () => {
   const { isQuickChatOpen, toggleQuickChat, triggerAura, quickChatQuery, setQuickChatQuery, personality } = useAura();
@@ -121,12 +140,53 @@ const AuraQuickChat = () => {
               messages.map((msg, i) => (
                 <div
                   key={i}
-                  className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user'
+                  className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed overflow-x-auto ${msg.role === 'user'
                       ? 'bg-primary/20 text-on-surface self-end rounded-br-sm'
                       : 'bg-surface-container-high border border-outline-variant/10 text-on-surface self-start rounded-bl-sm'
                     }`}
                 >
-                  {msg.content}
+                  {msg.role === 'user' ? (
+                    msg.content
+                  ) : (
+                    <div className="markdown-content text-on-surface-variant/90 space-y-1">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={{
+                          h1: ({children}) => <h1 className="text-sm font-black text-secondary mt-2 mb-1 pb-0.5 border-b border-secondary/20">{children}</h1>,
+                          h2: ({children}) => <h2 className="text-xs font-bold text-on-surface mt-2 mb-1">{children}</h2>,
+                          h3: ({children}) => <h3 className="text-[11px] font-bold text-secondary/80 mt-1.5 mb-0.5">{children}</h3>,
+                          p: ({children}) => <p className="my-1 leading-relaxed text-on-surface-variant/90">{children}</p>,
+                          ul: ({children}) => <ul className="my-1 pl-4 space-y-0.5 list-disc text-on-surface-variant">{children}</ul>,
+                          ol: ({children}) => <ol className="my-1 pl-4 space-y-0.5 list-decimal text-on-surface-variant">{children}</ol>,
+                          li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                          strong: ({children}) => <strong className="font-bold text-secondary">{children}</strong>,
+                          em: ({children}) => <em className="italic text-on-surface-variant">{children}</em>,
+                          code: ({inline, children}) => inline
+                            ? <code className="bg-secondary/10 px-1 py-0.5 rounded text-[11px] text-secondary font-mono font-medium">{children}</code>
+                            : <div className="relative group my-1.5">
+                                <pre className="bg-surface-container-highest/50 rounded-lg p-2 overflow-x-auto border border-outline-variant/10 shadow-inner">
+                                  <code className="text-[10px] text-secondary font-mono leading-normal">{children}</code>
+                                </pre>
+                              </div>,
+                          pre: ({children}) => <>{children}</>,
+                          blockquote: ({children}) => <blockquote className="border-l-2 border-secondary/30 bg-secondary/5 pl-2 py-0.5 my-1.5 text-on-surface-variant italic rounded-r">{children}</blockquote>,
+                          table: ({children}) => (
+                            <div className="my-2 overflow-x-auto rounded-lg border border-outline-variant/20 shadow-sm bg-surface-container-low/50">
+                              <table className="w-full text-[10px] border-collapse">{children}</table>
+                            </div>
+                          ),
+                          thead: ({children}) => <thead className="bg-secondary/10">{children}</thead>,
+                          th: ({children}) => <th className="px-1.5 py-1 text-left font-black text-secondary border-b border-outline-variant/20 uppercase tracking-wider text-[8px]">{children}</th>,
+                          td: ({children}) => <td className="px-1.5 py-1 border-b border-outline-variant/10 text-on-surface-variant leading-relaxed">{children}</td>,
+                          a: ({href, children}) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-secondary underline decoration-secondary/30 underline-offset-2 hover:text-secondary-fixed transition-colors font-medium">{children}</a>,
+                          hr: () => <hr className="border-outline-variant/10 my-2" />,
+                        }}
+                      >
+                        {preprocessMath(msg.content)}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </div>
               ))
             )}

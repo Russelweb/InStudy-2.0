@@ -82,6 +82,7 @@ const Flashcards = () => {
     { label: 'View Mastery', onClick: () => navigate('/mastery') }
   );
   const urlCourseId = searchParams.get('id');
+  const urlFocus    = searchParams.get('focus');   // subtopic name passed from Mastery
 
   const [decks, setDecks] = useState([]);
   const [currentDeckId, setCurrentDeckId] = useState(urlCourseId || localStorage.getItem('activeCourse') || null);
@@ -97,16 +98,17 @@ const Flashcards = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [setupStep, setSetupStep] = useState(0);
+  // If a focus topic was passed via URL, jump straight to Step 3 (Review & Create)
+  const [setupStep, setSetupStep] = useState(urlFocus ? 2 : 0);
   const [deckQuery, setDeckQuery] = useState('');
 
-  // Settings State
+  // Settings State — initialise topic from URL focus param immediately
   const [showSettings, setShowSettings] = useState(true);
   const [settings, setSettings] = useState({
     numCards: 10,
     explanationLevel: 'detailed',
     targetDocument: 'all',
-    topic: '' // New: specific topic focus
+    topic: urlFocus ? decodeURIComponent(urlFocus) : ''
   });
   const isInitialized = useRef(false);
 
@@ -161,7 +163,7 @@ const Flashcards = () => {
         setCards(asset.data.cards || []);
         setSettings(asset.data.settings || settings);
         setCurrentDeckId(asset.course_id);
-        setShowSettings(false); // Force hide settings
+        setShowSettings(false);
         setCurrentIndex(0);
         setSessionStats({ 
           learned: 0, 
@@ -171,10 +173,16 @@ const Flashcards = () => {
         });
         localStorage.removeItem('load_asset_flashcards');
         setTimeout(() => { isInitialized.current = true; }, 100);
-        return; // Skip normal persistence loading
+        return;
       } catch (e) {
         console.error('Failed to load asset:', e);
       }
+    }
+
+    // If a focus param was in the URL we already initialised state above — skip persistence restore
+    if (urlFocus) {
+      setTimeout(() => { isInitialized.current = true; }, 100);
+      return;
     }
     
     // Load persisted state (only if no asset was loaded)
@@ -543,6 +551,19 @@ const Flashcards = () => {
                       <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.8fr] gap-4 mt-5">
                         <div className="bg-surface-container border border-outline-variant/15 rounded-xl p-4">
                           <SectionLabel icon="center_focus_strong" label="Focus Topic (optional)" />
+                          {settings.topic && (
+                            <div className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg">
+                              <span className="material-symbols-outlined text-primary text-sm">auto_awesome</span>
+                              <span className="text-[10px] text-primary font-black uppercase tracking-wider">Auto-focused from Review Queue</span>
+                              <button
+                                onClick={() => setSettings(s => ({ ...s, topic: '' }))}
+                                className="ml-auto text-on-surface-variant/50 hover:text-error transition-colors"
+                                title="Clear focus"
+                              >
+                                <span className="material-symbols-outlined text-sm">close</span>
+                              </button>
+                            </div>
+                          )}
                           <input
                             type="text"
                             value={settings.topic || ''}

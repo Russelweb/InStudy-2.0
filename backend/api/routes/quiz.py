@@ -133,9 +133,11 @@ async def evaluate_quiz(
         
         # Evaluate the quiz
         print("Step 6: Starting quiz evaluation...")
+        api_key = getattr(request.state, "groq_api_key", None)
         results = quiz_service.evaluate_quiz(
             request_data.questions,
-            request_data.user_answers
+            request_data.user_answers,
+            api_key=api_key
         )
         
         print(f"Step 7: Evaluation complete - {results['correct_answers']}/{results['total_questions']} ({results['score_percentage']}%)")

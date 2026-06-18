@@ -615,7 +615,9 @@ const DetailTab = ({ courseGraph, selectedCourseId, courses, onSelectCourse, loa
                     <div className="flex items-center justify-between mt-1.5">
                       <span className="text-[9px] text-error font-black">{Math.round(sub.mastery_pct ?? 0)}%</span>
                       <button
-                        onClick={() => navigate(`/flashcards?id=${selectedCourseId}`)}
+                        onClick={() => {
+                          navigate(`/flashcards?id=${selectedCourseId}&focus=${encodeURIComponent(sub.concept_name)}`);
+                        }}
                         className="text-[9px] font-black text-primary uppercase tracking-widest hover:text-secondary transition-colors"
                       >
                         Study →
@@ -649,11 +651,27 @@ const URGENCY = [
 ];
 
 const ReviewTab = ({ staleSubtopics, selectedCourseId, courses, onSelectCourse, loading, navigate }) => {
-  // Bucket stale subtopics by urgency
+  const [dismissed, setDismissed] = useState(new Set());
+
+  // Reset dismissed set when course or stale data changes
+  const staleKey = staleSubtopics.map(s => s.concept_id ?? s.concept_name).join(',');
+  const [prevStaleKey, setPrevStaleKey] = useState(staleKey);
+  if (prevStaleKey !== staleKey) { setPrevStaleKey(staleKey); setDismissed(new Set()); }
+
+  const handleStudy = (item) => {
+    // Mark item as dismissed locally (dynamic removal)
+    const key = item.concept_id ?? item.concept_name;
+    setDismissed(prev => new Set([...prev, key]));
+    // Navigate with the subtopic name as a URL param — Flashcards reads it synchronously
+    navigate(`/flashcards?id=${selectedCourseId}&focus=${encodeURIComponent(item.concept_name)}`);
+  };
+
+  // Bucket stale subtopics by urgency, excluding dismissed items
+  const visible = staleSubtopics.filter(s => !dismissed.has(s.concept_id ?? s.concept_name));
   const buckets = {
-    urgent: staleSubtopics.filter(s => s.days_since >= 21 || (s.mastery_pct ?? 0) < 20),
-    soon:   staleSubtopics.filter(s => s.days_since >= 14 && s.days_since < 21 && (s.mastery_pct ?? 0) >= 20),
-    later:  staleSubtopics.filter(s => s.days_since >= 7  && s.days_since < 14),
+    urgent: visible.filter(s => s.days_since >= 21 || (s.mastery_pct ?? 0) < 20),
+    soon:   visible.filter(s => s.days_since >= 14 && s.days_since < 21 && (s.mastery_pct ?? 0) >= 20),
+    later:  visible.filter(s => s.days_since >= 7  && s.days_since < 14),
   };
   const totalReview = Object.values(buckets).reduce((s, b) => s + b.length, 0);
 
@@ -714,9 +732,17 @@ const ReviewTab = ({ staleSubtopics, selectedCourseId, courses, onSelectCourse, 
                   </span>
                 </div>
                 <p className="text-[10px] text-on-surface-variant mb-4">{u.desc}</p>
-                <div className="space-y-2">
+                <AnimatePresence mode="popLayout">
                   {items.map((item, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 bg-surface-container-lowest/50 rounded-xl border border-outline-variant/10">
+                    <motion.div
+                      key={item.concept_id ?? item.concept_name ?? i}
+                      layout
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: 30, height: 0, marginBottom: 0 }}
+                      transition={{ duration: 0.22 }}
+                      className="flex items-center gap-3 p-3 mb-2 bg-surface-container-lowest/50 rounded-xl border border-outline-variant/10"
+                    >
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-black text-on-surface truncate">{item.concept_name}</p>
                         <p className="text-[9px] text-on-surface-variant truncate">
@@ -735,19 +761,20 @@ const ReviewTab = ({ staleSubtopics, selectedCourseId, courses, onSelectCourse, 
                         </div>
                       </div>
                       <button
-                        onClick={() => navigate(`/flashcards?id=${selectedCourseId}`)}
-                        className="shrink-0 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border"
+                        onClick={() => handleStudy(item)}
+                        className="shrink-0 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border hover:scale-105 active:scale-95"
                         style={{
                           backgroundColor: `${u.color}15`,
                           borderColor: `${u.color}30`,
                           color: u.color
                         }}
+                        title={`Study '${item.concept_name}' focused flashcards`}
                       >
-                        Study
+                        Study →
                       </button>
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </AnimatePresence>
               </div>
             );
           })}
