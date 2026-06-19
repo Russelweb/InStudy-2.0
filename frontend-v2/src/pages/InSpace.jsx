@@ -54,7 +54,7 @@ export default function InSpace() {
 
   // ── Interactive Guide ────────────────────────────────────────────────────
   const HIDE_INSPACE_GUIDE_KEY = "inspace_guide_never_show";
-  const [showGuide, setShowGuide] = useState(() => !localStorage.getItem(HIDE_INSPACE_GUIDE_KEY));
+  const [showGuide, setShowGuide] = useState(() => localStorage.getItem(HIDE_INSPACE_GUIDE_KEY));
   const [confirmNeverShowOpen, setConfirmNeverShowOpen] = useState(false);
 
   const handleDismissGuide = (permanent = false) => {

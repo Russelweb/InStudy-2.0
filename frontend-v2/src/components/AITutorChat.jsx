@@ -49,18 +49,80 @@ const MicroAssessmentCard = ({ assessment, courseId, onDismiss }) => {
   const [result, setResult] = useState(null);
   const [feedback, setFeedback] = useState('');
 
-  // Evaluate the student's answer against the model answer using word overlap
-  // This is a lightweight client-side check — the real XP decision is server-side
+  // Evaluate the student's answer against the model answer using smart fuzzy matching
   const evaluateAnswer = (studentAnswer, modelAnswer) => {
     if (!studentAnswer.trim()) return 'skipped';
-    const normalize = s => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
-    const studentWords = new Set(normalize(studentAnswer).split(/\s+/).filter(w => w.length > 3));
-    const modelWords   = new Set(normalize(modelAnswer).split(/\s+/).filter(w => w.length > 3));
-    if (studentWords.size === 0) return 'skipped';
-    const overlap = [...studentWords].filter(w => modelWords.has(w)).length;
-    const score = overlap / Math.max(modelWords.size, 1);
-    // >30% keyword overlap = correct; otherwise incorrect
-    return score >= 0.3 ? 'correct' : 'incorrect';
+    
+    // Normalize string by converting to lowercase and stripping punctuation
+    const normalize = s => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    const normStudent = normalize(studentAnswer);
+    const normModel = normalize(modelAnswer);
+    
+    if (normStudent === normModel) return 'correct';
+    if (!normStudent || !normModel) return 'incorrect';
+
+    const studentWordsRaw = normStudent.split(' ');
+    const modelWordsRaw = normModel.split(' ');
+
+    // 1. If either is a very short phrase (1-2 words), check if one is fully contained in the other
+    if (modelWordsRaw.length <= 2) {
+      if (normStudent.includes(normModel)) return 'correct';
+    }
+    if (studentWordsRaw.length <= 2) {
+      if (normStudent.length >= 2 && normModel.includes(normStudent)) return 'correct';
+    }
+
+    // 2. Acronym matching: Check if student's answer is an acronym of the model answer (e.g. CPU for Central Processing Unit)
+    // or vice versa.
+    if (modelWordsRaw.length >= 2) {
+      const modelAcronym = modelWordsRaw.map(w => w[0]).join('');
+      if (normStudent === modelAcronym && modelAcronym.length >= 2) return 'correct';
+    }
+    if (studentWordsRaw.length >= 2) {
+      const studentAcronym = studentWordsRaw.map(w => w[0]).join('');
+      if (normModel === studentAcronym && studentAcronym.length >= 2) return 'correct';
+    }
+
+    // 3. Stop words filter
+    const stopWords = new Set([
+      'the', 'a', 'an', 'is', 'are', 'was', 'were', 'of', 'and', 'or', 'to', 'in', 
+      'it', 'that', 'this', 'for', 'with', 'as', 'by', 'on', 'at', 'from', 'what', 
+      'who', 'how', 'why', 'which', 'about', 'an', 'be', 'by', 'do', 'if', 'me', 
+      'my', 'no', 'not', 'or', 'up', 'we', 'you', 'your'
+    ]);
+
+    const getKeywords = (words) => {
+      return words.filter(w => w.length > 0 && !stopWords.has(w));
+    };
+
+    const studentKeywords = getKeywords(studentWordsRaw);
+    const modelKeywords = getKeywords(modelWordsRaw);
+
+    const sKeys = studentKeywords.length > 0 ? studentKeywords : studentWordsRaw;
+    const mKeys = modelKeywords.length > 0 ? modelKeywords : modelWordsRaw;
+
+    const sKeySet = new Set(sKeys);
+    const mKeySet = new Set(mKeys);
+
+    // Compute standard keyword overlap (exact word matches)
+    const exactOverlap = [...sKeySet].filter(w => mKeySet.has(w)).length;
+    const exactScore = exactOverlap / Math.max(mKeySet.size, 1);
+    if (exactScore >= 0.3) return 'correct';
+
+    // Compute fuzzy keyword overlap (allowing substring matching for singular/plural or minor suffixes)
+    let substringOverlap = 0;
+    for (const sKey of sKeySet) {
+      for (const mKey of mKeySet) {
+        if (sKey === mKey || (sKey.length > 3 && mKey.length > 3 && (sKey.includes(mKey) || mKey.includes(sKey)))) {
+          substringOverlap++;
+          break;
+        }
+      }
+    }
+    const fuzzyScore = substringOverlap / Math.max(mKeySet.size, 1);
+    if (fuzzyScore >= 0.3) return 'correct';
+
+    return 'incorrect';
   };
 
   const handleSubmitAnswer = async () => {
@@ -141,7 +203,7 @@ const MicroAssessmentCard = ({ assessment, courseId, onDismiss }) => {
           </span>
         </div>
         <button
-          onClick={() => handleSubmit('skipped')}
+          onClick={handleSkip}
           className="text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"
           title="Skip (partial XP)"
         >

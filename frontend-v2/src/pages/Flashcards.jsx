@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
 import EmptyState from '../components/EmptyState';
 import { InputModal } from '../components/Modal';
@@ -76,6 +76,7 @@ const FlashcardTutorial = ({ onDismiss }) => (
 const Flashcards = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { triggerAura, askAuraBackground } = useAura();
   useAuraHelp(
     'Rate each card using the buttons below — Unfamiliar, Familiar, or Mastered. Your ratings update your Mastery score automatically.',
@@ -111,6 +112,9 @@ const Flashcards = () => {
     topic: urlFocus ? decodeURIComponent(urlFocus) : ''
   });
   const isInitialized = useRef(false);
+  // Flag: true when page was opened by clicking a saved asset — prevents
+  // fetchDecks and deck-change effects from wiping the loaded cards.
+  const loadedFromAssetRef = useRef(false);
 
   // ---------- Idle / Stuck Nudge ----------
   useEffect(() => {
@@ -140,8 +144,10 @@ const Flashcards = () => {
       const response = await flashcardService.getDecks();
       const courses = response.data.courses || [];
       setDecks(courses);
-      
-      if (courses.length > 0 && !currentDeckId) {
+
+      // ⚠️ Don't overwrite the course set by a saved-asset load.
+      // loadedFromAssetRef is already true by the time this async call resolves.
+      if (courses.length > 0 && !loadedFromAssetRef.current && !currentDeckId) {
         const id = courses[0].id;
         setCurrentDeckId(id);
         localStorage.setItem('activeCourse', id);
@@ -151,31 +157,38 @@ const Flashcards = () => {
     }
   };
 
-  useEffect(() => { 
-    fetchDecks(); 
-    
-    // Check for loaded asset from Saved Assets page FIRST
-    const loadedAsset = localStorage.getItem('load_asset_flashcards');
-    if (loadedAsset) {
+  useEffect(() => {
+    fetchDecks();
+
+    // ── Primary: Router state handoff (synchronous, no race conditions) ────
+    const routerAsset = location.state?.loadedAsset;
+
+    // ── Fallback: legacy localStorage handoff ──────────────────────────
+    let legacyAssetRaw = null;
+    try { legacyAssetRaw = localStorage.getItem('load_asset_flashcards'); } catch (_) {}
+
+    const assetToLoad = routerAsset || (legacyAssetRaw ? JSON.parse(legacyAssetRaw) : null);
+
+    if (assetToLoad) {
       try {
-        const asset = JSON.parse(loadedAsset);
-        console.log('Loading saved flashcard deck:', asset.title);
-        setCards(asset.data.cards || []);
-        setSettings(asset.data.settings || settings);
-        setCurrentDeckId(asset.course_id);
+        console.log('Loading saved flashcard deck:', assetToLoad.title);
+        loadedFromAssetRef.current = true; // block fetchDecks & deck-change reset
+        setCards(assetToLoad.data.cards || []);
+        setSettings(assetToLoad.data.settings || settings);
+        setCurrentDeckId(assetToLoad.course_id);
         setShowSettings(false);
         setCurrentIndex(0);
-        setSessionStats({ 
-          learned: 0, 
-          remaining: asset.data.cards?.length || 0, 
-          correct: 0, 
-          total: asset.data.cards?.length || 0 
+        setSessionStats({
+          learned: 0,
+          remaining: assetToLoad.data.cards?.length || 0,
+          correct: 0,
+          total: assetToLoad.data.cards?.length || 0
         });
-        localStorage.removeItem('load_asset_flashcards');
+        if (!routerAsset) localStorage.removeItem('load_asset_flashcards');
         setTimeout(() => { isInitialized.current = true; }, 100);
         return;
       } catch (e) {
-        console.error('Failed to load asset:', e);
+        console.error('Failed to load flashcard asset:', e);
       }
     }
 
@@ -184,7 +197,7 @@ const Flashcards = () => {
       setTimeout(() => { isInitialized.current = true; }, 100);
       return;
     }
-    
+
     // Load persisted state (only if no asset was loaded)
     const savedDeckId = localStorage.getItem('flashcards_deck_id');
     const savedCards = localStorage.getItem('flashcards_cards');
@@ -199,7 +212,7 @@ const Flashcards = () => {
     if (savedSettings) setSettings(JSON.parse(savedSettings));
 
     setTimeout(() => { isInitialized.current = true; }, 100);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Only persist after init
@@ -245,13 +258,16 @@ const Flashcards = () => {
 
   // ---------- Fetch Documents for active course ----------
   useEffect(() => {
+    // Skip reset if the page was opened to show a saved asset
+    if (loadedFromAssetRef.current) return;
+
     // Only reset if the deck actually changed AND we're already initialized
     if (isInitialized.current && currentDeckId !== localStorage.getItem('flashcards_deck_id')) {
         clearPersistence();
         setShowSettings(true);
         setCards([]);
     }
-    
+
     documentService.listByCourse(currentDeckId)
       .then(res => {
         setCourseDocuments(res.data.documents || []);

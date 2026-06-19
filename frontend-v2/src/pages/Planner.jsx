@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { plannerService, statService, assetService, masteryService } from '../services/api';
+import { useLocation } from 'react-router-dom';
 import { InputModal } from '../components/Modal';
 import { showToast } from '../components/Toast';
 import { useAura, useAuraHelp } from '../context/AuraContext';
 import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const Planner = () => {
+  const location = useLocation();
   const [step, setStep] = useState('setup'); // 'setup' | 'loading' | 'timeline'
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -32,23 +34,29 @@ const Planner = () => {
   );
 
   useEffect(() => {
-    // Check for loaded asset from Saved Assets page FIRST
-    const loadedAsset = localStorage.getItem('load_asset_study_plan');
-    if (loadedAsset) {
+    // ── Primary: Router state handoff from SavedAssets ─────────────────────
+    const routerAsset = location.state?.loadedAsset;
+
+    // ── Fallback: legacy localStorage handoff ──────────────────────────
+    let legacyAssetRaw = null;
+    try { legacyAssetRaw = localStorage.getItem('load_asset_study_plan'); } catch (_) {}
+
+    const assetToLoad = routerAsset || (legacyAssetRaw ? JSON.parse(legacyAssetRaw) : null);
+
+    if (assetToLoad) {
       try {
-        const asset = JSON.parse(loadedAsset);
-        console.log('Loading saved study plan:', asset.title);
-        setPlan(asset.data.plan || null);
-        setExamDate(asset.data.examDate || examDate);
-        setTopics(asset.data.topics || []);
-        setCompletedTasks(asset.data.completedTasks || {});
-        setSelectedCourse(asset.course_id);
-        setStep('timeline'); // Force show timeline
-        localStorage.removeItem('load_asset_study_plan');
+        console.log('Loading saved study plan:', assetToLoad.title);
+        setPlan(assetToLoad.data.plan || null);
+        setExamDate(assetToLoad.data.examDate || examDate);
+        setTopics(assetToLoad.data.topics || []);
+        setCompletedTasks(assetToLoad.data.completedTasks || {});
+        setSelectedCourse(assetToLoad.course_id);
+        setStep('timeline');
+        if (!routerAsset) localStorage.removeItem('load_asset_study_plan');
         setTimeout(() => { isInitialized.current = true; }, 100);
-        return; // Skip normal persistence loading
+        return;
       } catch (e) {
-        console.error('Failed to load asset:', e);
+        console.error('Failed to load study plan asset:', e);
       }
     }
 
@@ -76,7 +84,7 @@ const Planner = () => {
 
     console.log('Planner Initialized. Persisted state loaded.');
     setTimeout(() => { isInitialized.current = true; }, 100);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Only persist after initialization and if state is valid

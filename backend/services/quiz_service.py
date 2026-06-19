@@ -203,6 +203,12 @@ Generate {num_questions} questions now:"""
             import re
             response_text = re.sub(r',\s*}', '}', response_text)
             response_text = re.sub(r',\s*]', ']', response_text)
+            
+            # Fix missing commas between array objects: } { -> }, {
+            response_text = re.sub(r'\}\s*\{', '}, {', response_text)
+            
+            # Fix missing commas between properties (e.g. "value" "next_key": -> "value", "next_key":)
+            response_text = re.sub(r'"\s+"(?=[a-zA-Z0-9_]+"\s*:)', '", "', response_text)
 
             result = json.loads(response_text.strip())
 
@@ -237,7 +243,7 @@ Generate {num_questions} questions now:"""
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse quiz JSON: {e}")
-            extracted = self._extract_questions_from_text(response, num_questions, quiz_type)
+            extracted = self._extract_questions_from_text(response_text, num_questions, quiz_type)
             return self._validate_and_fix_questions(extracted)
         except Exception as e:
             logger.error(f"Unexpected error parsing quiz: {e}")

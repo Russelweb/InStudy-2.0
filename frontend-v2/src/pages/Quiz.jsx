@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { quizService, flashcardService, assetService } from '../services/api';
 import { InputModal, ConfirmModal } from '../components/Modal';
 import { showToast } from '../components/Toast';
@@ -901,6 +901,7 @@ const Quiz = () => {
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [abortModalOpen, setAbortModalOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { triggerAura } = useAura();
   useAuraHelp('Choose your course, set difficulty and question count, then click Generate Quiz. Your results update your Mastery score.');
   const isInitialized = useRef(false);
@@ -921,21 +922,38 @@ const Quiz = () => {
     };
     fetchCourses();
 
-    // Check for loaded asset from Saved Assets page FIRST
-    const loadedAsset = localStorage.getItem('load_asset_quiz');
-    if (loadedAsset) {
+    // ── Primary: Router state handoff from SavedAssets (synchronous, no race conditions) ──
+    const routerAsset = location.state?.loadedAsset;
+    const loadMode = location.state?.loadMode || 'retake'; // 'retake' | 'results'
+
+    // ── Fallback: legacy localStorage handoff ──────────────────────────────
+    let legacyAssetRaw = null;
+    try { legacyAssetRaw = localStorage.getItem('load_asset_quiz'); } catch (_) {}
+
+    const assetToLoad = routerAsset || (legacyAssetRaw ? JSON.parse(legacyAssetRaw) : null);
+    const effectiveMode = routerAsset ? loadMode : (assetToLoad?.data?.results ? 'results' : 'retake');
+
+    if (assetToLoad) {
       try {
-        const asset = JSON.parse(loadedAsset);
-        console.log('Loading saved quiz:', asset.title);
-        setCurrentQuestions(asset.data.questions || []);
-        setEvaluationResults(asset.data.results || null);
-        setSelectedCourse(asset.course_id);
-        setPhase(asset.data.results ? 'evaluation' : 'assessment');
-        localStorage.removeItem('load_asset_quiz');
+        console.log(`Loading saved quiz: "${assetToLoad.title}" in ${effectiveMode} mode`);
+        setCurrentQuestions(assetToLoad.data.questions || []);
+        setSelectedCourse(assetToLoad.course_id);
+
+        if (effectiveMode === 'results' && assetToLoad.data.results) {
+          // View previous results
+          setEvaluationResults(assetToLoad.data.results);
+          setPhase('evaluation');
+        } else {
+          // Retake: always clear old results and start fresh with the same questions
+          setEvaluationResults(null);
+          setPhase('assessment');
+        }
+
+        if (!routerAsset) localStorage.removeItem('load_asset_quiz');
         setTimeout(() => { isInitialized.current = true; }, 100);
         return; // Skip normal persistence loading
       } catch (e) {
-        console.error('Failed to load asset:', e);
+        console.error('Failed to load quiz asset:', e);
       }
     }
 
@@ -951,7 +969,7 @@ const Quiz = () => {
     if (savedResults) setEvaluationResults(JSON.parse(savedResults));
 
     setTimeout(() => { isInitialized.current = true; }, 100);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Only persist after loading is done

@@ -103,7 +103,7 @@ const AuraQuickChat = () => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           transition={{ duration: 0.2 }}
-          className="absolute bottom-16 right-0 w-80 sm:w-96 glass rounded-3xl shadow-2xl overflow-hidden flex flex-col mb-4 border border-outline-variant/30"
+          className="absolute bottom-16 right-0 w-[min(90vw,32rem)] sm:w-[min(80vw,36rem)] glass rounded-3xl shadow-2xl overflow-hidden flex flex-col mb-4 border border-outline-variant/30"
           style={{ height: '400px', background: 'rgba(24,32,25,0.85)', backdropFilter: 'blur(20px)' }}
         >
           {/* Header */}
@@ -140,7 +140,7 @@ const AuraQuickChat = () => {
               messages.map((msg, i) => (
                 <div
                   key={i}
-                  className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed overflow-x-auto ${msg.role === 'user'
+                  className={`w-full max-w-full min-w-0 p-3 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap ${msg.role === 'user'
                       ? 'bg-primary/20 text-on-surface self-end rounded-br-sm'
                       : 'bg-surface-container-high border border-outline-variant/10 text-on-surface self-start rounded-bl-sm'
                     }`}
@@ -148,7 +148,7 @@ const AuraQuickChat = () => {
                   {msg.role === 'user' ? (
                     msg.content
                   ) : (
-                    <div className="markdown-content text-on-surface-variant/90 space-y-1">
+                    <div className="markdown-content text-on-surface-variant/90 space-y-1 break-words overflow-wrap-anywhere">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex]}
@@ -156,7 +156,7 @@ const AuraQuickChat = () => {
                           h1: ({children}) => <h1 className="text-sm font-black text-secondary mt-2 mb-1 pb-0.5 border-b border-secondary/20">{children}</h1>,
                           h2: ({children}) => <h2 className="text-xs font-bold text-on-surface mt-2 mb-1">{children}</h2>,
                           h3: ({children}) => <h3 className="text-[11px] font-bold text-secondary/80 mt-1.5 mb-0.5">{children}</h3>,
-                          p: ({children}) => <p className="my-1 leading-relaxed text-on-surface-variant/90">{children}</p>,
+                          p: ({children}) => <p className="my-1 leading-relaxed text-on-surface-variant/90 break-words overflow-wrap-anywhere">{children}</p>,
                           ul: ({children}) => <ul className="my-1 pl-4 space-y-0.5 list-disc text-on-surface-variant">{children}</ul>,
                           ol: ({children}) => <ol className="my-1 pl-4 space-y-0.5 list-decimal text-on-surface-variant">{children}</ol>,
                           li: ({children}) => <li className="leading-relaxed">{children}</li>,
@@ -191,7 +191,7 @@ const AuraQuickChat = () => {
               ))
             )}
             {isLoading && (
-              <div className="bg-surface-container-high border border-outline-variant/10 text-on-surface self-start rounded-bl-sm rounded-2xl p-3 max-w-[85%] flex gap-1 items-center">
+              <div className="bg-surface-container-high border border-outline-variant/10 text-on-surface self-start rounded-bl-sm rounded-2xl p-3 w-full max-w-full flex gap-1 items-center">
                 <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                 <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                 <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -15,6 +15,7 @@ import ScrollToTopButton from '../components/ScrollToTopButton';
 const SummaryView = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { triggerAura } = useAura();
   useAuraHelp('Your summary is displayed below. Use the actions to save, share, or export it.');
 
@@ -31,16 +32,22 @@ const SummaryView = () => {
   }, [summaryData]);
 
   useEffect(() => {
-    // Check for loaded asset from Saved Assets page first
-    const savedSummary = localStorage.getItem('load_asset_summary');
-    if (savedSummary) {
+    // ── Primary: Router state handoff from SavedAssets (synchronous) ────────
+    const routerAsset = location.state?.loadedAsset;
+
+    // ── Fallback: legacy localStorage handoff ──────────────────────────
+    let legacyAssetRaw = null;
+    try { legacyAssetRaw = localStorage.getItem('load_asset_summary'); } catch (_) {}
+
+    const assetToLoad = routerAsset || (legacyAssetRaw ? JSON.parse(legacyAssetRaw) : null);
+
+    if (assetToLoad) {
       try {
-        const asset = JSON.parse(savedSummary);
-        setSummaryData(asset.data);
-        localStorage.removeItem('load_asset_summary');
+        setSummaryData(assetToLoad.data);
+        if (!routerAsset) localStorage.removeItem('load_asset_summary');
         return;
       } catch (e) {
-        console.error('Failed to load summary:', e);
+        console.error('Failed to load summary asset:', e);
       }
     }
 
@@ -49,13 +56,12 @@ const SummaryView = () => {
     if (viewSummary) {
       try {
         const data = JSON.parse(viewSummary);
-        // Keep it in localStorage for persistence (don't remove)
         setSummaryData(data);
       } catch (e) {
         console.error('Failed to restore summary view:', e);
       }
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = () => {
     if (!summaryData) return;
