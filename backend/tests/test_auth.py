@@ -121,4 +121,4 @@ def test_auth_system():
     print("🎉 Authentication system test completed!")
 
 if __name__ == "__main__":
-    test_auth_system()
+    test_auth_system()  

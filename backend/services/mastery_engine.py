@@ -12,7 +12,7 @@ Usage:
         course_id="bio101",
         doc_id="<uuid>",
         concept_id="<subtopic_uuid>",
-        event_type="quiz_correct",
+        event_type="quiz_correct",  
         tool="quiz",
         difficulty="hard",
     )

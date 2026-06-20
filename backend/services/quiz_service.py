@@ -240,7 +240,7 @@ Generate {num_questions} questions now:"""
                 return fixed_questions
             else:
                 return self._parse_quiz_fallback(num_questions, quiz_type)
-
+  
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse quiz JSON: {e}")
             extracted = self._extract_questions_from_text(response_text, num_questions, quiz_type)

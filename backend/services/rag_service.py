@@ -397,7 +397,7 @@ You MUST respond entirely in {detected_lang}.
 {conversation_context}
 
 {personality_instruction}
-
+ 
 Study Material (with page numbers):
 {context_text}
 

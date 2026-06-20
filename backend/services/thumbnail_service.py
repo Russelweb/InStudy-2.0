@@ -33,7 +33,7 @@ class ThumbnailService:
             docs = [f for f in course_dir.iterdir() if f.is_file() and f.suffix.lower() in [".pdf", ".docx", ".txt"] and f.name != "thumbnail.png"]
             if not docs:
                 return None
-            
+              
             # Sort to be deterministic
             first_doc = sorted(docs)[0]
             

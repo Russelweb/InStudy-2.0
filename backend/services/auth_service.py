@@ -215,7 +215,7 @@ class AuthService:
     def accept_policy(self, user_id: int) -> bool:
         """Mark that a user has accepted the AI usage policy"""
         return self.auth_db.accept_policy(user_id)
-
+  
     def has_accepted_policy(self, user_id: int) -> bool:
         """Check if a user has accepted the policy"""
         return self.auth_db.has_accepted_policy(user_id)

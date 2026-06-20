@@ -17,7 +17,7 @@ def demo_page_aware_features():
     
     rag_service = RAGService()
     
-    # Demo queries
+    # Demo queries  
     demo_queries = [
         "What's on page 24?",
         "Solve exercise 1.12",

@@ -375,7 +375,7 @@ class TutorMasteryService:
         Generate a single targeted micro-assessment question for the subtopic.
         Returns {"question": str, "answer": str} or None on failure.
         """
-        try:
+        try:  
             # Use the last answer as context for question generation
             last_answer = conversation_history[-1].get("answer", "")[:500]
 

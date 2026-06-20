@@ -6,7 +6,7 @@ from langchain_community.vectorstores import FAISS
 from config import settings
 from models.global_models import get_embeddings
 import docx2txt
-import logging
+import logging  
 import base64
 import pandas as pd
 from io import BytesIO

@@ -15,7 +15,7 @@ Flow:
   4. Concepts inserted into course_concepts via mastery_v2_db
   5. document_weight computed and stored in course_documents
 """
-
+  
 import json
 import logging
 import re

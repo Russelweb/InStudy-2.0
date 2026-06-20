@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 print("=" * 60)
 print("InStudy 2.0 - Local Setup Verification")
-print("=" * 60)
+print("=" * 60)  
 
 # Test 1: Check Ollama
 print("\n1. Testing Ollama connection...")

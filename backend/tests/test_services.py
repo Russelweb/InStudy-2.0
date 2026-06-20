@@ -20,7 +20,7 @@ try:
 except Exception as e:
     print(f"❌ Config failed: {e}")
     traceback.print_exc()
-    sys.exit(1)
+    sys.exit(1)  
 
 # Test 2: Global Models
 print("\n2. Testing Global Models...")

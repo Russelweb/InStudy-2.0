@@ -46,7 +46,7 @@ class SummaryService:
             "exam": "highly focused summary targeting likely exam topics and key terminology"
         }
          
-        # Get preferred language
+        # Get preferred language  
         preferred_language = "English"
         if user_id.isdigit():
             preferred_language = auth_db.get_preferred_language(int(user_id))
