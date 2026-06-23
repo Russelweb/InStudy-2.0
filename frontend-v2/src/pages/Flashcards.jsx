@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
 import EmptyState from '../components/EmptyState';
-import { InputModal } from '../components/Modal';
+import { InputModal, ConfirmModal } from '../components/Modal';
 import { showToast } from '../components/Toast';
 import { useAura, useAuraHelp } from '../context/AuraContext';
 import { flashcardService, masteryService, documentService, assetService } from '../services/api';
@@ -98,6 +98,8 @@ const Flashcards = () => {
   const [sessionStats, setSessionStats] = useState({ learned: 0, remaining: 0, correct: 0, total: 0 });
   const [isSaving, setIsSaving] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [dupConfirmOpen, setDupConfirmOpen] = useState(false);
+  const [pendingSaveTitle, setPendingSaveTitle] = useState('');
   const [showTutorial, setShowTutorial] = useState(false);
   // If a focus topic was passed via URL, jump straight to Step 3 (Review & Create)
   const [setupStep, setSetupStep] = useState(urlFocus ? 2 : 0);
@@ -240,12 +242,38 @@ const Flashcards = () => {
     setSaveModalOpen(false);
     setIsSaving(true);
     try {
-      await assetService.save(
+      const res = await assetService.save(
         currentDeckId,
         'flashcards',
         title,
         { cards, settings },
         { card_count: cards.length }
+      );
+      if (res.data && res.data.duplicate) {
+        setPendingSaveTitle(title);
+        setDupConfirmOpen(true);
+      } else {
+        showToast('Flashcard deck saved successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+      showToast('Failed to save deck. Please try again.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveDuplicate = async () => {
+    setDupConfirmOpen(false);
+    setIsSaving(true);
+    try {
+      await assetService.save(
+        currentDeckId,
+        'flashcards',
+        pendingSaveTitle,
+        { cards, settings },
+        { card_count: cards.length },
+        true
       );
       showToast('Flashcard deck saved successfully!', 'success');
     } catch (error) {
@@ -253,6 +281,7 @@ const Flashcards = () => {
       showToast('Failed to save deck. Please try again.', 'error');
     } finally {
       setIsSaving(false);
+      setPendingSaveTitle('');
     }
   };
 
@@ -779,6 +808,16 @@ const Flashcards = () => {
         confirmLabel="Save Deck"
         onConfirm={handleSaveConfirm}
         onCancel={() => setSaveModalOpen(false)}
+      />
+
+      <ConfirmModal
+        open={dupConfirmOpen}
+        title="Duplicate Asset"
+        description={`An asset with the title "${pendingSaveTitle}" already exists. Do you want to save a new duplicate copy anyway?`}
+        confirmLabel="Save Duplicate"
+        cancelLabel="Cancel"
+        onConfirm={handleSaveDuplicate}
+        onCancel={() => { setDupConfirmOpen(false); setPendingSaveTitle(''); }}
       />
     </div>
   );

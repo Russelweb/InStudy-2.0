@@ -185,6 +185,28 @@ class AssetsDatabase:
             logger.error(f"Error deleting asset: {e}")
             return False
     
+    def check_duplicate(self, user_id: str, course_id: str, asset_type: str, title: str) -> Optional[Dict[str, Any]]:
+        """Check if an asset with the same type, course, and title already exists (case-insensitive)."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute("""
+                    SELECT id, title, updated_at FROM saved_assets
+                    WHERE user_id = ?
+                      AND course_id = ?
+                      AND asset_type = ?
+                      AND LOWER(TRIM(title)) = LOWER(TRIM(?))
+                    ORDER BY updated_at DESC
+                    LIMIT 1
+                """, (user_id, course_id, asset_type, title))
+                row = cursor.fetchone()
+                if row:
+                    return {"id": row["id"], "title": row["title"], "updated_at": row["updated_at"]}
+                return None
+        except Exception as e:
+            logger.error(f"Error checking duplicate asset: {e}")
+            return None
+
     def get_stats(self, user_id: str) -> Dict[str, int]:
         """Get asset statistics for a user"""
         try:

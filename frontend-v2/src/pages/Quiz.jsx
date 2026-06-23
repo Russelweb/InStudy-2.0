@@ -899,6 +899,8 @@ const Quiz = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [timedMode, setTimedMode] = useState(true);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [dupConfirmOpen, setDupConfirmOpen] = useState(false);
+  const [pendingSaveTitle, setPendingSaveTitle] = useState('');
   const [abortModalOpen, setAbortModalOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -1069,12 +1071,38 @@ const Quiz = () => {
     setSaveModalOpen(false);
     setIsSaving(true);
     try {
-      await assetService.save(
+      const res = await assetService.save(
         selectedCourse,
         'quiz',
         title,
         { questions: currentQuestions, results: evaluationResults },
         { score: evaluationResults.score_percentage, total_questions: evaluationResults.total_questions }
+      );
+      if (res.data && res.data.duplicate) {
+        setPendingSaveTitle(title);
+        setDupConfirmOpen(true);
+      } else {
+        showToast('Quiz saved successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+      showToast('Failed to save quiz. Please try again.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveQuizDuplicate = async () => {
+    setDupConfirmOpen(false);
+    setIsSaving(true);
+    try {
+      await assetService.save(
+        selectedCourse,
+        'quiz',
+        pendingSaveTitle,
+        { questions: currentQuestions, results: evaluationResults },
+        { score: evaluationResults.score_percentage, total_questions: evaluationResults.total_questions },
+        true
       );
       showToast('Quiz saved successfully!', 'success');
     } catch (error) {
@@ -1082,6 +1110,7 @@ const Quiz = () => {
       showToast('Failed to save quiz. Please try again.', 'error');
     } finally {
       setIsSaving(false);
+      setPendingSaveTitle('');
     }
   };
 
@@ -1115,6 +1144,16 @@ const Quiz = () => {
         confirmLabel="Save Quiz"
         onConfirm={handleSaveQuizConfirm}
         onCancel={() => setSaveModalOpen(false)}
+      />
+
+      <ConfirmModal
+        open={dupConfirmOpen}
+        title="Duplicate Quiz"
+        description={`An asset with the title "${pendingSaveTitle}" already exists. Do you want to save a new duplicate copy anyway?`}
+        confirmLabel="Save Duplicate"
+        cancelLabel="Cancel"
+        onConfirm={handleSaveQuizDuplicate}
+        onCancel={() => { setDupConfirmOpen(false); setPendingSaveTitle(''); }}
       />
 
       {/* Abort confirm modal */}

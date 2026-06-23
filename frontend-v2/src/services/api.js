@@ -421,8 +421,8 @@ export const adminService = {
 // Saved Assets
 // ---------------------------------------------------------------------------
 export const assetService = {
-  save: (courseId, assetType, title, data, metadata = null) =>
-    API.post('/assets/save', { course_id: courseId, asset_type: assetType, title, data, metadata }),
+  save: (courseId, assetType, title, data, metadata = null, allowDuplicate = false) =>
+    API.post('/assets/save', { course_id: courseId, asset_type: assetType, title, data, metadata, allow_duplicate: allowDuplicate }),
   
   list: (assetType = null, courseId = null) => {
     const params = {};

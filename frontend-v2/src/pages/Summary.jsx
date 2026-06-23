@@ -5,7 +5,7 @@ import { summaryService, documentService, statService, assetService } from '../s
 import { showToast } from '../components/Toast';
 import { useAura, useAuraHelp } from '../context/AuraContext';
 import EmptyState from '../components/EmptyState';
-import { InputModal } from '../components/Modal';
+import { InputModal, ConfirmModal } from '../components/Modal';
 import ScrollToTopButton from '../components/ScrollToTopButton';
 
 const summaryStyles = [
@@ -52,6 +52,8 @@ const Summary = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [latestSummary, setLatestSummary] = useState(null);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [dupConfirmOpen, setDupConfirmOpen] = useState(false);
+  const [pendingSaveTitle, setPendingSaveTitle] = useState('');
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -207,7 +209,7 @@ const Summary = () => {
         ...latestSummary,
         saved_at: new Date().toISOString(),
       };
-      await assetService.save(
+      const res = await assetService.save(
         latestSummary.course_id,
         'summary',
         title,
@@ -219,7 +221,45 @@ const Summary = () => {
         }
       );
 
-      const updated = { ...latestSummary, saved: true, savedTitle: title };
+      if (res.data && res.data.duplicate) {
+        setPendingSaveTitle(title);
+        setDupConfirmOpen(true);
+      } else {
+        const updated = { ...latestSummary, saved: true, savedTitle: title };
+        setLatestSummary(updated);
+        localStorage.setItem('summary_view_data', JSON.stringify(updated));
+        showToast('Summary saved successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+      showToast('Failed to save summary. Please try again.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveLatestDuplicate = async () => {
+    setDupConfirmOpen(false);
+    setIsSaving(true);
+    try {
+      const data = {
+        ...latestSummary,
+        saved_at: new Date().toISOString(),
+      };
+      await assetService.save(
+        latestSummary.course_id,
+        'summary',
+        pendingSaveTitle,
+        data,
+        {
+          style: latestSummary.style,
+          document: latestSummary.document || 'All documents',
+          course_name: latestSummary.courseName,
+        },
+        true
+      );
+
+      const updated = { ...latestSummary, saved: true, savedTitle: pendingSaveTitle };
       setLatestSummary(updated);
       localStorage.setItem('summary_view_data', JSON.stringify(updated));
       showToast('Summary saved successfully!', 'success');
@@ -228,6 +268,7 @@ const Summary = () => {
       showToast('Failed to save summary. Please try again.', 'error');
     } finally {
       setIsSaving(false);
+      setPendingSaveTitle('');
     }
   };
 
@@ -336,6 +377,16 @@ const Summary = () => {
         confirmLabel="Save Summary"
         onConfirm={handleSaveLatestConfirm}
         onCancel={() => setSaveModalOpen(false)}
+      />
+
+      <ConfirmModal
+        open={dupConfirmOpen}
+        title="Duplicate Summary"
+        description={`An asset with the title "${pendingSaveTitle}" already exists. Do you want to save a new duplicate copy anyway?`}
+        confirmLabel="Save Duplicate"
+        cancelLabel="Cancel"
+        onConfirm={handleSaveLatestDuplicate}
+        onCancel={() => { setDupConfirmOpen(false); setPendingSaveTitle(''); }}
       />
     </div>
   );

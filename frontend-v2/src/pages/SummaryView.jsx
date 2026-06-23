@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { InputModal } from '../components/Modal';
+import { InputModal, ConfirmModal } from '../components/Modal';
 import { showToast } from '../components/Toast';
 import { useAura, useAuraHelp } from '../context/AuraContext';
 import { assetService } from '../services/api';
@@ -22,6 +22,8 @@ const SummaryView = () => {
   const [summaryData, setSummaryData] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [dupConfirmOpen, setDupConfirmOpen] = useState(false);
+  const [pendingSaveTitle, setPendingSaveTitle] = useState('');
   const [showMindMap, setShowMindMap] = useState(false);
 
   // Persist summary data to localStorage
@@ -76,7 +78,7 @@ const SummaryView = () => {
         ...summaryData,
         saved_at: new Date().toISOString(),
       };
-      await assetService.save(
+      const res = await assetService.save(
         summaryData.course_id,
         'summary',
         title,
@@ -87,7 +89,46 @@ const SummaryView = () => {
           course_name: summaryData.courseName,
         }
       );
-      const updated = { ...summaryData, saved: true, savedTitle: title };
+
+      if (res.data && res.data.duplicate) {
+        setPendingSaveTitle(title);
+        setDupConfirmOpen(true);
+      } else {
+        const updated = { ...summaryData, saved: true, savedTitle: title };
+        setSummaryData(updated);
+        localStorage.setItem('summary_view_data', JSON.stringify(updated));
+        showToast('Summary saved successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+      showToast('Failed to save summary. Please try again.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveDuplicate = async () => {
+    setDupConfirmOpen(false);
+    setIsSaving(true);
+    try {
+      const data = {
+        ...summaryData,
+        saved_at: new Date().toISOString(),
+      };
+      await assetService.save(
+        summaryData.course_id,
+        'summary',
+        pendingSaveTitle,
+        data,
+        {
+          style: summaryData.style,
+          document: summaryData.document || 'All documents',
+          course_name: summaryData.courseName,
+        },
+        true
+      );
+
+      const updated = { ...summaryData, saved: true, savedTitle: pendingSaveTitle };
       setSummaryData(updated);
       localStorage.setItem('summary_view_data', JSON.stringify(updated));
       showToast('Summary saved successfully!', 'success');
@@ -96,6 +137,7 @@ const SummaryView = () => {
       showToast('Failed to save summary. Please try again.', 'error');
     } finally {
       setIsSaving(false);
+      setPendingSaveTitle('');
     }
   };
 
@@ -330,6 +372,16 @@ const SummaryView = () => {
         confirmLabel="Save Summary"
         onConfirm={handleSaveConfirm}
         onCancel={() => setSaveModalOpen(false)}
+      />
+
+      <ConfirmModal
+        open={dupConfirmOpen}
+        title="Duplicate Summary"
+        description={`An asset with the title "${pendingSaveTitle}" already exists. Do you want to save a new duplicate copy anyway?`}
+        confirmLabel="Save Duplicate"
+        cancelLabel="Cancel"
+        onConfirm={handleSaveDuplicate}
+        onCancel={() => { setDupConfirmOpen(false); setPendingSaveTitle(''); }}
       />
     </div>
   );

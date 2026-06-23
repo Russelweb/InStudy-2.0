@@ -20,6 +20,7 @@ class SaveAssetRequest(BaseModel):
     title: str
     data: Dict[str, Any]
     metadata: Optional[Dict[str, Any]] = None
+    allow_duplicate: bool = False  # Set True to force save even if duplicate exists
 
 class UpdateAssetRequest(BaseModel):
     title: Optional[str] = None
@@ -34,7 +35,24 @@ async def save_asset(
     """Save a new asset"""
     try:
         user_id = str(current_user.id)
-        
+
+        # Duplicate check
+        if not request.allow_duplicate:
+            existing = assets_db.check_duplicate(
+                user_id=user_id,
+                course_id=request.course_id,
+                asset_type=request.asset_type,
+                title=request.title,
+            )
+            if existing:
+                return {
+                    "success": False,
+                    "duplicate": True,
+                    "existing_id": existing["id"],
+                    "existing_title": existing["title"],
+                    "message": "An asset with this title already exists.",
+                }
+
         asset_id = assets_db.save_asset(
             user_id=user_id,
             course_id=request.course_id,
@@ -43,7 +61,7 @@ async def save_asset(
             data=request.data,
             metadata=request.metadata
         )
-        
+
         return {
             "success": True,
             "asset_id": asset_id,

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { plannerService, statService, assetService, masteryService } from '../services/api';
 import { useLocation } from 'react-router-dom';
-import { InputModal } from '../components/Modal';
+import { InputModal, ConfirmModal } from '../components/Modal';
 import { showToast } from '../components/Toast';
 import { useAura, useAuraHelp } from '../context/AuraContext';
 import ScrollToTopButton from '../components/ScrollToTopButton';
@@ -26,6 +26,8 @@ const Planner = () => {
   const [completedTasks, setCompletedTasks] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [dupConfirmOpen, setDupConfirmOpen] = useState(false);
+  const [pendingSaveTitle, setPendingSaveTitle] = useState('');
   const [masteryInsight, setMasteryInsight] = useState(null);
   const isInitialized = useRef(false);
   const { triggerAura } = useAura();
@@ -158,12 +160,38 @@ const Planner = () => {
     setSaveModalOpen(false);
     setIsSaving(true);
     try {
-      await assetService.save(
+      const res = await assetService.save(
         selectedCourse,
         'study_plan',
         title,
         { plan, examDate, topics, completedTasks },
         { exam_date: examDate, topic_count: topics.length }
+      );
+      if (res.data && res.data.duplicate) {
+        setPendingSaveTitle(title);
+        setDupConfirmOpen(true);
+      } else {
+        showToast('Study plan saved successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+      showToast('Failed to save plan. Please try again.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSavePlanDuplicate = async () => {
+    setDupConfirmOpen(false);
+    setIsSaving(true);
+    try {
+      await assetService.save(
+        selectedCourse,
+        'study_plan',
+        pendingSaveTitle,
+        { plan, examDate, topics, completedTasks },
+        { exam_date: examDate, topic_count: topics.length },
+        true
       );
       showToast('Study plan saved successfully!', 'success');
     } catch (error) {
@@ -171,6 +199,7 @@ const Planner = () => {
       showToast('Failed to save plan. Please try again.', 'error');
     } finally {
       setIsSaving(false);
+      setPendingSaveTitle('');
     }
   };
 
@@ -612,6 +641,16 @@ const Planner = () => {
         confirmLabel="Save Plan"
         onConfirm={handleSavePlanConfirm}
         onCancel={() => setSaveModalOpen(false)}
+      />
+
+      <ConfirmModal
+        open={dupConfirmOpen}
+        title="Duplicate Study Plan"
+        description={`An asset with the title "${pendingSaveTitle}" already exists. Do you want to save a new duplicate copy anyway?`}
+        confirmLabel="Save Duplicate"
+        cancelLabel="Cancel"
+        onConfirm={handleSavePlanDuplicate}
+        onCancel={() => { setDupConfirmOpen(false); setPendingSaveTitle(''); }}
       />
     </div>
   );

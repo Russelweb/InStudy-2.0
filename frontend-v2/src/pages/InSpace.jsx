@@ -8,6 +8,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { usePagination } from "../hooks/usePagination";
+import Pagination from "../components/Pagination";
 
 /**
  * Best-effort converter: wraps common plain-text math patterns in LaTeX delimiters
@@ -43,6 +45,25 @@ export default function InSpace() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [docsExpanded, setDocsExpanded] = useState(true);
   const [isLauncherCollapsed, setIsLauncherCollapsed] = useState(false);
+
+  const [courseSearch, setCourseSearch] = useState("");
+
+  // Filter courses by search
+  const filteredCourses = documents.filter((doc) =>
+    !courseSearch ||
+    (doc.name || "").toLowerCase().includes(courseSearch.toLowerCase())
+  );
+
+  // Pagination for courses (Ground to Course) — 6 per page
+  const coursePag = usePagination(filteredCourses, 6);
+
+  // Reset course page when search changes
+  useEffect(() => {
+    coursePag.resetPage();
+  }, [courseSearch]);
+
+  // Pagination for canvases (Your Canvases) — 8 per page
+  const canvasPag = usePagination(canvases, 8);
 
   // ── Mobile Tab State ──────────────────────────────────────────────────────
   // 'launcher' | 'canvas' | 'details'
@@ -484,78 +505,127 @@ export default function InSpace() {
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="flex flex-col gap-1.5 pb-1">
-                {/* Standalone */}
-                <button
-                  onClick={() => setSelectedDocumentId(null)}
-                  className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all ${
-                    selectedDocumentId === null
-                      ? "border-[#69f6b8]/50 bg-[#69f6b8]/8 text-[#69f6b8]"
-                      : "border-outline-variant/10 hover:border-outline-variant/30 text-on-surface-variant/50"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-sm shrink-0">
-                    public
-                  </span>
-                  <div className="overflow-hidden flex-1">
-                    <p className="text-xs font-bold truncate">
-                      Standalone (No Document)
-                    </p>
-                    <p className="text-[9px] opacity-60">
-                      Free AI knowledge space
-                    </p>
-                  </div>
-                  {selectedDocumentId === null && (
-                    <span className="material-symbols-outlined text-xs shrink-0">
-                      check_circle
+              <div className="flex flex-col gap-1.5 pb-2">
+                {/* Search Input for Courses */}
+                {documents.length > 0 && (
+                  <div className="relative mb-1">
+                    <span className="material-symbols-outlined text-xs absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/40 pointer-events-none">
+                      search
                     </span>
-                  )}
-                </button>
+                    <input
+                      type="text"
+                      placeholder="Search courses..."
+                      value={courseSearch}
+                      onChange={(e) => setCourseSearch(e.target.value)}
+                      className="w-full pl-8 pr-7 py-1.5 text-[11px] bg-surface-container rounded-lg border border-outline-variant/10 focus:outline-none focus:border-[#bd9dff] text-on-surface transition-colors placeholder:text-on-surface-variant/30"
+                    />
+                    {courseSearch && (
+                      <button
+                        onClick={() => setCourseSearch("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant/40 hover:text-on-surface transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-xs">close</span>
+                      </button>
+                    )}
+                  </div>
+                )}
 
-                {documents.length === 0 ? (
-                  <p className="text-[10px] text-on-surface-variant/30 italic px-2 py-1">
-                    No courses uploaded yet
+                {/* Standalone (sticky on page 1 of no-search or when no courses) */}
+                {coursePag.page === 1 && !courseSearch && (
+                  <button
+                    onClick={() => setSelectedDocumentId(null)}
+                    className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all ${
+                      selectedDocumentId === null
+                        ? "border-[#69f6b8]/50 bg-[#69f6b8]/8 text-[#69f6b8]"
+                        : "border-outline-variant/10 hover:border-outline-variant/30 text-on-surface-variant/50"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-sm shrink-0">
+                      public
+                    </span>
+                    <div className="overflow-hidden flex-1">
+                      <p className="text-xs font-bold truncate">
+                        Standalone (No Document)
+                      </p>
+                      <p className="text-[9px] opacity-60">
+                        Free AI knowledge space
+                      </p>
+                    </div>
+                    {selectedDocumentId === null && (
+                      <span className="material-symbols-outlined text-xs shrink-0">
+                        check_circle
+                      </span>
+                    )}
+                  </button>
+                )}
+
+                {filteredCourses.length === 0 ? (
+                  <p className="text-[10px] text-on-surface-variant/30 italic px-2 py-1 text-center">
+                    {courseSearch ? "No courses match your search" : "No courses uploaded yet"}
                   </p>
                 ) : (
-                  documents.map((doc) => {
-                    const isSelected =
-                      String(selectedDocumentId) === String(doc.id);
-                    return (
-                      <button
-                        key={doc.id}
-                        onClick={() =>
-                          setSelectedDocumentId(
-                            isSelected ? null : String(doc.id),
-                          )
-                        }
-                        className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all ${
-                          isSelected
-                            ? "border-[#bd9dff]/60 bg-[#bd9dff]/8 text-[#bd9dff]"
-                            : "border-outline-variant/10 hover:border-[#bd9dff]/30 text-on-surface-variant/60"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-sm shrink-0">
-                          {isSelected ? "folder_open" : "folder"}
-                        </span>
-                        <div className="overflow-hidden flex-1">
-                          <p className="text-xs font-bold truncate">
-                            {getDocLabel(doc)}
-                          </p>
-                          {doc.document_count !== undefined && (
-                            <p className="text-[9px] opacity-50 truncate">
-                              {doc.document_count} doc
-                              {doc.document_count !== 1 ? "s" : ""}
-                            </p>
-                          )}
-                        </div>
-                        {isSelected && (
-                          <span className="material-symbols-outlined text-xs shrink-0">
-                            check_circle
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })
+                  <div className="flex flex-col gap-1.5">
+                    <AnimatePresence mode="popLayout">
+                      {coursePag.pageItems.map((doc) => {
+                        const isSelected =
+                          String(selectedDocumentId) === String(doc.id);
+                        return (
+                          <motion.button
+                            key={doc.id}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            transition={{ duration: 0.15 }}
+                            onClick={() =>
+                              setSelectedDocumentId(
+                                isSelected ? null : String(doc.id),
+                              )
+                            }
+                            className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all ${
+                              isSelected
+                                ? "border-[#bd9dff]/60 bg-[#bd9dff]/8 text-[#bd9dff]"
+                                : "border-outline-variant/10 hover:border-[#bd9dff]/30 text-on-surface-variant/60"
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-sm shrink-0">
+                              {isSelected ? "folder_open" : "folder"}
+                            </span>
+                            <div className="overflow-hidden flex-1">
+                              <p className="text-xs font-bold truncate">
+                                {getDocLabel(doc)}
+                              </p>
+                              {doc.document_count !== undefined && (
+                                <p className="text-[9px] opacity-50 truncate">
+                                  {doc.document_count} doc
+                                  {doc.document_count !== 1 ? "s" : ""}
+                                </p>
+                              )}
+                            </div>
+                            {isSelected && (
+                              <span className="material-symbols-outlined text-xs shrink-0">
+                                check_circle
+                              </span>
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                )}
+
+                {/* Course Pagination */}
+                {filteredCourses.length > 6 && (
+                  <Pagination
+                    page={coursePag.page}
+                    totalPages={coursePag.totalPages}
+                    hasPrev={coursePag.hasPrev}
+                    hasNext={coursePag.hasNext}
+                    onPrev={coursePag.goPrev}
+                    onNext={coursePag.goNext}
+                    onPage={coursePag.setPage}
+                    compact={true}
+                    className="mt-2 py-1 border-t border-outline-variant/5"
+                  />
                 )}
               </div>
             </motion.div>
@@ -622,34 +692,59 @@ export default function InSpace() {
             No workspaces saved yet
           </p>
         ) : (
-          canvases.map((c) => (
-            <div
-              key={c.id}
-              onClick={() => loadCanvas(c.id)}
-              className={`group flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
-                currentCanvas?.id === c.id
-                  ? "border-[#bd9dff] bg-[#bd9dff]/5 text-on-surface"
-                  : "border-outline-variant/10 hover:border-[#bd9dff]/40 text-on-surface-variant/70"
-              }`}
-            >
-              <div className="overflow-hidden pr-2">
-                <p className="text-xs font-bold truncate">{c.topic}</p>
-                <p className="text-[9px] opacity-40 mt-0.5">
-                  {c.document_id ? "📄 Grounded" : "🌐 Standalone"} ·{" "}
-                  {c.node_count} concepts
-                </p>
-              </div>
-              <button
-                onClick={(e) => triggerDeleteCanvas(c.id, e)}
-                className="opacity-0 group-hover:opacity-100 active:opacity-100 p-1 hover:text-error transition-all shrink-0"
-                title="Delete canvas"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  delete
-                </span>
-              </button>
+          <>
+            <div className="flex flex-col gap-2">
+              <AnimatePresence mode="popLayout">
+                {canvasPag.pageItems.map((c) => (
+                  <motion.div
+                    key={c.id}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.15 }}
+                    onClick={() => loadCanvas(c.id)}
+                    className={`group flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                      currentCanvas?.id === c.id
+                        ? "border-[#bd9dff] bg-[#bd9dff]/5 text-on-surface"
+                        : "border-outline-variant/10 hover:border-[#bd9dff]/40 text-on-surface-variant/70"
+                    }`}
+                  >
+                    <div className="overflow-hidden pr-2 flex-1">
+                      <p className="text-xs font-bold truncate">{c.topic}</p>
+                      <p className="text-[9px] opacity-40 mt-0.5">
+                        {c.document_id ? "📄 Grounded" : "🌐 Standalone"} ·{" "}
+                        {c.node_count} concepts
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => triggerDeleteCanvas(c.id, e)}
+                      className="opacity-0 group-hover:opacity-100 active:opacity-100 p-1 hover:text-error transition-all shrink-0"
+                      title="Delete canvas"
+                    >
+                      <span className="material-symbols-outlined text-sm">
+                        delete
+                      </span>
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
-          ))
+
+            {/* Canvas Pagination */}
+            {canvases.length > 8 && (
+              <Pagination
+                page={canvasPag.page}
+                totalPages={canvasPag.totalPages}
+                hasPrev={canvasPag.hasPrev}
+                hasNext={canvasPag.hasNext}
+                onPrev={canvasPag.goPrev}
+                onNext={canvasPag.goNext}
+                onPage={canvasPag.setPage}
+                compact={true}
+                className="mt-auto py-2 border-t border-outline-variant/5"
+              />
+            )}
+          </>
         )}
       </div>
     </div>

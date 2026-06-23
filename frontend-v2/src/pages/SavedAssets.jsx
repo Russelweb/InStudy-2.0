@@ -1,9 +1,13 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { assetService } from '../services/api';
 import { ConfirmModal } from '../components/Modal';
 import { showToast } from '../components/Toast';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/Pagination';
+
+const PAGE_SIZE = 6;
 
 const TYPE_CONFIG = {
   flashcards: {
@@ -46,7 +50,7 @@ const getMetaLine = (asset) => {
     case 'flashcards':
       return m.card_count ? `${m.card_count} cards` : null;
     case 'quiz':
-      if (m.score != null) return `${Math.round(m.score)}% score Â· ${m.total_questions || '?'} questions`;
+      if (m.score != null) return `${Math.round(m.score)}% score · ${m.total_questions || '?'} questions`;
       return m.total_questions ? `${m.total_questions} questions` : null;
     case 'study_plan':
       if (m.exam_date) {
@@ -159,6 +163,7 @@ const SavedAssets = () => {
   const [stats, setStats] = useState({});
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
   const fetchAssets = useCallback(async () => {
@@ -189,6 +194,28 @@ const SavedAssets = () => {
     fetchStats();
   }, [fetchAssets, fetchStats]);
 
+  // Reset to page 1 whenever filter or search changes
+  const filteredAssets = assets.filter((a) =>
+    !searchQuery ||
+    a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    a.course_id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const {
+    page,
+    setPage,
+    totalPages,
+    pageItems,
+    hasPrev,
+    hasNext,
+    goPrev,
+    goNext,
+    resetPage,
+  } = usePagination(filteredAssets, PAGE_SIZE);
+
+  // Reset page when filter / search changes
+  useEffect(() => { resetPage(); }, [filter, searchQuery]);
+
   const handleDelete = (assetId) => {
     setPendingDeleteId(assetId);
     setDeleteModalOpen(true);
@@ -209,7 +236,7 @@ const SavedAssets = () => {
     }
   };
 
-  // â”€â”€ Handoff via React Router state (clean, synchronous, no localStorage) â”€â”€
+  // Handoff via React Router state
   const handleLoad = (asset, loadMode = 'default') => {
     const cfg = TYPE_CONFIG[asset.asset_type];
     if (!cfg) return;
@@ -242,7 +269,7 @@ const SavedAssets = () => {
             <motion.div
               key={type}
               whileHover={{ y: -4 }}
-              onClick={() => setFilter(type)}
+              onClick={() => { setFilter(type); resetPage(); }}
               className={`glass-panel p-4 md:p-6 rounded-xl cursor-pointer transition-all border ${
                 filter === type ? `border-${color} bg-${color}/5` : 'border-outline-variant/10'
               }`}
@@ -254,21 +281,35 @@ const SavedAssets = () => {
           ))}
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto pb-2">
-          {FILTERS.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
-                filter === f
-                  ? 'bg-primary text-on-primary'
-                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
-              }`}
-            >
-              {f === 'all' ? 'All Assets' : getTypeLabel(f)}
-            </button>
-          ))}
+        {/* Filter Tabs + Search */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-4 md:mb-6">
+          <div className="flex gap-2 overflow-x-auto pb-1 flex-1">
+            {FILTERS.map((f) => (
+              <button
+                key={f}
+                onClick={() => { setFilter(f); resetPage(); }}
+                className={`px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
+                  filter === f
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                {f === 'all' ? 'All Assets' : getTypeLabel(f)}
+              </button>
+            ))}
+          </div>
+
+          {/* Search */}
+          <div className="relative shrink-0">
+            <span className="material-symbols-outlined text-sm absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 pointer-events-none">search</span>
+            <input
+              type="text"
+              placeholder="Search assets…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 text-xs bg-surface-container rounded-lg border border-outline-variant/10 focus:outline-none focus:border-primary text-on-surface w-full sm:w-52 transition-colors placeholder:text-on-surface-variant/30"
+            />
+          </div>
         </div>
 
         {/* Assets Grid */}
@@ -276,25 +317,48 @@ const SavedAssets = () => {
           <div className="flex items-center justify-center py-20">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : assets.length === 0 ? (
+        ) : filteredAssets.length === 0 ? (
           <div className="text-center py-20">
             <span className="material-symbols-outlined text-6xl text-on-surface-variant/20 mb-4 block">folder_open</span>
-            <p className="text-on-surface-variant text-lg">No saved assets yet</p>
-            <p className="text-on-surface-variant/60 text-sm mt-2">Generate flashcards, quizzes, or study plans and save them for later</p>
+            <p className="text-on-surface-variant text-lg">
+              {searchQuery ? 'No assets match your search' : 'No saved assets yet'}
+            </p>
+            <p className="text-on-surface-variant/60 text-sm mt-2">
+              {searchQuery ? 'Try a different search term or clear the filter.' : 'Generate flashcards, quizzes, or study plans and save them for later.'}
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <AnimatePresence>
-              {assets.map((asset) => (
-                <AssetCard
-                  key={asset.id}
-                  asset={asset}
-                  onLoad={handleLoad}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
+          <>
+            {/* Count */}
+            <p className="text-[11px] text-on-surface-variant/50 mb-3">
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredAssets.length)} of {filteredAssets.length} asset{filteredAssets.length !== 1 ? 's' : ''}
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <AnimatePresence mode="popLayout">
+                {pageItems.map((asset) => (
+                  <AssetCard
+                    key={asset.id}
+                    asset={asset}
+                    onLoad={handleLoad}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {/* Pagination */}
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              hasPrev={hasPrev}
+              hasNext={hasNext}
+              onPrev={goPrev}
+              onNext={goNext}
+              onPage={setPage}
+              className="pb-4"
+            />
+          </>
         )}
       </div>
 
