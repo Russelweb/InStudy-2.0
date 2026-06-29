@@ -24,23 +24,34 @@ import { useAura, useAuraHelp } from '../context/AuraContext';
 // Small shared helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MasteryBar = ({ pct, color = '#bd9dff', height = 'h-1.5' }) => (
-  <div className={`w-full ${height} bg-surface-container-highest rounded-full overflow-hidden`}>
-    <motion.div
-      initial={{ width: 0 }}
-      animate={{ width: `${Math.min(pct, 100)}%` }}
-      transition={{ duration: 0.7, ease: 'easeOut' }}
-      className="h-full rounded-full"
-      style={{ backgroundColor: color }}
-    />
-  </div>
-);
+const getMasteryColor = (pct) => {
+  const p = pct ?? 0;
+  if (p >= 60) return '#69f6b8'; // Green
+  if (p >= 40) return '#bd9dff'; // Purple
+  if (p >= 25) return '#dff16d'; // Yellow
+  return '#f96787'; // Lighter Red
+};
+
+const MasteryBar = ({ pct, color, height = 'h-1.5' }) => {
+  const barColor = color || getMasteryColor(pct);
+  return (
+    <div className={`w-full ${height} bg-surface-container-highest rounded-full overflow-hidden`}>
+      <motion.div
+        initial={{ width: 0 }}
+        animate={{ width: `${Math.min(pct, 100)}%` }}
+        transition={{ duration: 0.7, ease: 'easeOut' }}
+        className="h-full rounded-full"
+        style={{ backgroundColor: barColor }}
+      />
+    </div>
+  );
+};
 
 const MasteryRing = ({ pct, size = 56, stroke = 4 }) => {
   const r = (size - stroke * 2) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ - (Math.min(pct, 100) / 100) * circ;
-  const color = pct >= 70 ? '#69f6b8' : pct >= 40 ? '#bd9dff' : '#d73357';
+  const color = getMasteryColor(pct);
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
@@ -273,7 +284,7 @@ const OverviewTab = ({ courses, loading, onSelectCourse, dailySummaries }) => {
                           <div className="flex-1">
                             {doc.extraction_status === 'complete' ? (
                               <MasteryBar pct={doc.mastery_pct}
-                                color={doc.mastery_pct >= 60 ? '#69f6b8' : doc.mastery_pct >= 25 ? '#bd9dff' : '#d73357'}
+                                color={getMasteryColor(doc.mastery_pct)}
                                 height="h-1" />
                             ) : (
                               <div className="w-full h-1 bg-primary/20 rounded-full overflow-hidden">
@@ -283,7 +294,7 @@ const OverviewTab = ({ courses, loading, onSelectCourse, dailySummaries }) => {
                           </div>
                           <span className="text-[9px] font-black w-7 text-right"
                             style={{ color: doc.extraction_status === 'complete'
-                              ? (doc.mastery_pct >= 60 ? '#69f6b8' : doc.mastery_pct >= 25 ? '#bd9dff' : '#d73357')
+                              ? getMasteryColor(doc.mastery_pct)
                               : '#b0b8af' }}>
                             {doc.extraction_status === 'complete' ? `${Math.round(doc.mastery_pct)}%` : '…'}
                           </span>
@@ -327,7 +338,7 @@ const OverviewTab = ({ courses, loading, onSelectCourse, dailySummaries }) => {
 
 const SubtopicRow = ({ sub }) => {
   const pct = sub.mastery_pct ?? 0;
-  const color = pct >= 70 ? '#69f6b8' : pct >= 35 ? '#bd9dff' : '#d73357';
+  const color = getMasteryColor(pct);
   const totalXp = sub.total_xp ?? 0;
   return (
     <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-surface-container/50 transition-colors group">
@@ -358,7 +369,7 @@ const SubtopicRow = ({ sub }) => {
 const ConceptAccordion = ({ concept, courseId, navigate }) => {
   const [open, setOpen] = useState(concept.mastery_pct < 60);
   const pct = concept.mastery_pct ?? 0;
-  const color = pct >= 70 ? '#69f6b8' : pct >= 35 ? '#bd9dff' : '#d73357';
+  const color = getMasteryColor(pct);
   return (
     <div className="border border-outline-variant/10 rounded-xl overflow-hidden">
       <button
@@ -430,11 +441,11 @@ const DocumentAccordion = ({ doc, courseId, navigate }) => {
             </span>
           </div>
           <MasteryBar pct={pct}
-            color={pct >= 60 ? '#69f6b8' : pct >= 30 ? '#bd9dff' : '#d73357'} />
+            color={getMasteryColor(pct)} />
         </div>
         <div className="shrink-0 text-right">
           <p className="text-sm font-black" style={{
-            color: pct >= 60 ? '#69f6b8' : pct >= 30 ? '#bd9dff' : '#d73357'
+            color: getMasteryColor(pct)
           }}>{Math.round(pct)}%</p>
           <p className="text-[9px] text-on-surface-variant">weight {doc.document_weight?.toFixed(1)}</p>
         </div>
@@ -611,9 +622,9 @@ const DetailTab = ({ courseGraph, selectedCourseId, courses, onSelectCourse, loa
                     <p className="text-[9px] text-on-surface-variant truncate mb-2">
                       {sub.concept_name_parent} · {sub.doc_filename}
                     </p>
-                    <MasteryBar pct={sub.mastery_pct ?? 0} color="#d73357" height="h-1" />
+                    <MasteryBar pct={sub.mastery_pct ?? 0} color={getMasteryColor(sub.mastery_pct ?? 0)} height="h-1" />
                     <div className="flex items-center justify-between mt-1.5">
-                      <span className="text-[9px] text-error font-black">{Math.round(sub.mastery_pct ?? 0)}%</span>
+                      <span className="text-[9px] font-black" style={{ color: getMasteryColor(sub.mastery_pct ?? 0) }}>{Math.round(sub.mastery_pct ?? 0)}%</span>
                       <button
                         onClick={() => {
                           navigate(`/flashcards?id=${selectedCourseId}&focus=${encodeURIComponent(sub.concept_name)}`);
@@ -645,7 +656,7 @@ const DetailTab = ({ courseGraph, selectedCourseId, courses, onSelectCourse, loa
 // ─────────────────────────────────────────────────────────────────────────────
 
 const URGENCY = [
-  { key: 'urgent', label: 'Urgent', color: '#d73357', bg: 'bg-error/5', border: 'border-error-dim/25', desc: 'Mastery critically low or not touched in 21+ days', icon: 'priority_high' },
+  { key: 'urgent', label: 'Urgent', color: '#f96787', bg: 'bg-error/5', border: 'border-error-dim/25', desc: 'Mastery critically low or not touched in 21+ days', icon: 'priority_high' },
   { key: 'soon',   label: 'Review Soon', color: '#bd9dff', bg: 'bg-primary/5', border: 'border-primary/20', desc: '14–21 days since last review', icon: 'schedule' },
   { key: 'later',  label: 'Later', color: '#69f6b8', bg: 'bg-secondary/5', border: 'border-secondary/20', desc: 'Healthy but approaching review window', icon: 'event' },
 ];
