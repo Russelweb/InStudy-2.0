@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import DocumentViewer from "../components/DocumentViewer";
 import AITutorChat from "../components/AITutorChat";
+import InsightsPanel from "../components/InsightsPanel";
 import UploadZone from "../components/UploadZone";
 import Sidebar from "../components/Sidebar";
 import { documentService, statService, masteryService } from "../services/api";
@@ -26,6 +27,10 @@ const Workspace = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 768);
   const [activeMobileTab, setActiveMobileTab]   = useState('reader'); // 'reader' or 'chat'
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // Right panel: 'tutor' or 'insights'
+  const [activePanel, setActivePanel] = useState('tutor');
+  // Currently viewed document (lifted from DocumentViewer so InsightsPanel can sync)
+  const [currentDoc, setCurrentDoc] = useState(null);
 
   // ── Productive study time tracking ───────────────────────────────────────
   const { recordInteraction: recordTutorInteraction }   = useHeartbeat(courseId, 'tutor');
@@ -317,12 +322,16 @@ const Workspace = () => {
           <span className="text-primary border-b-2 border-primary pb-1 text-sm tracking-tight whitespace-nowrap">
             Workspace
           </span>
-          <Link
-            className="text-on-surface-variant/60 hover:text-on-surface text-sm tracking-tight transition-all"
-            to="/flashcards"
+          <button
+            onClick={() => setActivePanel(p => p === 'insights' ? 'tutor' : 'insights')}
+            className={`text-sm tracking-tight transition-all pb-1 ${
+              activePanel === 'insights'
+                ? 'text-secondary border-b-2 border-secondary'
+                : 'text-on-surface-variant/60 hover:text-on-surface'
+            }`}
           >
-            Flashcards
-          </Link>
+            Insights
+          </button>
         </div>
 
         {/* Right */}
@@ -457,13 +466,22 @@ const Workspace = () => {
               Reader
             </button>
             <button
-              onClick={() => setActiveMobileTab("chat")}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${activeMobileTab === "chat" ? "bg-secondary/20 text-secondary border border-secondary/20 shadow-[0_0_20px_rgba(105,246,184,0.1)]" : "text-on-surface-variant hover:text-white border border-transparent"}`}
+              onClick={() => { setActiveMobileTab("chat"); setActivePanel('tutor'); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${activeMobileTab === "chat" && activePanel === 'tutor' ? "bg-secondary/20 text-secondary border border-secondary/20 shadow-[0_0_20px_rgba(105,246,184,0.1)]" : "text-on-surface-variant hover:text-white border border-transparent"}`}
             >
               <span className="material-symbols-outlined text-lg">
                 psychology
               </span>
               AI Tutor
+            </button>
+            <button
+              onClick={() => { setActiveMobileTab("chat"); setActivePanel('insights'); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${activeMobileTab === "chat" && activePanel === 'insights' ? "bg-secondary/20 text-secondary border border-secondary/20 shadow-[0_0_20px_rgba(105,246,184,0.1)]" : "text-on-surface-variant hover:text-white border border-transparent"}`}
+            >
+              <span className="material-symbols-outlined text-lg">
+                lightbulb
+              </span>
+              Insights
             </button>
           </div>
 
@@ -478,12 +496,17 @@ const Workspace = () => {
                 onAnnotationsLoaded={setActiveAnnotations}
                 onUploadClick={() => setIsUploadOpen(true)}
                 onPageChange={recordReadingInteraction}
+                onDocChange={setCurrentDoc}
               />
             </div>
             <div
               className={`${activeMobileTab === "chat" ? "flex" : "hidden"} md:flex flex-col w-full md:w-[45%] h-full min-w-0`}
             >
-              <AITutorChat courseId={courseId} onMessageSent={recordTutorInteraction} />
+              {activePanel === 'insights' ? (
+                <InsightsPanel courseId={courseId} selectedDoc={currentDoc} />
+              ) : (
+                <AITutorChat courseId={courseId} onMessageSent={recordTutorInteraction} />
+              )}
             </div>
           </main>
         </div>

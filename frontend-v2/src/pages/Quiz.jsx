@@ -150,7 +150,7 @@ const QuizSetup = ({ onStart, availableCourses }) => {
 
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {[
-          { label: 'Course', helper: 'Pick source' },
+          { label: 'Course', helper: 'Pick course' },
           { label: 'Quiz', helper: 'Set rules' },
           { label: 'Start', helper: 'Review' },
         ].map((step, index) => {

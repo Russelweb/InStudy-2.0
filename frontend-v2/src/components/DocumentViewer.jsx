@@ -1,13 +1,5 @@
-import { motion } from 'framer-motion';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { documentService } from '../services/api';
-
-const ANNOTATION_TYPES = [
-  { id: 'note',      icon: 'edit_note',        label: 'Note',      color: 'text-tertiary-fixed border-tertiary-fixed bg-tertiary-fixed/10', line: 'border-tertiary-fixed' },
-  { id: 'summary',   icon: 'format_align_left', label: 'Summary',   color: 'text-secondary border-secondary bg-secondary/10',               line: 'border-secondary' },
-  { id: 'key_point', icon: 'stars',             label: 'Key Point', color: 'text-primary border-primary bg-primary/10',                     line: 'border-primary' },
-  { id: 'question',  icon: 'help_center',       label: 'Question',  color: 'text-error border-error bg-error/10',                           line: 'border-error' },
-];
 
 const DataTable = ({ data, filename }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,76 +85,17 @@ const DataTable = ({ data, filename }) => {
   );
 };
 
-const AnnotationForm = ({
-  paraIndex,
-  annotationType,
-  setAnnotationType,
-  annotationText,
-  setAnnotationText,
-  onSave,
-  onCancel,
-}) => {
-  const localRef = useRef(null);
 
-  useEffect(() => {
-    if (localRef.current) {
-      localRef.current.focus();
-    }
-  }, [paraIndex]);
-
-  return (
-    <div className="mt-4 mb-6 p-4 bg-surface-container-low border border-primary/20 rounded-xl space-y-4 shadow-xl select-text">
-      <div className="flex flex-wrap gap-2">
-        {ANNOTATION_TYPES.map(t => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setAnnotationType(t.id)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest border transition-all ${annotationType === t.id ? t.color : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-variant'}`}
-          >
-            <span className="material-symbols-outlined text-[12px]">{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <textarea
-        ref={localRef}
-        value={annotationText}
-        onChange={e => setAnnotationText(e.target.value)}
-        className="w-full bg-surface-container border border-outline-variant/20 rounded-lg p-3 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 transition-all resize-none custom-scrollbar"
-        rows={3}
-        placeholder="Type your insight here..."
-      />
-      <div className="flex justify-end gap-3 text-xs uppercase tracking-widest font-bold">
-        <button type="button" onClick={onCancel} className="text-on-surface-variant hover:text-error transition-colors px-2">Cancel</button>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={!annotationText.trim()}
-          className="text-secondary bg-secondary/10 px-4 py-2 rounded border border-secondary/20 hover:bg-secondary/20 transition-colors disabled:opacity-50"
-        >
-          Save
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUploadClick, onPageChange }) => {
+const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUploadClick, onPageChange, onDocChange }) => {
   const [documents,    setDocuments]    = useState([]);
   const [selectedDoc,  setSelectedDoc]  = useState(null);
   const [docContent,   setDocContent]   = useState(null);   // for docx/txt
   const [pdfPages,     setPdfPages]     = useState([]);     // blob URLs indexed by page
   const [pdfPageCount, setPdfPageCount] = useState(0);
-  const [pdfAnnotations, setPdfAnnotations] = useState([]); // annotations for PDF docs
+  const [pdfAnnotations, setPdfAnnotations] = useState([]); // annotations for PDF docs (for AI Tutor context)
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');
   const loadingRef = useRef(false);                         // prevent duplicate loads
-
-  // Annotation state
-  const [activeParaIndex, setActiveParaIndex] = useState(null);
-  const [annotationType,  setAnnotationType]  = useState('note');
-  const [annotationText,  setAnnotationText]  = useState('');
 
   // ── 1. Fetch document list ────────────────────────────────────────────────
   const fetchDocs = useCallback(async () => {
@@ -174,9 +107,12 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUplo
       setDocuments(files);
       if (files.length > 0) {
         const saved = localStorage.getItem(`last_doc_${courseId}`);
-        setSelectedDoc(saved && files.includes(saved) ? saved : files[0]);
+        const initialDoc = saved && files.includes(saved) ? saved : files[0];
+        setSelectedDoc(initialDoc);
+        if (onDocChange) onDocChange(initialDoc);
       } else {
         setSelectedDoc(null);
+        if (onDocChange) onDocChange(null);
         setDocContent(null);
         setPdfPages([]);
         setPdfPageCount(0);
@@ -225,7 +161,6 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUplo
       setPdfPages([]);
       setPdfPageCount(0);
       setPdfAnnotations([]);
-      setActiveParaIndex(null);
       loadingRef.current = false;
 
       const loadPdf = async () => {
@@ -294,54 +229,7 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUplo
     }
   }, [docContent, onAnnotationsLoaded]);
 
-  // ── Annotation helpers ────────────────────────────────────────────────────
-  const refreshAnnotations = async () => {
-    if (!courseId || !selectedDoc) return;
-    try {
-      const res  = await documentService.getAnnotations(courseId, selectedDoc);
-      const anns = res.data.annotations || [];
-      const ext  = selectedDoc.split('.').pop().toLowerCase();
-      if (ext === 'pdf') {
-        setPdfAnnotations(anns);
-        if (onAnnotationsLoaded) onAnnotationsLoaded(anns);
-      } else {
-        setDocContent(prev => prev ? { ...prev, annotations: anns } : prev);
-        if (onAnnotationsLoaded) onAnnotationsLoaded(anns);
-      }
-    } catch (err) {
-      console.error('Failed fetching annotations', err);
-    }
-  };
-
-  const handleSaveAnnotation = async () => {
-    if (!annotationText.trim()) return;
-    try {
-      await documentService.saveAnnotation(courseId, selectedDoc, {
-        paragraph_index: activeParaIndex ?? -1,
-        page_index:      -1,
-        content:         annotationText,
-        annotation_type: annotationType,
-      });
-      setAnnotationText('');
-      setActiveParaIndex(null);
-      refreshAnnotations();
-    } catch (err) {
-      console.error('Failed to save annotation', err);
-    }
-  };
-
-  const handleDeleteAnnotation = async (id) => {
-    try {
-      await documentService.deleteAnnotation(courseId, selectedDoc, id);
-      refreshAnnotations();
-    } catch (err) {
-      console.error('Delete failed', err);
-    }
-  };
-
   const ext = selectedDoc ? selectedDoc.split('.').pop().toLowerCase() : '';
-
-  // AnnotationForm is now defined at the top-level
 
   return (
     <section className="w-full h-full p-3 md:p-6 flex flex-col gap-4 relative border-b md:border-b-0 md:border-r border-outline-variant/10 min-w-0 shrink-0">
@@ -352,7 +240,12 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUplo
           {documents.length > 0 ? (
             <select
               value={selectedDoc || ''}
-              onChange={e => { setSelectedDoc(e.target.value); localStorage.setItem(`last_doc_${courseId}`, e.target.value); }}
+              onChange={e => {
+                const doc = e.target.value;
+                setSelectedDoc(doc);
+                localStorage.setItem(`last_doc_${courseId}`, doc);
+                if (onDocChange) onDocChange(doc);
+              }}
               className="text-xs font-bold tracking-widest text-on-surface-variant uppercase bg-transparent border-none focus:ring-0 cursor-pointer max-w-[120px] md:max-w-[180px] truncate"
             >
               {documents.map(doc => <option key={doc} value={doc}>{doc}</option>)}
@@ -377,15 +270,6 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUplo
               <span className="hidden sm:inline">Upload</span>
             </button>
           )}
-          {selectedDoc && (
-            <button
-              onClick={() => { setActiveParaIndex(-1); setAnnotationText(''); }}
-              className="px-3 py-1.5 bg-secondary/10 text-secondary border border-secondary/20 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-secondary/20 transition-colors flex items-center gap-1"
-            >
-              <span className="material-symbols-outlined text-sm">edit_note</span>
-              <span className="hidden sm:inline">Add Insight</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -408,39 +292,6 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUplo
         ) : pdfPages.length > 0 ? (
           /* ── PDF: all pages stacked, scrollable ── */
           <div className="space-y-4 pb-8">
-            {/* Global annotation form (for PDFs) */}
-            {activeParaIndex === -1 && (
-              <AnnotationForm
-                paraIndex={-1}
-                annotationType={annotationType}
-                setAnnotationType={setAnnotationType}
-                annotationText={annotationText}
-                setAnnotationText={setAnnotationText}
-                onSave={handleSaveAnnotation}
-                onCancel={() => { setActiveParaIndex(null); setAnnotationText(''); }}
-              />
-            )}
-
-            {/* Existing PDF annotations */}
-            {pdfAnnotations.length > 0 && (
-              <div className="space-y-2 mb-4">
-                {pdfAnnotations.map(ann => {
-                  const t = ANNOTATION_TYPES.find(x => x.id === ann.type) || ANNOTATION_TYPES[0];
-                  return (
-                    <div key={ann.id} className={`p-3 rounded-xl border-l-2 bg-surface-container/50 relative group/ann ${t.line}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-[10px] uppercase font-bold tracking-widest ${t.line.replace('border-', 'text-')}`}>{t.label}</span>
-                        <button onClick={() => handleDeleteAnnotation(ann.id)} className="opacity-0 group-hover/ann:opacity-100 text-error/60 hover:text-error transition-opacity">
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                        </button>
-                      </div>
-                      <p className="text-sm text-on-surface/90 whitespace-pre-wrap">{ann.content}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
             {/* Page images */}
             {Array.from({ length: pdfPageCount }).map((_, i) => (
               <div key={i} className="relative">
@@ -459,38 +310,6 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUplo
         ) : docContent?.isImage ? (
           /* ── IMAGE: direct preview ── */
           <div className="space-y-4 pb-8 flex flex-col items-center">
-              {activeParaIndex === -1 && (
-                <AnnotationForm
-                  paraIndex={-1}
-                  annotationType={annotationType}
-                  setAnnotationType={setAnnotationType}
-                  annotationText={annotationText}
-                  setAnnotationText={setAnnotationText}
-                  onSave={handleSaveAnnotation}
-                  onCancel={() => { setActiveParaIndex(null); setAnnotationText(''); }}
-                />
-              )}
-             
-             {/* Image Annotations */}
-             {docContent.annotations?.length > 0 && (
-              <div className="w-full space-y-2 mb-4">
-                {docContent.annotations.map(ann => {
-                  const t = ANNOTATION_TYPES.find(x => x.id === ann.type) || ANNOTATION_TYPES[0];
-                  return (
-                    <div key={ann.id} className={`p-3 rounded-xl border-l-2 bg-surface-container/50 relative group/ann ${t.line}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-[10px] uppercase font-bold tracking-widest ${t.line.replace('border-', 'text-')}`}>{t.label}</span>
-                        <button onClick={() => handleDeleteAnnotation(ann.id)} className="opacity-0 group-hover/ann:opacity-100 text-error/60 hover:text-error transition-opacity">
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                        </button>
-                      </div>
-                      <p className="text-sm text-on-surface/90 whitespace-pre-wrap">{ann.content}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
              <img 
                src={docContent.url} 
                alt={selectedDoc} 
@@ -501,119 +320,26 @@ const DocumentViewer = ({ courseId, refreshTick = 0, onAnnotationsLoaded, onUplo
         ) : docContent?.data_table ? (
           /* ── DATA TABLE: Excel / CSV preview ── */
           <div className="space-y-4 pb-8 w-full max-w-full">
-            {activeParaIndex === -1 && (
-              <AnnotationForm
-                paraIndex={-1}
-                annotationType={annotationType}
-                setAnnotationType={setAnnotationType}
-                annotationText={annotationText}
-                setAnnotationText={setAnnotationText}
-                onSave={handleSaveAnnotation}
-                onCancel={() => { setActiveParaIndex(null); setAnnotationText(''); }}
-              />
-            )}
-            
-            {/* Table Annotations */}
-            {docContent.annotations?.length > 0 && (
-              <div className="w-full space-y-2 mb-4">
-                {docContent.annotations.map(ann => {
-                  const t = ANNOTATION_TYPES.find(x => x.id === ann.type) || ANNOTATION_TYPES[0];
-                  return (
-                    <div key={ann.id} className={`p-3 rounded-xl border-l-2 bg-surface-container/50 relative group/ann ${t.line}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-[10px] uppercase font-bold tracking-widest ${t.line.replace('border-', 'text-')}`}>{t.label}</span>
-                        <button onClick={() => handleDeleteAnnotation(ann.id)} className="opacity-0 group-hover/ann:opacity-100 text-error/60 hover:text-error transition-opacity">
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                        </button>
-                      </div>
-                      <p className="text-sm text-on-surface/90 whitespace-pre-wrap">{ann.content}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            
             <DataTable data={docContent.data_table} filename={selectedDoc} />
           </div>
 
         ) : docContent?.paragraphs ? (
           /* ── DOCX / TXT: paragraph view ── */
           <div className="max-w-3xl mx-auto space-y-2 pb-24">
-            {/* Global annotation form */}
-            {activeParaIndex === -1 && (
-              <AnnotationForm
-                paraIndex={-1}
-                annotationType={annotationType}
-                setAnnotationType={setAnnotationType}
-                annotationText={annotationText}
-                setAnnotationText={setAnnotationText}
-                onSave={handleSaveAnnotation}
-                onCancel={() => { setActiveParaIndex(null); setAnnotationText(''); }}
-              />
-            )}
-
             {docContent.paragraphs.map((para, i) => {
-              const style    = docContent.styles?.[i] || 'body';
-              const parasAnns = (docContent.annotations || []).filter(a => a.paragraph_index === i);
+              const style = docContent.styles?.[i] || 'body';
 
               let cssClass = 'text-on-surface-variant text-sm';
-              if (style === 'heading1')   cssClass = 'text-3xl font-black text-on-surface mt-12 mb-6 tracking-tight';
+              if (style === 'heading1')      cssClass = 'text-3xl font-black text-on-surface mt-12 mb-6 tracking-tight';
               else if (style === 'heading2') cssClass = 'text-xl font-bold text-primary mt-8 mb-4';
               else if (style === 'page_break') cssClass = 'text-[10px] uppercase tracking-widest text-on-surface-variant/40 text-center py-8 border-b border-outline-variant/5';
-              else if (style === 'list')   cssClass = 'text-sm text-on-surface pl-4 border-l-2 border-primary/30';
+              else if (style === 'list')     cssClass = 'text-sm text-on-surface pl-4 border-l-2 border-primary/30';
 
               if (style === 'page_break') return <div key={i} className={cssClass}>{para}</div>;
 
               return (
-                <div key={i} className="group relative pl-8 py-1 hover:bg-surface-container-high/30 rounded-r-xl transition-colors">
-                  <button
-                    onClick={() => { setActiveParaIndex(i); setAnnotationText(''); }}
-                    className="absolute left-0 top-1 opacity-0 group-hover:opacity-100 p-1 bg-surface-container-highest rounded-lg text-secondary border border-secondary/20 transition-all hover:scale-110 active:scale-95"
-                    title="Add Insight"
-                  >
-                    <span className="material-symbols-outlined text-sm">edit_note</span>
-                  </button>
-
+                <div key={i} className="py-1">
                   <div className={`${cssClass} leading-relaxed`}>{para}</div>
-
-                  {activeParaIndex === i && (
-                    <AnnotationForm
-                      paraIndex={i}
-                      annotationType={annotationType}
-                      setAnnotationType={setAnnotationType}
-                      annotationText={annotationText}
-                      setAnnotationText={setAnnotationText}
-                      onSave={handleSaveAnnotation}
-                      onCancel={() => { setActiveParaIndex(null); setAnnotationText(''); }}
-                    />
-                  )}
-
-                  {parasAnns.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {parasAnns.map(ann => {
-                        const t = ANNOTATION_TYPES.find(x => x.id === ann.type) || ANNOTATION_TYPES[0];
-                        return (
-                          <motion.div
-                            key={ann.id}
-                            initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-                            className={`ml-4 p-3 rounded-r-xl border-l-2 bg-surface-container/50 relative group/ann ${t.line}`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <div className={`flex items-center gap-1 ${t.line.replace('border-', 'text-')}`}>
-                                <span className="material-symbols-outlined text-xs">{t.icon}</span>
-                                <span className="text-[10px] uppercase font-bold tracking-widest">{t.label}</span>
-                              </div>
-                              <button onClick={() => handleDeleteAnnotation(ann.id)} className="opacity-0 group-hover/ann:opacity-100 text-error/60 hover:text-error transition-opacity">
-                                <span className="material-symbols-outlined text-sm">delete</span>
-                              </button>
-                            </div>
-                            <p className="text-sm text-on-surface/90 whitespace-pre-wrap">{ann.content}</p>
-                            <div className="text-[9px] text-on-surface-variant/40 mt-2 uppercase tracking-wider">{new Date(ann.created_at).toLocaleString()}</div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
               );
             })}
