@@ -9,7 +9,7 @@ const ANNOTATION_TYPES = [
     label: "Note",
     colorClass:
       "text-tertiary-fixed border-tertiary-fixed bg-tertiary-fixed/10",
-    lineClass: "border-tertiary-fixed",
+    lineClass: "before:border-tertiary-fixed",
     dotClass: "bg-tertiary-fixed",
   },
   {
@@ -17,7 +17,7 @@ const ANNOTATION_TYPES = [
     icon: "format_align_left",
     label: "Summary",
     colorClass: "text-secondary border-secondary bg-secondary/10",
-    lineClass: "border-secondary",
+    lineClass: "before:border-secondary",
     dotClass: "bg-secondary",
   },
   {
@@ -25,7 +25,7 @@ const ANNOTATION_TYPES = [
     icon: "stars",
     label: "Key Point",
     colorClass: "text-primary border-primary bg-primary/10",
-    lineClass: "border-primary",
+    lineClass: "before:border-primary",
     dotClass: "bg-primary",
   },
   {
@@ -33,7 +33,7 @@ const ANNOTATION_TYPES = [
     icon: "help_center",
     label: "Question",
     colorClass: "text-error border-error bg-error/10",
-    lineClass: "border-error",
+    lineClass: "before:border-error",
     dotClass: "bg-error",
   },
 ];
@@ -148,7 +148,7 @@ const InsightsPanel = ({ courseId, selectedDoc }) => {
             </span>
           )}
         </div>
-        <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-wider">
+        <p className="text-[10px] text-on-surface-variant/50 tracking-wider">
           {selectedDoc ? selectedDoc : "Select a document to add insights"}
         </p>
       </div>
@@ -162,7 +162,7 @@ const InsightsPanel = ({ courseId, selectedDoc }) => {
               key={t.id}
               type="button"
               onClick={() => setType(t.id)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all duration-200 ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider border transition-all duration-200 ${
                 type === t.id
                   ? t.colorClass
                   : "border-outline-variant/20 text-on-surface-variant/60 hover:border-outline-variant/50 hover:text-on-surface"
@@ -196,8 +196,8 @@ const InsightsPanel = ({ courseId, selectedDoc }) => {
             <span className="material-symbols-outlined text-on-surface-variant/50 text-sm">
               menu_book
             </span>
-            <span className="text-[10px] text-on-surface-variant/50 font-bold uppercase tracking-wider">
-              p.
+            <span className="text-[10px] text-on-surface-variant/50 font-bold tracking-wider">
+             Page Number :
             </span>
             <input
               type="number"
@@ -217,7 +217,7 @@ const InsightsPanel = ({ courseId, selectedDoc }) => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-secondary/10 text-secondary border border-secondary/20 text-[10px] font-bold uppercase tracking-widest"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-secondary/10 text-secondary border border-secondary/20 text-[10px] font-bold tracking-widest"
               >
                 <span className="material-symbols-outlined text-sm">
                   check_circle
@@ -233,7 +233,7 @@ const InsightsPanel = ({ courseId, selectedDoc }) => {
                 type="button"
                 onClick={handleSave}
                 disabled={!text.trim() || !selectedDoc || saving}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-secondary/10 text-secondary border border-secondary/20 hover:bg-secondary/20 transition-all text-[10px] font-bold uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-secondary/10 text-secondary border border-secondary/20 hover:bg-secondary/20 transition-all text-[10px] font-bold tracking-widest disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
               >
                 {saving ? (
                   <span className="w-3 h-3 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
@@ -258,7 +258,7 @@ const InsightsPanel = ({ courseId, selectedDoc }) => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <div className="w-6 h-6 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
-            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/40 font-bold">
+            <p className="text-[10px] tracking-widest text-on-surface-variant/40 font-bold">
               Loading insights…
             </p>
           </div>
@@ -267,7 +267,7 @@ const InsightsPanel = ({ courseId, selectedDoc }) => {
             <span className="material-symbols-outlined text-4xl text-on-surface-variant/20">
               lightbulb
             </span>
-            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/30 font-bold max-w-[160px]">
+            <p className="text-[10px] tracking-widest text-on-surface-variant/30 font-bold max-w-[160px]">
               Open a document to start capturing insights
             </p>
           </div>
@@ -276,7 +276,7 @@ const InsightsPanel = ({ courseId, selectedDoc }) => {
             <span className="material-symbols-outlined text-4xl text-on-surface-variant/20">
               edit_note
             </span>
-            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/30 font-bold max-w-[180px]">
+            <p className="text-[10px] tracking-widest text-on-surface-variant/30 font-bold max-w-[180px]">
               No insights yet — write your first one above
             </p>
           </div>
@@ -295,17 +295,17 @@ const InsightsPanel = ({ courseId, selectedDoc }) => {
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
                   className={`relative group/ann rounded-xl bg-surface-container/60 p-3 pr-8
   before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2
-  before:h-1/2 before:border-l-4 before:rounded-full ${t.lineClass}
+  before:h-3/5 before:border-l-4 before:rounded-full
+  ${t.lineClass}
   hover:bg-surface-container transition-colors`}
                 >
                   {/* Header row */}
                   <div className="flex items-center gap-2 mb-2">
                     {/* Type badge */}
                     <div
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider ${t.colorClass}`}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider ${t.colorClass}`}
                     >
                       <span className="material-symbols-outlined text-[10px]">
                         {t.icon}
@@ -315,7 +315,7 @@ const InsightsPanel = ({ courseId, selectedDoc }) => {
 
                     {/* Page badge */}
                     {pageLabel && (
-                      <span className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-surface-container-high border border-outline-variant/20 text-[9px] font-bold text-on-surface-variant/70 uppercase tracking-wider">
+                      <span className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-surface-container-high border border-outline-variant/20 text-[9px] font-bold text-on-surface-variant/70 tracking-wider">
                         <span className="material-symbols-outlined text-[10px]">
                           menu_book
                         </span>
