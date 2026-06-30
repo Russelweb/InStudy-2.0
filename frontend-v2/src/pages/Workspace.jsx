@@ -367,10 +367,10 @@ const Workspace = () => {
                   <button
                     onClick={() => { setIsMobileMenuOpen(false); setIsUploadOpen(true); }}
                     disabled={!courseId}
-                    className="w-full signature-gradient text-on-surface py-3 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-40 shadow-lg shadow-primary/10"
+                    className="w-full bg-on-primary text-on-surface py-3 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-40 shadow-lg shadow-primary/10"
                   >
                     <span className="material-symbols-outlined text-sm">add</span>
-                    <span>New Research</span>
+                    <span>New document</span>
                   </button>
                 </Sidebar>
               </motion.div>
@@ -394,11 +394,11 @@ const Workspace = () => {
             <button
               onClick={() => setIsUploadOpen(true)}
               disabled={!courseId}
-              className={`w-full signature-gradient text-on-surface py-3 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-primary/10 ${sidebarCollapsed ? 'px-0' : 'px-4'}`}
+              className={`w-full bg-on-primary-fixed-variant text-on-surface py-3 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-primary/10 ${sidebarCollapsed ? 'px-0' : 'px-4'}`}
               title="Initialize Data Stream"
             >
               <span className="material-symbols-outlined text-sm">add</span>
-              {!sidebarCollapsed && <span className="hidden md:block">New Research</span>}
+              {!sidebarCollapsed && <span className="hidden md:block">New document</span>}
             </button>
           </Sidebar>
         </div>
