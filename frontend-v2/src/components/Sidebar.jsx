@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { authService } from "../services/api";
 
 // ---------------------------------------------------------------------------
@@ -124,6 +124,7 @@ const Sidebar = ({
         {!isCollapsed && (
           <div>
             <h1 className="text-2xl font-black text-[#bd9dff] tracking-tighter">
+           
               InStudy 2.0
             </h1>
             <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 mt-1">

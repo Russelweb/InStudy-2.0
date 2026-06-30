@@ -296,13 +296,13 @@ const Planner = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 group-hover:opacity-100 transition-opacity opacity-0 pointer-events-none"></div>
                 
                 <div className="relative text-center mb-6 md:mb-10">
-                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-[#551a8b] bg-clip-text text-transparent">Study Planner</h1>
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter mb-2 md:mb-3 bg-primary bg-clip-text text-transparent">Study Planner</h1>
                   <p className="text-on-surface-variant text-xs sm:text-sm font-medium">Set your exam date, add your topics, and get a personalised day-by-day plan.</p>
                 </div>
 
                 <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Target Course</label>
+                    <label className="text-[12px] font-black text-primary">Target Course</label>
                     <div className="relative">
                       <select 
                         value={selectedCourse}
@@ -317,7 +317,7 @@ const Planner = () => {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Objective Deadline</label>
+                    <label className="text-[12px] font-black text-primary">Objective Deadline</label>
                     <input 
                       type="date"
                       value={examDate}
@@ -329,11 +329,11 @@ const Planner = () => {
 
                 <div className="relative mt-8 space-y-3">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Core Topics</label>
+                    <label className="text-[12px] font-black text-primary">Core Topics</label>
                     <button 
                       onClick={discoverTopics} 
                       disabled={!selectedCourse || isDiscovering}
-                      className="text-[10px] font-bold text-secondary flex items-center gap-1.5 hover:opacity-80 transition-opacity disabled:opacity-30"
+                      className="text-[12px] font-bold text-secondary flex items-center gap-1.5 hover:opacity-80 transition-opacity disabled:opacity-30"
                     >
                       <span className={`material-symbols-outlined text-[14px] ${isDiscovering ? 'animate-spin' : ''}`}>psychology_alt</span>
                       {isDiscovering ? 'Discovering...' : 'Smart Topic Discovery'}
@@ -360,14 +360,14 @@ const Planner = () => {
                       onKeyDown={(e) => e.key === 'Enter' && addTopic()}
                     />
                     {newTopic && (
-                      <button onClick={addTopic} className="text-secondary hover:text-secondary-fixed text-xs font-black uppercase tracking-widest ml-auto">Add</button>
+                      <button onClick={addTopic} className="text-secondary hover:text-secondary-fixed text-xs font-black tracking-widest ml-auto">Add</button>
                     )}
                   </div>
                 </div>
 
                 {/* Focus Topic */}
                 <div className="relative mt-6 space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Focus Topic (Optional)</label>
+                  <label className="text-[12px] font-black text-primary">Focus Topic (Optional)</label>
                   <input
                     type="text"
                     value={focusTopic}
@@ -389,26 +389,26 @@ const Planner = () => {
                     <div className="flex items-start gap-3">
                       <span className="material-symbols-outlined text-primary text-xl shrink-0 mt-0.5">psychology</span>
                       <div className="min-w-0">
-                        <p className="text-xs font-black text-primary uppercase tracking-widest mb-2">Mastery-Aware Plan</p>
+                        <p className="text-xs font-black text-primary tracking-widest mb-2">Mastery-Aware Plan</p>
                         <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">
                           Your plan will prioritise the topics you're weakest on based on your quiz and flashcard history.
                         </p>
                         {masteryInsight.urgent.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mb-1.5">
-                            <span className="text-[9px] font-black text-error uppercase tracking-widest shrink-0 mt-0.5">Urgent:</span>
+                            <span className="text-[9px] font-black text-error tracking-widest shrink-0 mt-0.5">Urgent:</span>
                             {masteryInsight.urgent.slice(0, 4).map((c, i) => (
-                              <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-error/10 border border-error/20 text-error font-bold">{c}</span>
+                              <span key={i} className="text-[12px] px-2 py-0.5 rounded-full bg-error/10 border border-error/20 text-error font-bold">{c}</span>
                             ))}
-                            {masteryInsight.urgent.length > 4 && <span className="text-[10px] text-error/60">+{masteryInsight.urgent.length - 4} more</span>}
+                            {masteryInsight.urgent.length > 4 && <span className="text-[12px] text-error/60">+{masteryInsight.urgent.length - 4} more</span>}
                           </div>
                         )}
                         {masteryInsight.review.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
-                            <span className="text-[9px] font-black text-primary uppercase tracking-widest shrink-0 mt-0.5">Review:</span>
+                            <span className="text-[9px] font-black text-primary tracking-widest shrink-0 mt-0.5">Review:</span>
                             {masteryInsight.review.slice(0, 4).map((c, i) => (
-                              <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold">{c}</span>
+                              <span key={i} className="text-[12px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold">{c}</span>
                             ))}
-                            {masteryInsight.review.length > 4 && <span className="text-[10px] text-primary/60">+{masteryInsight.review.length - 4} more</span>}
+                            {masteryInsight.review.length > 4 && <span className="text-[12px] text-primary/60">+{masteryInsight.review.length - 4} more</span>}
                           </div>
                         )}
                       </div>
@@ -419,7 +419,7 @@ const Planner = () => {
                 <button 
                   onClick={synthesizePlan}
                   disabled={!selectedCourse || !examDate}
-                  className="relative z-10 w-full mt-10 bg-[#551a8b] text-on-white font-black py-5 rounded-2xl shadow-xl shadow-primary/14 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale uppercase tracking-widest text-sm cursor-pointer"
+                  className="relative z-10 w-full mt-10 bg-[#551a8b] text-on-white font-black py-5 rounded-2xl shadow-xl shadow-primary/14 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale tracking-widest text-sm cursor-pointer"
                 >
                   Generate Study Plan
                 </button>
@@ -485,7 +485,7 @@ const Planner = () => {
                     <div>
                       <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter">Your Study Plan</h2>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
-                        <span className="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-secondary border border-secondary/20 flex items-center gap-1.5">
+                        <span className="px-3 py-1 bg-surface-container-highest rounded-full text-[12px] font-bold tracking-widest text-secondary border border-secondary/20 flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
                           Active Strategy
                         </span>
@@ -500,7 +500,7 @@ const Planner = () => {
                               className="h-full bg-secondary rounded-full"
                             />
                           </div>
-                          <span className="text-[10px] font-bold text-secondary">{doneCount}/{allTasks.length} · {pct}%</span>
+                          <span className="text-[12px] font-bold text-secondary">{doneCount}/{allTasks.length} · {pct}%</span>
                         </div>
                       )}
                     </div>
@@ -508,7 +508,7 @@ const Planner = () => {
                       <button
                         onClick={handleSavePlan}
                         disabled={isSaving}
-                        className="px-5 py-3 rounded-xl bg-secondary/10 text-secondary border border-secondary/20 font-bold text-xs uppercase tracking-widest hover:bg-secondary/20 transition-all disabled:opacity-50"
+                        className="px-5 py-3 rounded-xl bg-secondary/10 text-secondary border border-secondary/20 font-bold text-xs tracking-widest hover:bg-secondary/20 transition-all disabled:opacity-50"
                       >
                         {isSaving ? 'Saving...' : 'Save Plan'}
                       </button>                      <button
@@ -521,7 +521,7 @@ const Planner = () => {
                       <button onClick={() => window.print()} className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-on-surface transition-colors shadow-sm">
                         <span className="material-symbols-outlined">print</span>
                       </button>
-                      <button onClick={() => setStep('setup')} className="px-5 py-3 rounded-xl bg-primary/10 text-primary border border-primary/20 font-bold text-xs uppercase tracking-widest hover:bg-primary/20 transition-all">
+                      <button onClick={() => setStep('setup')} className="px-5 py-3 rounded-xl bg-primary/10 text-primary border border-primary/20 font-bold text-xs tracking-widest hover:bg-primary/20 transition-all">
                         Modify Settings
                       </button>
                     </div>
@@ -534,7 +534,7 @@ const Planner = () => {
                   <div key={wIdx} className="space-y-8">
                     <div className="relative flex items-center gap-4 mb-4">
                         <div className="absolute -left-[54px] w-4 h-4 rounded-full bg-background border-2 border-primary ring-4 ring-primary/10 shadow-[0_0_15px_rgba(189,157,255,0.4)]"></div>
-                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-primary-fixed-dim bg-primary/5 px-4 py-1 rounded-full border border-primary/10 flex items-center gap-2">
+                        <h3 className="text-xs font-black tracking-[0.3em] text-primary-fixed-dim bg-primary/5 px-4 py-1 rounded-full border border-primary/10 flex items-center gap-2">
                              <span className="material-symbols-outlined text-sm">hub</span>
                              Week {week.week_number}: {week.focus}
                         </h3>
@@ -557,10 +557,10 @@ const Planner = () => {
                           <div className={`backdrop-blur-md border p-6 rounded-2xl transition-all shadow-sm group-hover:shadow-xl ${dayComplete ? 'bg-secondary/5 border-secondary/30' : 'bg-surface-container-low/50 border-outline-variant/15 group-hover:border-secondary/30 group-hover:bg-surface-container-low'}`}>
                             <div className="flex justify-between items-start mb-4">
                               <div>
-                                <span className="text-[10px] font-black uppercase tracking-[0.15em] text-on-surface-variant group-hover:text-secondary transition-colors">{day.day}</span>
+                                <span className="text-[12px] font-black tracking-[0.15em] text-on-surface-variant group-hover:text-secondary transition-colors">{day.day}</span>
                                 <h4 className="text-lg font-bold text-on-surface flex items-center gap-2">
                                   {day.tasks?.[0] || 'Core Reinforcement'}
-                                  {day.duration && <span className="text-[10px] font-mono text-on-surface-variant/60 ml-2">({day.duration})</span>}
+                                  {day.duration && <span className="text-[12px] font-mono text-on-surface-variant/60 ml-2">({day.duration})</span>}
                                 </h4>
                               </div>
                               <span className={`px-3 py-1 text-[9px] font-bold rounded-full border ${dayComplete ? 'bg-secondary/10 text-secondary border-secondary/30' : dayTasksDone > 0 ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface-variant/50 text-on-surface-variant border-outline-variant/10'}`}>
