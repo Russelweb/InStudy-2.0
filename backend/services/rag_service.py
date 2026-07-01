@@ -603,6 +603,8 @@ You MUST respond entirely in {detected_lang}.
             search_query = question
             detected_lang = "English"
 
+        is_quick_chat = "[QUICK_CHAT]" in question
+
         if vector_store:
             logger.info("Retrieving relevant documents...")
             
@@ -706,7 +708,11 @@ You MUST respond entirely in {detected_lang}.
 
                     explanation_format = ""
                     if is_quick_chat:
-                        explanation_format = f"Provide an extremely concise, direct answer in 2-3 sentences max. Do NOT use lists or structured sections. You MUST respond entirely in {detected_lang}."
+                        explanation_format = (
+                            f"Respond as a polished Aura quick answer in 1-2 short sentences. "
+                            "Do NOT use lists, numbered points, or section headers. "
+                            f"Keep it direct, easy to read, and entirely in {detected_lang}."
+                        )
                     else:
                         explanation_format = """Provide a structured explanation:
 1. Concept Definition (mention page numbers if relevant)
@@ -749,9 +755,9 @@ COURSE-WIDE INSTRUCTION:
                 # Extract text content
                 response = response if isinstance(response, str) else getattr(response, 'content', str(response))
                 
-                # Add disclaimer
-                disclaimer = "\n\n---\n*InStudy AI can make mistakes. Please verify important information with your original study materials.*"
-                response += disclaimer
+                if not is_quick_chat:
+                    disclaimer = "\n\n---\n*InStudy AI can make mistakes. Please verify important information with your original study materials.*"
+                    response += disclaimer
                 
                 # Add to conversation memory
                 self._add_to_memory(user_id, course_id, question, response)
@@ -819,9 +825,9 @@ Identify the language of the 'Current Question'. Respond ENTIRELY in that same l
         # Extract text content (handles both strings from Ollama and objects from Groq)
         response = response if isinstance(response, str) else getattr(response, 'content', str(response))
         
-        # Add disclaimer
-        disclaimer = "\n\n---\n*InStudy AI can make mistakes. Please verify important information with your original study materials.*"
-        response += disclaimer
+        if not is_quick_chat:
+            disclaimer = "\n\n---\n*InStudy AI can make mistakes. Please verify important information with your original study materials.*"
+            response += disclaimer
         
         # Add to conversation memory
         self._add_to_memory(user_id, course_id, question, response)
