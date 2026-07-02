@@ -1069,12 +1069,12 @@ const Dashboard = () => {
                     >
                       <p className="text-xs text-on-surface mb-1 line-clamp-2">
                         {q.question}
-                      </p>
+                      </p>   
                       <span className="text-[10px] text-on-surface-variant font-mono uppercase tracking-widest">
                         {q.course || "General"}
                       </span>
                     </div>
-                  </Link>
+                  </Link>    
                 ))
               ) : (
                 <p className="text-xs text-on-surface-variant text-center py-4">

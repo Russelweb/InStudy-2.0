@@ -203,10 +203,10 @@ const SummaryView = () => {
               <h2 className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-on-surface break-words">
                 {summaryData.courseName} - Course
               </h2>
-            </div>
+            </div>   
             <div className="flex gap-2 flex-wrap justify-end">
               <button
-                onClick={handleExport}
+                onClick={handleExport}   
                 className="p-2 md:p-3 bg-surface-container-highest rounded-xl text-on-surface-variant hover:text-on-surface transition-colors border border-outline-variant/15"
                 title="Download as text file"
               >

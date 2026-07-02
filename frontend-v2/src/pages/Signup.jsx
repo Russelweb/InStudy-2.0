@@ -12,7 +12,7 @@ const containerVariants = {
     transition: { staggerChildren: 0.09, delayChildren: 0.15 },
   },
 };
-
+   
 const itemVariants = {
   hidden: { opacity: 0, y: 24, filter: 'blur(6px)' },
   visible: {
@@ -20,7 +20,7 @@ const itemVariants = {
     y: 0,
     filter: 'blur(0px)',
     transition: { duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94] },
-  },
+  },    
 };
 
 const cardVariants = {
